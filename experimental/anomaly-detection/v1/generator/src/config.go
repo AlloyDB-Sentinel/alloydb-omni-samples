@@ -5,10 +5,13 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/netip"
 	"os"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	cfgpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/generator/proto"
 )
@@ -44,7 +47,7 @@ func isFiniteNonNegative(v float64) bool {
 
 // validateConfigs ensures logical integrity of the loaded configurations.
 func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
-	// Identify scenario: Weighted or Bucket sampling.
+	// Identify scenario: Weighted, Bucket or Connection sampling.
 	if configs.GetWeightedSampling() != nil {
 		cfgs := configs.GetWeightedSampling().GetQueryTemplateConfigs()
 		if len(cfgs) == 0 {
@@ -83,27 +86,11 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 			if simCfg == nil {
 				return fmt.Errorf("config[%d]: bucket_config cannot be nil under bucket_sampling scenario", i)
 			}
-			if !isFiniteNonNegative(simCfg.GetQueriesPerBucketMean()) {
-				return fmt.Errorf("config[%d]: queries_per_bucket_mean must be finite and non-negative", i)
-			}
-			if !isFiniteNonNegative(simCfg.GetQueriesVariationStdDev()) {
-				return fmt.Errorf("config[%d]: queries_variation_std_dev must be finite and non-negative", i)
-			}
-			if simCfg.GetAnomalousSpikeProbability() < 0.0 || simCfg.GetAnomalousSpikeProbability() > 1.0 || math.IsNaN(simCfg.GetAnomalousSpikeProbability()) {
-				return fmt.Errorf("config[%d]: anomalous_spike_probability must be between 0.0 and 1.0", i)
-			}
-			if !isFiniteNonNegative(simCfg.GetAnomalousSpikeMultiplier()) {
-				return fmt.Errorf("config[%d]: anomalous_spike_multiplier must be finite and non-negative", i)
-			}
-			if !isFiniteNonNegative(simCfg.GetWeekendTrafficMultiplier()) {
-				return fmt.Errorf("config[%d]: weekend_traffic_multiplier must be finite and non-negative", i)
+			if err := validateBucketSimulationConfig(i, simCfg); err != nil {
+				return err
 			}
 			if simCfg.GetQueriesPerBucketMean() > 0 {
 				hasPositiveMean = true
-			}
-
-			if err := validatePeakWindows(i, simCfg.GetPeakWindows()); err != nil {
-				return err
 			}
 
 			if err := validateQueryTemplate(i, bCfg.GetTemplate()); err != nil {
@@ -115,11 +102,164 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 			return fmt.Errorf("at least one template must have a queries_per_bucket_mean > 0 for bucket_sampling")
 		}
 
+	} else if configs.GetConnectionSampling() != nil {
+		if err := validateConnectionSampling(configs.GetConnectionSampling()); err != nil {
+			return err
+		}
+
 	} else {
-		return fmt.Errorf("configuration must specify either weighted_sampling or bucket_sampling")
+		return fmt.Errorf("configuration must specify either weighted_sampling, bucket_sampling or connection_sampling")
 	}
 
 	return nil
+}
+
+// validateBucketSimulationConfig checks the traffic settings shared by bucket_sampling templates
+// and connection_sampling profiles that use bucket_traffic.
+func validateBucketSimulationConfig(i int, simCfg *cfgpb.BucketSimulationConfig) error {
+	if !isFiniteNonNegative(simCfg.GetQueriesPerBucketMean()) {
+		return fmt.Errorf("config[%d]: queries_per_bucket_mean must be finite and non-negative", i)
+	}
+	if !isFiniteNonNegative(simCfg.GetQueriesVariationStdDev()) {
+		return fmt.Errorf("config[%d]: queries_variation_std_dev must be finite and non-negative", i)
+	}
+	if simCfg.GetAnomalousSpikeProbability() < 0.0 || simCfg.GetAnomalousSpikeProbability() > 1.0 || math.IsNaN(simCfg.GetAnomalousSpikeProbability()) {
+		return fmt.Errorf("config[%d]: anomalous_spike_probability must be between 0.0 and 1.0", i)
+	}
+	if !isFiniteNonNegative(simCfg.GetAnomalousSpikeMultiplier()) {
+		return fmt.Errorf("config[%d]: anomalous_spike_multiplier must be finite and non-negative", i)
+	}
+	if !isFiniteNonNegative(simCfg.GetWeekendTrafficMultiplier()) {
+		return fmt.Errorf("config[%d]: weekend_traffic_multiplier must be finite and non-negative", i)
+	}
+	return validatePeakWindows(i, simCfg.GetPeakWindows())
+}
+
+// validateConnectionSampling ensures every client profile can produce connection log entries.
+func validateConnectionSampling(connectionCfg *cfgpb.ConnectionSamplingConfig) error {
+	profiles := connectionCfg.GetClientProfiles()
+	if len(profiles) == 0 {
+		return fmt.Errorf("configuration contains no client profiles")
+	}
+	for i, profile := range profiles {
+		if err := validateClientAddressPool(i, profile.GetClientAddressPool()); err != nil {
+			return err
+		}
+		if err := validateOutcomeWeights(i, profile); err != nil {
+			return err
+		}
+		if err := validateConnectionSchedule(i, profile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateClientAddressPool ensures a profile has at least one well-formed address or CIDR range.
+func validateClientAddressPool(i int, pool *cfgpb.ClientAddressPool) error {
+	if len(pool.GetAddresses()) == 0 && len(pool.GetCidrRanges()) == 0 {
+		return fmt.Errorf("config[%d]: client_address_pool must contain at least one address or cidr_range", i)
+	}
+	for j, address := range pool.GetAddresses() {
+		if _, err := netip.ParseAddr(address); err != nil {
+			return fmt.Errorf("config[%d].client_address_pool.addresses[%d]: invalid IP address %q: %w", i, j, address, err)
+		}
+	}
+	for j, cidrRange := range pool.GetCidrRanges() {
+		if _, err := netip.ParsePrefix(cidrRange); err != nil {
+			return fmt.Errorf("config[%d].client_address_pool.cidr_ranges[%d]: invalid CIDR range %q: %w", i, j, cidrRange, err)
+		}
+	}
+	return nil
+}
+
+// validateOutcomeWeights ensures outcome weights are usable and that authorized connections name a db_user.
+func validateOutcomeWeights(i int, profile *cfgpb.ClientProfile) error {
+	weights := profile.GetOutcomeWeights()
+
+	// An empty list defaults to authorized connections only.
+	canBeAuthorized := len(weights) == 0
+	var totalWeight float64
+	for j, outcomeWeight := range weights {
+		if outcomeWeight.GetOutcome() == cfgpb.ConnectionOutcome_CONNECTION_OUTCOME_UNSPECIFIED {
+			return fmt.Errorf("config[%d].outcome_weights[%d]: outcome must be specified", i, j)
+		}
+		if !isFiniteNonNegative(outcomeWeight.GetWeight()) {
+			return fmt.Errorf("config[%d].outcome_weights[%d]: weight must be finite and non-negative", i, j)
+		}
+		totalWeight += outcomeWeight.GetWeight()
+		if outcomeWeight.GetOutcome() == cfgpb.ConnectionOutcome_CONNECTION_OUTCOME_AUTHORIZED && outcomeWeight.GetWeight() > 0 {
+			canBeAuthorized = true
+		}
+	}
+	if len(weights) > 0 && totalWeight == 0 {
+		return fmt.Errorf("config[%d]: at least one outcome weight must be positive", i)
+	}
+	if math.IsInf(totalWeight, 1) {
+		return fmt.Errorf("config[%d]: total outcome weight exceeds maximum representable float64 value", i)
+	}
+
+	// PostgreSQL only logs "connection authorized" after resolving the user.
+	if canBeAuthorized && profile.GetDbUser() == "" {
+		return fmt.Errorf("config[%d]: db_user is required when connections can be authorized", i)
+	}
+	return nil
+}
+
+// validateConnectionSchedule ensures exactly one schedule is set and its timing values are usable.
+func validateConnectionSchedule(i int, profile *cfgpb.ClientProfile) error {
+	if bucketTraffic := profile.GetBucketTraffic(); bucketTraffic != nil {
+		return validateBucketSimulationConfig(i, bucketTraffic)
+	}
+
+	if periodic := profile.GetPeriodic(); periodic != nil {
+		interval, err := durationOrError(periodic.GetInterval())
+		if err != nil || interval <= 0 {
+			return fmt.Errorf("config[%d].periodic: interval must be a positive duration", i)
+		}
+		// A missing jitter means connections land exactly on the interval.
+		var jitter time.Duration
+		if periodic.HasJitter() {
+			jitter, err = durationOrError(periodic.GetJitter())
+			if err != nil || jitter < 0 {
+				return fmt.Errorf("config[%d].periodic: jitter must be a non-negative duration", i)
+			}
+		}
+		if jitter >= interval {
+			return fmt.Errorf("config[%d].periodic: jitter (%v) must be less than interval (%v)", i, jitter, interval)
+		}
+		return nil
+	}
+
+	if burst := profile.GetBurst(); burst != nil {
+		if !isFiniteNonNegative(burst.GetBurstsPerDay()) || burst.GetBurstsPerDay() == 0 {
+			return fmt.Errorf("config[%d].burst: bursts_per_day must be finite and positive", i)
+		}
+		if !isFiniteNonNegative(burst.GetConnectionsPerBurstMean()) || burst.GetConnectionsPerBurstMean() == 0 {
+			return fmt.Errorf("config[%d].burst: connections_per_burst_mean must be finite and positive", i)
+		}
+		if !isFiniteNonNegative(burst.GetConnectionsPerBurstStdDev()) {
+			return fmt.Errorf("config[%d].burst: connections_per_burst_std_dev must be finite and non-negative", i)
+		}
+		burstDuration, err := durationOrError(burst.GetBurstDuration())
+		if err != nil || burstDuration <= 0 {
+			return fmt.Errorf("config[%d].burst: burst_duration must be a positive duration", i)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("config[%d]: one of bucket_traffic, periodic or burst must be set", i)
+}
+
+// durationOrError converts a protobuf Duration, rejecting missing or malformed values.
+func durationOrError(protoDuration *durationpb.Duration) (time.Duration, error) {
+	if protoDuration == nil {
+		return 0, fmt.Errorf("duration is not set")
+	}
+	if err := protoDuration.CheckValid(); err != nil {
+		return 0, err
+	}
+	return protoDuration.AsDuration(), nil
 }
 
 func validatePeakWindows(i int, windows []*cfgpb.PeakWindow) error {

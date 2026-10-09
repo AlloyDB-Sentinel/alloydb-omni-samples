@@ -516,6 +516,312 @@ bucket_sampling {
 }`, &cfgpb.QueryTemplateConfigs{}),
 			wantErr: false,
 		},
+
+		// Connection Sampling Checks.
+		{
+			name: "connection_no_client_profiles",
+			input: parseProto(t, `
+connection_sampling {
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_empty_address_pool",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_invalid_address",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.256" }
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_invalid_cidr_range",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/33" }
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_unspecified_outcome",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		outcome_weights: { weight: 1.0 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_negative_outcome_weight",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTHORIZED weight: -1.0 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_all_outcome_weights_zero",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 0.0 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_default_authorized_without_db_user",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_authorized_weight_without_db_user",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTHORIZED weight: 0.1 }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 0.9 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_no_schedule",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_bucket_traffic_invalid_spike_probability",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		bucket_traffic: { queries_per_bucket_mean: 10.0 anomalous_spike_probability: 1.5 }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_bucket_traffic_overlapping_peak_windows",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		bucket_traffic: {
+			queries_per_bucket_mean: 10.0
+			peak_windows: { window_name: "w1" hour_start: 9 hour_end: 14 multiplier: 1.5 }
+			peak_windows: { window_name: "w2" hour_start: 12 hour_end: 17 multiplier: 1.5 }
+		}
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_periodic_missing_interval",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 1.0 }
+		periodic: { }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_periodic_negative_jitter",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 1.0 }
+		periodic: { interval: { seconds: 600 } jitter: { seconds: -60 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_periodic_jitter_not_less_than_interval",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 1.0 }
+		periodic: { interval: { seconds: 600 } jitter: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_burst_zero_bursts_per_day",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "198.51.100.23" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 1.0 }
+		burst: { connections_per_burst_mean: 500.0 burst_duration: { seconds: 300 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_burst_zero_connections_per_burst",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "198.51.100.23" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 1.0 }
+		burst: { bursts_per_day: 0.5 burst_duration: { seconds: 300 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_burst_nan_std_dev",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "198.51.100.23" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 1.0 }
+		burst: {
+			bursts_per_day: 0.5
+			connections_per_burst_mean: 500.0
+			connections_per_burst_std_dev: nan
+			burst_duration: { seconds: 300 }
+		}
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_burst_missing_duration",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "198.51.100.23" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 1.0 }
+		burst: { bursts_per_day: 0.5 connections_per_burst_mean: 500.0 }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_second_profile_invalid",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+	client_profiles: {
+		client_address_pool: { addresses: "not-an-ip" }
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "valid_connection_sampling",
+			input: parseProto(t, `
+connection_sampling {
+	source: { project: "test-project" cluster_id: "test-cluster" instance_id: "primary" node_id: "v1" }
+	client_profiles: {
+		profile_name: "app-server"
+		client_address_pool: { addresses: "10.0.0.12" addresses: "::1" }
+		db_user: "app"
+		bucket_traffic: {
+			queries_per_bucket_mean: 40.0
+			queries_variation_std_dev: 8.0
+			peak_windows: { window_name: "day" hour_start: 9 hour_end: 17 multiplier: 3.0 }
+		}
+		active_window: ACTIVE_WINDOW_ALL
+	}
+	client_profiles: {
+		profile_name: "internet-scanner"
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 0.7 }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 0.3 }
+		periodic: { interval: { seconds: 600 } jitter: { seconds: 60 } }
+		active_window: ACTIVE_WINDOW_TEST_ONLY
+		attacker_profile: ATTACKER_PROFILE_INTERNET_SCANNER
+	}
+	client_profiles: {
+		profile_name: "burst-attacker"
+		client_address_pool: { addresses: "198.51.100.23" }
+		db_user: "postgres"
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 0.98 }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTHORIZED weight: 0.02 }
+		burst: {
+			bursts_per_day: 0.5
+			connections_per_burst_mean: 500.0
+			connections_per_burst_std_dev: 100.0
+			burst_duration: { seconds: 300 }
+		}
+		active_window: ACTIVE_WINDOW_TEST_ONLY
+		attacker_profile: ATTACKER_PROFILE_BURST_ATTACKER
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+		{
+			name: "valid_connection_periodic_without_jitter",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 1.0 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -693,5 +999,17 @@ bucket_sampling {
 				}
 			}
 		})
+	}
+}
+
+func TestLoadConfigsConnectionExample(t *testing.T) {
+	// Keeps the checked-in example connection config in sync with the schema and validation rules.
+	examplePath := filepath.Join("..", "..", "client", "connection_generator_config.textproto")
+	configs, err := loadConfigs(context.Background(), examplePath)
+	if err != nil {
+		t.Fatalf("loadConfigs(%q) error = %v, want nil", examplePath, err)
+	}
+	if got := len(configs.GetConnectionSampling().GetClientProfiles()); got == 0 {
+		t.Errorf("loadConfigs(%q) returned %d client profiles, want at least 1", examplePath, got)
 	}
 }

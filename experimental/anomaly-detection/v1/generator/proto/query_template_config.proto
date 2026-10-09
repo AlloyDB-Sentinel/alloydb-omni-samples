@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package experimental.anomaly_detection.v1.generator.proto;
 
+import "google/protobuf/duration.proto";
+import "v1/generator/proto/connection_log_entry.proto";
+
 option go_package = "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/generator/proto;generatorpb";
 
 // Query template configuration schema for synthetic data generation tool.
@@ -9,6 +12,7 @@ message QueryTemplateConfigs {
   oneof scenario {
     WeightedSamplingConfig weighted_sampling = 1;
     BucketSamplingConfig bucket_sampling = 2;
+    ConnectionSamplingConfig connection_sampling = 3;
   }
 }
 
@@ -96,4 +100,103 @@ message PeakWindow {
   int32 hour_start = 2;
   int32 hour_end = 3;
   double multiplier = 4;
+}
+
+// Connection log scenario. The simulated time range, train/test split and bucket size are set by the
+// generator's existing --start_time_ms, --train_end_time_ms, --end_time_ms and
+// --bucket_size_minutes flags.
+message ConnectionSamplingConfig {
+  // AlloyDB instance stamped on every generated ConnectionLogEntry.
+  SourceInstance source = 1;
+
+  repeated ClientProfile client_profiles = 2;
+}
+
+// One group of clients that connect the same way, e.g. an application server
+// pool, a monitoring agent or an attacker.
+message ClientProfile {
+  // "billing-api", "internet-scanner" or custom values.
+  string profile_name = 1;
+
+  // Addresses the profile connects from. One is picked per connection.
+  ClientAddressPool client_address_pool = 2;
+
+  // Empty for profiles that never authenticate.
+  string db_user = 3;
+  string db_name = 4;
+  string application_name = 5;
+
+  // e.g. "trust" or "scram-sha-256".
+  string auth_method = 6;
+
+  // Relative weights of each connection outcome. Defaults to AUTHORIZED only
+  // when empty.
+  repeated OutcomeWeight outcome_weights = 7;
+
+  // When connections happen.
+  oneof schedule {
+    // Steady traffic with peak hours and weekend behaviour. The "queries" fields
+    // are read as connections per bucket; db_user is ignored.
+    BucketSimulationConfig bucket_traffic = 8;
+
+    // Fixed-interval connections, e.g. an internet scanner.
+    PeriodicSchedule periodic = 9;
+
+    // Rare high-volume bursts, e.g. an active attacker.
+    BurstSchedule burst = 10;
+  }
+
+  // Part of the simulated time range the profile is active in.
+  ActiveWindow active_window = 11;
+
+  // Ground truth for every connection from this profile. Connections are
+  // labeled anomalous when this is not ATTACKER_PROFILE_UNSPECIFIED.
+  AttackerProfile attacker_profile = 12;
+}
+
+message ClientAddressPool {
+  // Exact addresses, e.g. "10.0.0.12".
+  repeated string addresses = 1;
+
+  // Ranges a random address is drawn from, e.g. "203.0.113.0/24".
+  repeated string cidr_ranges = 2;
+}
+
+message OutcomeWeight {
+  ConnectionOutcome outcome = 1;
+  double weight = 2;
+}
+
+message PeriodicSchedule {
+  // Time between connections, e.g. 10 minutes.
+  google.protobuf.Duration interval = 1;
+
+  // Maximum random offset added to each connection time.
+  google.protobuf.Duration jitter = 2;
+}
+
+message BurstSchedule {
+  // Expected number of bursts per day while the profile is active.
+  double bursts_per_day = 1;
+
+  // Number of connections in one burst.
+  double connections_per_burst_mean = 2;
+  double connections_per_burst_std_dev = 3;
+
+  // Time span one burst is spread across.
+  google.protobuf.Duration burst_duration = 4;
+}
+
+enum ActiveWindow {
+  // Treated as ACTIVE_WINDOW_ALL.
+  ACTIVE_WINDOW_UNSPECIFIED = 0;
+
+  // Active in both the training and test ranges.
+  ACTIVE_WINDOW_ALL = 1;
+
+  // Active only after --train_end_time_ms, e.g. a new attacker.
+  ACTIVE_WINDOW_TEST_ONLY = 2;
+
+  // Active only before --train_end_time_ms, e.g. a retired client.
+  ACTIVE_WINDOW_TRAINING_ONLY = 3;
 }
