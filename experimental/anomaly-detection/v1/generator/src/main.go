@@ -57,6 +57,9 @@ func main() {
 	} else if bSampling := configs.GetBucketSampling(); bSampling != nil {
 		log.Printf("Successfully loaded and validated %d query templates (Bucket Sampling).", len(bSampling.GetQueryTemplateConfigs()))
 		log.Printf("Configuration applied - Output Dir: %q, Start: %d, End: %d, Bucket Size: %d min", *outputDir, *startTimeMs, *endTimeMs, *bucketSizeMinutes)
+	} else if cSampling := configs.GetConnectionSampling(); cSampling != nil {
+		log.Printf("Successfully loaded and validated %d client profiles (Connection Sampling).", len(cSampling.GetClientProfiles()))
+		log.Printf("Configuration applied - Output Dir: %q, Start: %d, End: %d, Bucket Size: %d min", *outputDir, *startTimeMs, *endTimeMs, *bucketSizeMinutes)
 	}
 
 	if err := GenerateLogs(ctx, configs, *numLogs, rand.Int63(), *outputDir); err != nil {
@@ -84,8 +87,8 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 		return fmt.Errorf("configs must be loaded before validating scenario flags")
 	}
 
-	// Scenario 2: Bucket sampling.
-	if configs.GetBucketSampling() != nil {
+	// Scenario 2 and connection sampling: time-range based generation.
+	if configs.GetBucketSampling() != nil || configs.GetConnectionSampling() != nil {
 		if *bucketSizeMinutes <= 0 {
 			return fmt.Errorf("--bucket_size_minutes must be positive, got %d", *bucketSizeMinutes)
 		}
@@ -132,6 +135,19 @@ func GenerateLogs(ctx context.Context, configs *genpb.QueryTemplateConfigs, numL
 	// Scenario 2: Bucket sampling.
 	if configs.GetBucketSampling() != nil {
 		return GenerateLogsBucketByBucket(configs, rng, w)
+	}
+
+	// Connection sampling.
+	if connectionCfg := configs.GetConnectionSampling(); connectionCfg != nil {
+		return GenerateConnectionLogs(
+			connectionCfg,
+			time.UnixMilli(*startTimeMs),
+			time.UnixMilli(*trainEndTimeMs),
+			time.UnixMilli(*endTimeMs),
+			time.Duration(*bucketSizeMinutes)*time.Minute,
+			rng,
+			w,
+		)
 	}
 
 	// Scenario 1: Weighted random sampling.
