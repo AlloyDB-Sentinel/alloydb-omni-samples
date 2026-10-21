@@ -13,7 +13,58 @@ message QueryTemplateConfigs {
     WeightedSamplingConfig weighted_sampling = 1;
     BucketSamplingConfig bucket_sampling = 2;
     ConnectionSamplingConfig connection_sampling = 3;
+    MarkovSamplingConfig markov_sampling = 4;  // New fourth scenario.
   }
+}
+
+// Directed weighted graph (Markov chain) describing a workload.
+message MarkovSamplingConfig {
+  repeated MarkovNode nodes = 1;
+  MarkovStartNode start = 2;
+}
+
+// One vertex: a templated operation, a completion time, and its outgoing transitions.
+message MarkovNode {
+  string id = 1;                     // Non-empty, unique across nodes.
+  QueryTemplateConfig template = 2;  // Reused unchanged.
+  CompletionTime completion_time = 3;
+  repeated MarkovEdge edges = 4;     // Outgoing transitions; empty => terminal node.
+}
+
+// A directed transition. The source is the containing MarkovNode.
+message MarkovEdge {
+  string destination_id = 1;
+  double weight = 2;  // Finite, non-negative.
+}
+
+// Simulated time an operation takes; advances the simulated clock.
+message CompletionTime {
+  oneof duration_spec {
+    google.protobuf.Duration fixed = 1;
+    DurationRange range = 2;
+  }
+}
+
+message DurationRange {
+  google.protobuf.Duration min = 1;
+  google.protobuf.Duration max = 2;
+}
+
+// Where each walk begins: a single node or a weighted distribution.
+message MarkovStartNode {
+  oneof start_spec {
+    string node_id = 1;
+    WeightedStartNodes distribution = 2;
+  }
+}
+
+message WeightedStartNodes {
+  repeated WeightedStartNode starts = 1;
+}
+
+message WeightedStartNode {
+  string node_id = 1;
+  double weight = 2;  // Finite, non-negative; distribution sums to > 0.
 }
 
 message WeightedSamplingConfig {
