@@ -588,3 +588,58 @@ bucket_sampling {
 		t.Errorf("GenerateLogsBucketByBucket expected error on bad writer, got nil")
 	}
 }
+
+// TestGenerateLogsMarkovDispatch verifies that a config with markov_sampling set routes
+// through GenerateLogs to GenerateLogsMarkov and produces well-formed length-delimited
+// output readable with protodelim.UnmarshalFrom.
+// Validates: Requirements 1.3, 10.1, 10.4
+func TestGenerateLogsMarkovDispatch(t *testing.T) {
+	text := `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 1.0 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`
+	cfg := parseProto(t, text, &genpb.QueryTemplateConfigs{})
+
+	tmpDir := t.TempDir()
+	const numLogs = 10
+	if err := GenerateLogs(context.Background(), cfg, numLogs, 1, tmpDir); err != nil {
+		t.Fatalf("GenerateLogs failed: %v", err)
+	}
+
+	f, err := os.Open(filepath.Join(tmpDir, "logs.binproto"))
+	if err != nil {
+		t.Fatalf("failed to open logs.binproto: %v", err)
+	}
+	defer f.Close()
+
+	r := bufio.NewReader(f)
+	var count int
+	for {
+		entry := &genpb.AuditLogEntry{}
+		if err := protodelim.UnmarshalFrom(r, entry); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatalf("failed to decode log entry: %v", err)
+		}
+		if entry.GetNormalizedQueryTemplate() == "" {
+			t.Errorf("entry %d has empty normalized_query_template", count)
+		}
+		count++
+	}
+
+	if count != numLogs {
+		t.Errorf("decoded %d entries, want %d", count, numLogs)
+	}
+}

@@ -60,6 +60,9 @@ func main() {
 	} else if cSampling := configs.GetConnectionSampling(); cSampling != nil {
 		log.Printf("Successfully loaded and validated %d client profiles (Connection Sampling).", len(cSampling.GetClientProfiles()))
 		log.Printf("Configuration applied - Output Dir: %q, Start: %d, End: %d, Bucket Size: %d min", *outputDir, *startTimeMs, *endTimeMs, *bucketSizeMinutes)
+	} else if mSampling := configs.GetMarkovSampling(); mSampling != nil {
+		log.Printf("Successfully loaded and validated %d Markov nodes (Markov Sampling).", len(mSampling.GetNodes()))
+		log.Printf("Configuration applied - Output Dir: %q, Num Logs: %d, Start: %d", *outputDir, *numLogs, *startTimeMs)
 	}
 
 	if err := GenerateLogs(ctx, configs, *numLogs, rand.Int63(), *outputDir); err != nil {
@@ -102,7 +105,7 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 			return fmt.Errorf("--train_end_time_ms must be between start_time_ms and end_time_ms, got %d", *trainEndTimeMs)
 		}
 	} else {
-		// Scenario 1: Weighted sampling.
+		// Scenario 1 (weighted) and markov sampling: count-based generation.
 		if *numLogs <= 0 {
 			return fmt.Errorf("--num_logs must be a positive integer, got %d", *numLogs)
 		}
@@ -148,6 +151,11 @@ func GenerateLogs(ctx context.Context, configs *genpb.QueryTemplateConfigs, numL
 			rng,
 			w,
 		)
+	}
+
+	// Markov sampling.
+	if markovCfg := configs.GetMarkovSampling(); markovCfg != nil {
+		return GenerateLogsMarkov(configs, numLogs, *startTimeMs, rng, w)
 	}
 
 	// Scenario 1: Weighted random sampling.
