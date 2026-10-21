@@ -833,6 +833,433 @@ connection_sampling {
 	}
 }
 
+// TestValidateMarkovSampling exercises validateConfigs for the markov_sampling scenario.
+// Every case is built via parseProto into a QueryTemplateConfigs and dispatched through
+// validateConfigs (the exported entry point), which routes markov_sampling configs to
+// validateMarkovSampling. This covers both the validation rules and the dispatch wiring.
+func TestValidateMarkovSampling(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   *cfgpb.QueryTemplateConfigs
+		wantErr bool
+	}{
+		// --- ids: empty id, duplicate id. Property 12, Validates R2.3, R4.3 ---
+		{
+			name: "empty_node_id",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: ""
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "duplicate_node_id",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- edges: undefined destination, NaN/Inf/negative weight. Property 13, Validates R4.5, R4.6 ---
+		{
+			name: "edge_undefined_destination",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "ghost" weight: 1.0 }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "edge_nan_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: nan }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "edge_inf_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: inf }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "edge_negative_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: -1.0 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- weight sum: inside/outside FloatTolerance boundary. Property 14, Validates R4.8, R4.9, R4.12 ---
+		{
+			name: "weight_sum_exactly_one",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.5 }
+		edges { destination_id: "b" weight: 0.5 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+		{
+			name: "weight_sum_within_tolerance",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.999999999 }
+		edges { destination_id: "b" weight: 0.0000000001 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+		{
+			name: "weight_sum_outside_tolerance",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.5 }
+		edges { destination_id: "b" weight: 0.4 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- completion time: missing, negative duration, range min > max. Property 15, Validates R2.8, R2.9, R2.10 ---
+		{
+			name: "completion_time_missing",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "completion_time_negative_duration",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { seconds: -1 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "completion_time_range_min_greater_than_max",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { range { min { seconds: 5 } max { seconds: 1 } } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "completion_time_range_valid",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { range { min { seconds: 1 } max { seconds: 5 } } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+
+		// --- reachability: a node unreachable from start. Property 16, Validates R4.11 ---
+		{
+			name: "unreachable_node",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	nodes {
+		id: "orphan"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- start spec: omitted, undefined id, bad distribution. Property 17, Validates R5.4, R5.5, R5.6 ---
+		{
+			name: "start_omitted",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_undefined_node_id",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "missing" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_all_zero_weights",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "a" weight: 0.0 } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_negative_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "a" weight: -1.0 } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_nonfinite_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "a" weight: inf } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_undefined_node_id",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "ghost" weight: 1.0 } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_valid",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 1.0 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "a" weight: 0.7 } starts { node_id: "b" weight: 0.3 } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+
+		// --- per-node template placeholder-count mismatch. Property 18, Validates R4.13 ---
+		{
+			name: "template_placeholder_count_mismatch",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template {
+			normalized_query_template: "SELECT * FROM users WHERE age > %v AND salary > %v"
+			placeholder_values: { int_placeholder: { min: 18 max: 65 } }
+		}
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "empty_node_template",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- empty graph (R4.2) and dispatch through validateConfigs (R4.1, R10.2) ---
+		{
+			name: "no_nodes",
+			input: parseProto(t, `
+markov_sampling {
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- a well-formed graph that is ACCEPTED (wantErr false) ---
+		{
+			name: "valid_markov_sampling",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.75 }
+		edges { destination_id: "a" weight: 0.25 }
+	}
+	nodes {
+		id: "b"
+		template {
+			normalized_query_template: "SELECT * FROM users WHERE id = %v"
+			placeholder_values: { int_placeholder: { min: 1 max: 10 } }
+		}
+		completion_time { range { min { nanos: 500000 } max { nanos: 2000000 } } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Route through validateConfigs so the markov_sampling dispatch (R4.1, R10.2)
+			// is exercised alongside validateMarkovSampling.
+			err := validateConfigs(test.input)
+			if (err != nil) != test.wantErr {
+				t.Errorf("validateConfigs() error = %v, wantErr %v", err, test.wantErr)
+			}
+		})
+	}
+}
+
 func TestLoadConfigs(t *testing.T) {
 	wantValidConfigs := parseProto(t, `
 weighted_sampling {

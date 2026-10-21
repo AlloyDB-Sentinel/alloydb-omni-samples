@@ -107,8 +107,11 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 			return err
 		}
 
+	} else if configs.GetMarkovSampling() != nil {
+		return validateMarkovSampling(configs.GetMarkovSampling())
+
 	} else {
-		return fmt.Errorf("configuration must specify either weighted_sampling, bucket_sampling or connection_sampling")
+		return fmt.Errorf("configuration must specify either weighted_sampling, bucket_sampling, connection_sampling or markov_sampling")
 	}
 
 	return nil
@@ -340,4 +343,147 @@ func InPeakWindow(hour int, pw *cfgpb.PeakWindow) bool {
 	}
 	offset := (hour - start + 24) % 24
 	return offset < span
+}
+
+// FloatTolerance is the maximum permitted absolute deviation when comparing a node's
+// outgoing edge-weight sum to 1.0.
+const FloatTolerance = 1e-9
+
+// validateMarkovSampling ensures a Markov sampling configuration forms a well-defined graph:
+// unique node ids, valid templates and completion times, edges that reference defined nodes,
+// outgoing weights that sum to 1.0 (or a terminal node with no edges), a resolvable start spec,
+// and every node reachable from the start.
+func validateMarkovSampling(cfg *cfgpb.MarkovSamplingConfig) error {
+	nodes := cfg.GetNodes()
+
+	// Non-empty graph.
+	if len(nodes) == 0 {
+		return fmt.Errorf("markov_sampling: configuration contains no nodes")
+	}
+
+	// Build an id->node map, rejecting empty or duplicate ids.
+	byID := make(map[string]*cfgpb.MarkovNode, len(nodes))
+	for _, node := range nodes {
+		id := node.GetId()
+		if id == "" {
+			return fmt.Errorf("markov_sampling: node id must not be empty")
+		}
+		if _, exists := byID[id]; exists {
+			return fmt.Errorf("markov_sampling: duplicate node id %q", id)
+		}
+		byID[id] = node
+	}
+
+	for i, node := range nodes {
+		id := node.GetId()
+
+		// Validate the query template.
+		if err := validateQueryTemplate(i, node.GetTemplate()); err != nil {
+			return err
+		}
+
+		// Require completion_time and validate its durations.
+		ct := node.GetCompletionTime()
+		if ct == nil || !ct.HasDurationSpec() {
+			return fmt.Errorf("markov_sampling: node %q: completion_time must be set", id)
+		}
+		if ct.HasRange() {
+			r := ct.GetRange()
+			minDur, err := durationOrError(r.GetMin())
+			if err != nil || minDur < 0 {
+				return fmt.Errorf("markov_sampling: node %q: completion_time duration must be non-negative", id)
+			}
+			maxDur, err := durationOrError(r.GetMax())
+			if err != nil || maxDur < 0 {
+				return fmt.Errorf("markov_sampling: node %q: completion_time duration must be non-negative", id)
+			}
+			if minDur > maxDur {
+				return fmt.Errorf("markov_sampling: node %q: completion_time min (%v) must not exceed max (%v)", id, minDur, maxDur)
+			}
+		} else {
+			fixedDur, err := durationOrError(ct.GetFixed())
+			if err != nil || fixedDur < 0 {
+				return fmt.Errorf("markov_sampling: node %q: completion_time duration must be non-negative", id)
+			}
+		}
+
+		// Validate edges: destinations must exist, weights must be finite and non-negative.
+		var sum float64
+		for e, edge := range node.GetEdges() {
+			dest := edge.GetDestinationId()
+			if _, ok := byID[dest]; !ok {
+				return fmt.Errorf("markov_sampling: node %q: edge %d destination %q is not a defined node", id, e, dest)
+			}
+			if !isFiniteNonNegative(edge.GetWeight()) {
+				return fmt.Errorf("markov_sampling: node %q: edge %d weight must be finite and non-negative", id, e)
+			}
+			sum += edge.GetWeight()
+		}
+
+		// A node with no outgoing edges is terminal; others must sum to 1.0 within tolerance.
+		if len(node.GetEdges()) > 0 && math.Abs(sum-1.0) > FloatTolerance {
+			return fmt.Errorf("markov_sampling: node %q: outgoing edge weights sum to %v, must equal 1.0 within %v", id, sum, FloatTolerance)
+		}
+	}
+
+	// Validate the start spec and collect the set of seed node ids for reachability.
+	start := cfg.GetStart()
+	if start == nil || !start.HasStartSpec() {
+		return fmt.Errorf("markov_sampling: start must be set")
+	}
+
+	var seeds []string
+	if start.HasNodeId() {
+		startID := start.GetNodeId()
+		if _, ok := byID[startID]; !ok {
+			return fmt.Errorf("markov_sampling: start references undefined node id %q", startID)
+		}
+		seeds = append(seeds, startID)
+	} else {
+		dist := start.GetDistribution()
+		var total float64
+		for _, ws := range dist.GetStarts() {
+			nodeID := ws.GetNodeId()
+			if _, ok := byID[nodeID]; !ok {
+				return fmt.Errorf("markov_sampling: start references undefined node id %q", nodeID)
+			}
+			if !isFiniteNonNegative(ws.GetWeight()) {
+				return fmt.Errorf("markov_sampling: start distribution weights must be finite, non-negative and sum to a positive value")
+			}
+			total += ws.GetWeight()
+			seeds = append(seeds, nodeID)
+		}
+		if total <= 0 {
+			return fmt.Errorf("markov_sampling: start distribution weights must be finite, non-negative and sum to a positive value")
+		}
+	}
+
+	// Reachability: traverse outgoing edges from the start seed(s).
+	visited := make(map[string]bool, len(byID))
+	queue := make([]string, 0, len(seeds))
+	for _, s := range seeds {
+		if !visited[s] {
+			visited[s] = true
+			queue = append(queue, s)
+		}
+	}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, edge := range byID[current].GetEdges() {
+			dest := edge.GetDestinationId()
+			if !visited[dest] {
+				visited[dest] = true
+				queue = append(queue, dest)
+			}
+		}
+	}
+	// Report the first unreachable node in declaration order.
+	for _, node := range nodes {
+		if !visited[node.GetId()] {
+			return fmt.Errorf("markov_sampling: node %q is unreachable from the start node", node.GetId())
+		}
+	}
+
+	return nil
 }
