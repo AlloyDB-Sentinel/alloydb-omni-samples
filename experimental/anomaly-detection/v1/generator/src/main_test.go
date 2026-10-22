@@ -265,6 +265,36 @@ weighted_sampling {
 	}
 }
 
+func TestGenerateLogsSeedReproducesOutput(t *testing.T) {
+	configs := parseProto(t, `weighted_sampling {
+  query_template_configs: {
+    template: {
+      normalized_query_template: "SELECT * FROM users WHERE id = %v"
+      placeholder_values: { int_placeholder: { min: 1 max: 10000 } }
+    }
+    probability_weight: 1.0
+  }
+}`, &genpb.QueryTemplateConfigs{})
+
+	generate := func(dir string) []byte {
+		t.Helper()
+		if err := GenerateLogs(context.Background(), configs, 100, 123456, dir); err != nil {
+			t.Fatalf("GenerateLogs failed: %v", err)
+		}
+		data, err := os.ReadFile(filepath.Join(dir, "logs.binproto"))
+		if err != nil {
+			t.Fatalf("failed to read generated logs: %v", err)
+		}
+		return data
+	}
+
+	first := generate(t.TempDir())
+	second := generate(t.TempDir())
+	if !bytes.Equal(first, second) {
+		t.Fatal("identical seeds produced different log output")
+	}
+}
+
 func TestGenerateLogsWeighted(t *testing.T) {
 	text := `
 weighted_sampling {
