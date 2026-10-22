@@ -16,8 +16,10 @@ var ErrNotFound = errors.New("not found")
 // ExtractedLogFeatures represents the features (e.g., query template) extracted from a log entry.
 type ExtractedLogFeatures struct {
 	DbUser        string
+	DbName        string
 	QueryTemplate string
 	TimestampMs   int64
+	RowsReturned  int64
 }
 
 // Extract selects and converts the raw protobuf log entry into strong-typed ExtractedLogFeatures.
@@ -27,7 +29,9 @@ func Extract(logEntry *auditpb.AuditLogEntry) (ExtractedLogFeatures, error) {
 	}
 	return ExtractedLogFeatures{
 		DbUser:        logEntry.GetDbUser(),
+		DbName:        logEntry.GetDbName(),
 		QueryTemplate: logEntry.GetNormalizedQueryTemplate(),
 		TimestampMs:   logEntry.GetTimestampMs(),
+		RowsReturned:  logEntry.GetRowsReturned(),
 	}, nil
 }
