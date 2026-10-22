@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package experimental.anomaly_detection.v1.server.proto;
+
+import "v1/server/proto/anomaly_finding.proto";
+import "v1/generator/proto/audit_log_entry.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/server/proto;serverpb";
+
+// Service for training and predicting anomaly findings.
+service AnomalyDetectionService {
+  rpc TrainModel(TrainModelRequest) returns (TrainModelResponse);
+  rpc Predict(PredictRequest) returns (PredictResponse);
+}
+
+message TrainModelRequest {
+  string train_log_path = 1;
+
+  oneof training_config {
+    TemplateProbabilityConfig template_probability_config = 2;
+    PeriodicRequestBaselineConfig periodic_request_baseline_config = 3;
+    SilentBucketConfig silent_bucket_config = 4;
+  }
+}
+
+message TemplateProbabilityConfig {
+  double anomaly_threshold_ratio = 1;
+}
+
+message PeriodicRequestBaselineConfig {
+  double std_dev_multiplier = 1;
+  int32 bucket_size_minutes = 2;
+  int32 period_minutes = 3;
+}
+
+message SilentBucketConfig {
+  double silent_threshold_ratio = 1;
+  int32 bucket_size_minutes = 2;
+  int32 period_minutes = 3;
+}
+
+message TrainModelResponse {}
+
+message PredictRequest {
+  oneof payload {
+    string predict_log_path = 1;
+    experimental.anomaly_detection.v1.generator.proto.AuditLogEntry single_log = 2;
+    AuditLogEntryBatch batch_logs = 3;
+  }
+}
+
+message AuditLogEntryBatch {
+  repeated experimental.anomaly_detection.v1.generator.proto.AuditLogEntry log_entries = 1;
+}
+
+message PredictResponse {
+  oneof result {
+    string findings_path = 1;
+    AnomalyFinding single_finding = 2;
+    AnomalyFindingBatch batch_findings = 3;
+  }
+}
+
+message AnomalyFindingBatch {
+  repeated AnomalyFinding findings = 1;
+}

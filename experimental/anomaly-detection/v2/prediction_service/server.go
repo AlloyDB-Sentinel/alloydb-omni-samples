@@ -22,8 +22,8 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
-	findingpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 	auditpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
+	findingpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 	modelpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 	predictiongrpc "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/prediction_service/proto"
 	predictionpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/prediction_service/proto"
@@ -229,6 +229,9 @@ func findMatchingModels(ctx context.Context, location string, filter *prediction
 	// Case 2: Directory of models (custom dir or default models_dir)
 	entries, err := os.ReadDir(targetPath)
 	if err != nil {
+		if !isPredict && errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
 		if isPredict && loc != "" {
 			return nil, status.Errorf(codes.FailedPrecondition, "failed to load model from %q: %v", targetPath, err)
 		}

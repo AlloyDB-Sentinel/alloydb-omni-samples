@@ -41,6 +41,10 @@ func IngestBinProtoStream(ctx context.Context, path string, handler LogHandler) 
 			break
 		}
 		if err != nil {
+			var pathErr *os.PathError
+			if errors.As(err, &pathErr) {
+				return fmt.Errorf("failed to read log file %q: %w", path, err)
+			}
 			return fmt.Errorf("%w: failed to unmarshal log entry: %v", ErrInvalidArgument, err)
 		}
 		if err := handler(entry); err != nil {
