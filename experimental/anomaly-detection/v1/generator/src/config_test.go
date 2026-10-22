@@ -27,7 +27,7 @@ func parseProto[T proto.Message](t *testing.T, text string, msg T) T {
 func TestValidatePGAuditBucketConfig(t *testing.T) {
 	valid := parseProto(t, `bucket_sampling {
   query_template_configs: {
-    template: { normalized_query_template: "SELECT * FROM accounts" }
+    template: { normalized_query_template: "SELECT * FROM accounts" is_read_query: true }
     bucket_config: {
       queries_per_bucket_mean: 10
       rows_returned_mean: 100
@@ -45,7 +45,7 @@ func TestValidatePGAuditBucketConfig(t *testing.T) {
 
 	invalid := parseProto(t, `bucket_sampling {
   query_template_configs: {
-    template: { normalized_query_template: "SELECT * FROM accounts" }
+    template: { normalized_query_template: "SELECT * FROM accounts" is_read_query: true }
     bucket_config: {
       queries_per_bucket_mean: 10
       rows_returned_mean: 100
