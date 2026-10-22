@@ -588,6 +588,9 @@ type QueryTemplateConfig struct {
 	xxx_hidden_NormalizedQueryTemplate string                                       `protobuf:"bytes,1,opt,name=normalized_query_template,json=normalizedQueryTemplate,proto3"`
 	xxx_hidden_PlaceholderValues       *[]*QueryTemplateConfig_PlaceholderValueSpec `protobuf:"bytes,2,rep,name=placeholder_values,json=placeholderValues,proto3"`
 	xxx_hidden_IsGroundTruthAnomalous  bool                                         `protobuf:"varint,4,opt,name=is_ground_truth_anomalous,json=isGroundTruthAnomalous,proto3"`
+	xxx_hidden_IsReadQuery             bool                                         `protobuf:"varint,5,opt,name=is_read_query,json=isReadQuery,proto3,oneof"`
+	XXX_raceDetectHookData             protoimpl.RaceDetectHookData
+	XXX_presence                       [1]uint32
 	unknownFields                      protoimpl.UnknownFields
 	sizeCache                          protoimpl.SizeCache
 }
@@ -640,6 +643,13 @@ func (x *QueryTemplateConfig) GetIsGroundTruthAnomalous() bool {
 	return false
 }
 
+func (x *QueryTemplateConfig) GetIsReadQuery() bool {
+	if x != nil {
+		return x.xxx_hidden_IsReadQuery
+	}
+	return false
+}
+
 func (x *QueryTemplateConfig) SetNormalizedQueryTemplate(v string) {
 	x.xxx_hidden_NormalizedQueryTemplate = v
 }
@@ -652,6 +662,23 @@ func (x *QueryTemplateConfig) SetIsGroundTruthAnomalous(v bool) {
 	x.xxx_hidden_IsGroundTruthAnomalous = v
 }
 
+func (x *QueryTemplateConfig) SetIsReadQuery(v bool) {
+	x.xxx_hidden_IsReadQuery = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 4)
+}
+
+func (x *QueryTemplateConfig) HasIsReadQuery() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
+}
+
+func (x *QueryTemplateConfig) ClearIsReadQuery() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 3)
+	x.xxx_hidden_IsReadQuery = false
+}
+
 type QueryTemplateConfig_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
@@ -661,6 +688,9 @@ type QueryTemplateConfig_builder struct {
 	// Ground truth label (true: anomalous, false: normal) used to evaluate
 	// performance of unsupervised anomaly detection models.
 	IsGroundTruthAnomalous bool
+	// Required for PGAudit generation: true for read templates, false for others.
+	// The generator trusts this declaration; it does not parse or execute SQL.
+	IsReadQuery *bool
 }
 
 func (b0 QueryTemplateConfig_builder) Build() *QueryTemplateConfig {
@@ -670,6 +700,10 @@ func (b0 QueryTemplateConfig_builder) Build() *QueryTemplateConfig {
 	x.xxx_hidden_NormalizedQueryTemplate = b.NormalizedQueryTemplate
 	x.xxx_hidden_PlaceholderValues = &b.PlaceholderValues
 	x.xxx_hidden_IsGroundTruthAnomalous = b.IsGroundTruthAnomalous
+	if b.IsReadQuery != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 4)
+		x.xxx_hidden_IsReadQuery = *b.IsReadQuery
+	}
 	return m0
 }
 
@@ -680,12 +714,12 @@ type BucketSimulationConfig struct {
 	xxx_hidden_QueriesVariationStdDev      float64                `protobuf:"fixed64,3,opt,name=queries_variation_std_dev,json=queriesVariationStdDev,proto3"`
 	xxx_hidden_AnomalousSpikeProbability   float64                `protobuf:"fixed64,4,opt,name=anomalous_spike_probability,json=anomalousSpikeProbability,proto3"`
 	xxx_hidden_AnomalousSpikeMultiplier    float64                `protobuf:"fixed64,5,opt,name=anomalous_spike_multiplier,json=anomalousSpikeMultiplier,proto3"`
+	xxx_hidden_RowsReturnedMean            float64                `protobuf:"fixed64,9,opt,name=rows_returned_mean,json=rowsReturnedMean,proto3"`
+	xxx_hidden_RowsReturnedStdDev          float64                `protobuf:"fixed64,10,opt,name=rows_returned_std_dev,json=rowsReturnedStdDev,proto3"`
+	xxx_hidden_AnomalousRowsProbability    float64                `protobuf:"fixed64,11,opt,name=anomalous_rows_probability,json=anomalousRowsProbability,proto3"`
+	xxx_hidden_AnomalousRowsMultiplier     float64                `protobuf:"fixed64,12,opt,name=anomalous_rows_multiplier,json=anomalousRowsMultiplier,proto3"`
+	xxx_hidden_RowsReturnedMax             int64                  `protobuf:"varint,13,opt,name=rows_returned_max,json=rowsReturnedMax,proto3"`
 	xxx_hidden_PgauditScenario             bool                   `protobuf:"varint,14,opt,name=pgaudit_scenario,json=pgauditScenario,proto3"`
-	xxx_hidden_RowsReturnedMean            float64                `protobuf:"fixed64,10,opt,name=rows_returned_mean,json=rowsReturnedMean,proto3"`
-	xxx_hidden_RowsReturnedStdDev          float64                `protobuf:"fixed64,11,opt,name=rows_returned_std_dev,json=rowsReturnedStdDev,proto3"`
-	xxx_hidden_AnomalousRowsProbability    float64                `protobuf:"fixed64,12,opt,name=anomalous_rows_probability,json=anomalousRowsProbability,proto3"`
-	xxx_hidden_AnomalousRowsMultiplier     float64                `protobuf:"fixed64,13,opt,name=anomalous_rows_multiplier,json=anomalousRowsMultiplier,proto3"`
-	xxx_hidden_RowsReturnedMax             int64                  `protobuf:"varint,15,opt,name=rows_returned_max,json=rowsReturnedMax,proto3"`
 	xxx_hidden_SpikyTimestampsDistribution bool                   `protobuf:"varint,6,opt,name=spiky_timestamps_distribution,json=spikyTimestampsDistribution,proto3"`
 	xxx_hidden_PeakWindows                 *[]*PeakWindow         `protobuf:"bytes,7,rep,name=peak_windows,json=peakWindows,proto3"`
 	xxx_hidden_WeekendTrafficMultiplier    float64                `protobuf:"fixed64,8,opt,name=weekend_traffic_multiplier,json=weekendTrafficMultiplier,proto3,oneof"`
@@ -755,13 +789,6 @@ func (x *BucketSimulationConfig) GetAnomalousSpikeMultiplier() float64 {
 	return 0
 }
 
-func (x *BucketSimulationConfig) GetPgauditScenario() bool {
-	if x != nil {
-		return x.xxx_hidden_PgauditScenario
-	}
-	return false
-}
-
 func (x *BucketSimulationConfig) GetRowsReturnedMean() float64 {
 	if x != nil {
 		return x.xxx_hidden_RowsReturnedMean
@@ -795,6 +822,13 @@ func (x *BucketSimulationConfig) GetRowsReturnedMax() int64 {
 		return x.xxx_hidden_RowsReturnedMax
 	}
 	return 0
+}
+
+func (x *BucketSimulationConfig) GetPgauditScenario() bool {
+	if x != nil {
+		return x.xxx_hidden_PgauditScenario
+	}
+	return false
 }
 
 func (x *BucketSimulationConfig) GetSpikyTimestampsDistribution() bool {
@@ -840,10 +874,6 @@ func (x *BucketSimulationConfig) SetAnomalousSpikeMultiplier(v float64) {
 	x.xxx_hidden_AnomalousSpikeMultiplier = v
 }
 
-func (x *BucketSimulationConfig) SetPgauditScenario(v bool) {
-	x.xxx_hidden_PgauditScenario = v
-}
-
 func (x *BucketSimulationConfig) SetRowsReturnedMean(v float64) {
 	x.xxx_hidden_RowsReturnedMean = v
 }
@@ -862,6 +892,10 @@ func (x *BucketSimulationConfig) SetAnomalousRowsMultiplier(v float64) {
 
 func (x *BucketSimulationConfig) SetRowsReturnedMax(v int64) {
 	x.xxx_hidden_RowsReturnedMax = v
+}
+
+func (x *BucketSimulationConfig) SetPgauditScenario(v bool) {
+	x.xxx_hidden_PgauditScenario = v
 }
 
 func (x *BucketSimulationConfig) SetSpikyTimestampsDistribution(v bool) {
@@ -899,14 +933,13 @@ type BucketSimulationConfig_builder struct {
 	// Anomalous spike affecting the query count per legacy time bucket.
 	AnomalousSpikeProbability float64
 	AnomalousSpikeMultiplier  float64
-	// Enable PGAudit-shaped Scenario 2 generation (false preserves legacy behavior).
-	PgauditScenario bool
 	// Per-query row-count simulation for Scenario 2 PGAudit reads.
 	RowsReturnedMean         float64
 	RowsReturnedStdDev       float64
 	AnomalousRowsProbability float64
 	AnomalousRowsMultiplier  float64
 	RowsReturnedMax          int64
+	PgauditScenario          bool
 	// false: Uniform distribution
 	// true: Spiky/jittered distribution
 	SpikyTimestampsDistribution bool
@@ -926,12 +959,12 @@ func (b0 BucketSimulationConfig_builder) Build() *BucketSimulationConfig {
 	x.xxx_hidden_QueriesVariationStdDev = b.QueriesVariationStdDev
 	x.xxx_hidden_AnomalousSpikeProbability = b.AnomalousSpikeProbability
 	x.xxx_hidden_AnomalousSpikeMultiplier = b.AnomalousSpikeMultiplier
-	x.xxx_hidden_PgauditScenario = b.PgauditScenario
 	x.xxx_hidden_RowsReturnedMean = b.RowsReturnedMean
 	x.xxx_hidden_RowsReturnedStdDev = b.RowsReturnedStdDev
 	x.xxx_hidden_AnomalousRowsProbability = b.AnomalousRowsProbability
 	x.xxx_hidden_AnomalousRowsMultiplier = b.AnomalousRowsMultiplier
 	x.xxx_hidden_RowsReturnedMax = b.RowsReturnedMax
+	x.xxx_hidden_PgauditScenario = b.PgauditScenario
 	x.xxx_hidden_SpikyTimestampsDistribution = b.SpikyTimestampsDistribution
 	x.xxx_hidden_PeakWindows = &b.PeakWindows
 	if b.WeekendTrafficMultiplier != nil {
@@ -2295,11 +2328,12 @@ const file_v1_generator_proto_query_template_config_proto_rawDesc = "" +
 	"\x12probability_weight\x18\x02 \x01(\x01R\x11probabilityWeight\"\xef\x01\n" +
 	"\x19BucketQueryTemplateConfig\x12b\n" +
 	"\btemplate\x18\x01 \x01(\v2F.experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigR\btemplate\x12n\n" +
-	"\rbucket_config\x18\x02 \x01(\v2I.experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfigR\fbucketConfig\"\xca\a\n" +
+	"\rbucket_config\x18\x02 \x01(\v2I.experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfigR\fbucketConfig\"\x85\b\n" +
 	"\x13QueryTemplateConfig\x12:\n" +
 	"\x19normalized_query_template\x18\x01 \x01(\tR\x17normalizedQueryTemplate\x12\x8a\x01\n" +
 	"\x12placeholder_values\x18\x02 \x03(\v2[.experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpecR\x11placeholderValues\x129\n" +
-	"\x19is_ground_truth_anomalous\x18\x04 \x01(\bR\x16isGroundTruthAnomalous\x1a\xae\x05\n" +
+	"\x19is_ground_truth_anomalous\x18\x04 \x01(\bR\x16isGroundTruthAnomalous\x12'\n" +
+	"\ris_read_query\x18\x05 \x01(\bH\x00R\visReadQuery\x88\x01\x01\x1a\xae\x05\n" +
 	"\x14PlaceholderValueSpec\x12\x99\x01\n" +
 	"\x0fint_placeholder\x18\x01 \x01(\v2n.experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholderH\x00R\x0eintPlaceholder\x12\x9b\x01\n" +
 	"\x11float_placeholder\x18\x02 \x01(\v2l.experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholderH\x00R\x10floatPlaceholder\x12\x9e\x01\n" +
@@ -2312,20 +2346,21 @@ const file_v1_generator_proto_query_template_config_proto_rawDesc = "" +
 	"\x03max\x18\x02 \x01(\x01R\x03max\x1a:\n" +
 	"\x11StringPlaceholder\x12%\n" +
 	"\x0eallowed_values\x18\x01 \x03(\tR\rallowedValuesB\r\n" +
-	"\vplaceholder\"\xdb\x06\n" +
+	"\vplaceholderB\x10\n" +
+	"\x0e_is_read_query\"\xdb\x06\n" +
 	"\x16BucketSimulationConfig\x12\x17\n" +
 	"\adb_user\x18\x01 \x01(\tR\x06dbUser\x125\n" +
 	"\x17queries_per_bucket_mean\x18\x02 \x01(\x01R\x14queriesPerBucketMean\x129\n" +
 	"\x19queries_variation_std_dev\x18\x03 \x01(\x01R\x16queriesVariationStdDev\x12>\n" +
 	"\x1banomalous_spike_probability\x18\x04 \x01(\x01R\x19anomalousSpikeProbability\x12<\n" +
-	"\x1aanomalous_spike_multiplier\x18\x05 \x01(\x01R\x18anomalousSpikeMultiplier\x12)\n" +
-	"\x10pgaudit_scenario\x18\x0e \x01(\bR\x0fpgauditScenario\x12,\n" +
-	"\x12rows_returned_mean\x18\n" +
-	" \x01(\x01R\x10rowsReturnedMean\x121\n" +
-	"\x15rows_returned_std_dev\x18\v \x01(\x01R\x12rowsReturnedStdDev\x12<\n" +
-	"\x1aanomalous_rows_probability\x18\f \x01(\x01R\x18anomalousRowsProbability\x12:\n" +
-	"\x19anomalous_rows_multiplier\x18\r \x01(\x01R\x17anomalousRowsMultiplier\x12*\n" +
-	"\x11rows_returned_max\x18\x0f \x01(\x03R\x0frowsReturnedMax\x12B\n" +
+	"\x1aanomalous_spike_multiplier\x18\x05 \x01(\x01R\x18anomalousSpikeMultiplier\x12,\n" +
+	"\x12rows_returned_mean\x18\t \x01(\x01R\x10rowsReturnedMean\x121\n" +
+	"\x15rows_returned_std_dev\x18\n" +
+	" \x01(\x01R\x12rowsReturnedStdDev\x12<\n" +
+	"\x1aanomalous_rows_probability\x18\v \x01(\x01R\x18anomalousRowsProbability\x12:\n" +
+	"\x19anomalous_rows_multiplier\x18\f \x01(\x01R\x17anomalousRowsMultiplier\x12*\n" +
+	"\x11rows_returned_max\x18\r \x01(\x03R\x0frowsReturnedMax\x12)\n" +
+	"\x10pgaudit_scenario\x18\x0e \x01(\bR\x0fpgauditScenario\x12B\n" +
 	"\x1dspiky_timestamps_distribution\x18\x06 \x01(\bR\x1bspikyTimestampsDistribution\x12`\n" +
 	"\fpeak_windows\x18\a \x03(\v2=.experimental.anomaly_detection.v1.generator.proto.PeakWindowR\vpeakWindows\x12A\n" +
 	"\x1aweekend_traffic_multiplier\x18\b \x01(\x01H\x00R\x18weekendTrafficMultiplier\x88\x01\x01B\x1d\n" +
@@ -2453,6 +2488,7 @@ func file_v1_generator_proto_query_template_config_proto_init() {
 		(*queryTemplateConfigs_BucketSampling)(nil),
 		(*queryTemplateConfigs_ConnectionSampling)(nil),
 	}
+	file_v1_generator_proto_query_template_config_proto_msgTypes[5].OneofWrappers = []any{}
 	file_v1_generator_proto_query_template_config_proto_msgTypes[6].OneofWrappers = []any{}
 	file_v1_generator_proto_query_template_config_proto_msgTypes[9].OneofWrappers = []any{
 		(*clientProfile_BucketTraffic)(nil),

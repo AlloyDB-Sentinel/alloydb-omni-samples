@@ -5,7 +5,6 @@ import (
 	"io"
 	"math"
 	"math/rand"
-	"strings"
 
 	"google.golang.org/protobuf/encoding/protodelim"
 
@@ -106,10 +105,4 @@ func SampleRowsReturned(cfg *genpb.BucketSimulationConfig, isAnomalous bool, rng
 		rows = maxRows
 	}
 	return rows
-}
-
-// IsReadStatement identifies PostgreSQL read statements for row-count simulation.
-func IsReadStatement(statement string) bool {
-	trimmed := strings.TrimSpace(statement)
-	return strings.HasPrefix(strings.ToUpper(trimmed), "SELECT") || strings.HasPrefix(strings.ToUpper(trimmed), "WITH")
 }

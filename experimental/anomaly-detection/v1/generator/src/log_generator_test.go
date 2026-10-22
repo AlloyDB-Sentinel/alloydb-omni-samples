@@ -217,14 +217,6 @@ rows_returned_max: 300`, &genpb.BucketSimulationConfig{})
 		t.Errorf("anomalous rows returned = %d, want capped at 300", got)
 	}
 
-	for _, statement := range []string{"SELECT * FROM accounts", "with recent as (select 1) select * from recent"} {
-		if !IsReadStatement(statement) {
-			t.Errorf("IsReadStatement(%q) = false, want true", statement)
-		}
-	}
-	if IsReadStatement("UPDATE accounts SET balance = 0") {
-		t.Error("IsReadStatement classified UPDATE as a read")
-	}
 }
 
 func TestBuildQueryStatement(t *testing.T) {
