@@ -26,6 +26,9 @@ var (
 	// Scenario 1 (weighted random sampling) flags.
 	numLogs = flag.Int("num_logs", 50000, "Total number of logs to generate.")
 
+	// Optional seed for reproducing generated output.
+	randomSeed = flag.Int64("seed", 0, "Optional random seed for reproducible generation; omit to choose a random seed.")
+
 	// Scenario 2 and 3 (bucket sampling) flags.
 	pgauditScenario   = flag.Bool("pgaudit_scenario", false, "Generate PGAudit-shaped Scenario 2 read logs with row counts and session IDs.")
 	startTimeMs       = flag.Int64("start_time_ms", 0, "Start timestamp of the simulated logs (in milliseconds).")
@@ -63,7 +66,14 @@ func main() {
 		log.Printf("Configuration applied - Output Dir: %q, Start: %d, End: %d, Bucket Size: %d min", *outputDir, *startTimeMs, *endTimeMs, *bucketSizeMinutes)
 	}
 
-	if err := GenerateLogs(ctx, configs, *numLogs, rand.Int63(), *outputDir); err != nil {
+	seed := rand.Int63()
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "seed" {
+			seed = *randomSeed
+		}
+	})
+	log.Printf("Using random seed: %d", seed)
+	if err := GenerateLogs(ctx, configs, *numLogs, seed, *outputDir); err != nil {
 		log.Fatalf("Failed to generate logs: %v", err)
 	}
 
