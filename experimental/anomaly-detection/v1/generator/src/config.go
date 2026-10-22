@@ -132,6 +132,23 @@ func validateBucketSimulationConfig(i int, simCfg *cfgpb.BucketSimulationConfig)
 	if !isFiniteNonNegative(simCfg.GetWeekendTrafficMultiplier()) {
 		return fmt.Errorf("config[%d]: weekend_traffic_multiplier must be finite and non-negative", i)
 	}
+	if simCfg.GetPgauditScenario() {
+		if !isFiniteNonNegative(simCfg.GetRowsReturnedMean()) || simCfg.GetRowsReturnedMean() <= 0 {
+			return fmt.Errorf("config[%d]: rows_returned_mean must be finite and positive for PGAudit generation", i)
+		}
+		if !isFiniteNonNegative(simCfg.GetRowsReturnedStdDev()) {
+			return fmt.Errorf("config[%d]: rows_returned_std_dev must be finite and non-negative", i)
+		}
+		if simCfg.GetAnomalousRowsProbability() < 0 || simCfg.GetAnomalousRowsProbability() > 1 || math.IsNaN(simCfg.GetAnomalousRowsProbability()) {
+			return fmt.Errorf("config[%d]: anomalous_rows_probability must be between 0.0 and 1.0", i)
+		}
+		if !isFiniteNonNegative(simCfg.GetAnomalousRowsMultiplier()) {
+			return fmt.Errorf("config[%d]: anomalous_rows_multiplier must be finite and non-negative", i)
+		}
+		if simCfg.GetRowsReturnedMax() <= 0 || float64(simCfg.GetRowsReturnedMax()) < simCfg.GetRowsReturnedMean() {
+			return fmt.Errorf("config[%d]: rows_returned_max must be positive and at least rows_returned_mean", i)
+		}
+	}
 	return validatePeakWindows(i, simCfg.GetPeakWindows())
 }
 

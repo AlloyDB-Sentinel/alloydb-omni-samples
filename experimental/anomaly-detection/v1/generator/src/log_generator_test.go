@@ -203,6 +203,30 @@ template: {
 	}
 }
 
+func TestPGAuditReadEventHelpers(t *testing.T) {
+	cfg := parseProto(t, `rows_returned_mean: 100
+rows_returned_std_dev: 0
+anomalous_rows_multiplier: 5
+rows_returned_max: 300`, &genpb.BucketSimulationConfig{})
+	rng := rand.New(rand.NewSource(42))
+
+	if got := SampleRowsReturned(cfg, false, rng); got != 100 {
+		t.Errorf("normal rows returned = %d, want 100", got)
+	}
+	if got := SampleRowsReturned(cfg, true, rng); got != 300 {
+		t.Errorf("anomalous rows returned = %d, want capped at 300", got)
+	}
+
+	for _, statement := range []string{"SELECT * FROM accounts", "with recent as (select 1) select * from recent"} {
+		if !IsReadStatement(statement) {
+			t.Errorf("IsReadStatement(%q) = false, want true", statement)
+		}
+	}
+	if IsReadStatement("UPDATE accounts SET balance = 0") {
+		t.Error("IsReadStatement classified UPDATE as a read")
+	}
+}
+
 func TestBuildQueryStatement(t *testing.T) {
 	tests := []struct {
 		name       string
