@@ -21,4 +21,8 @@ message AuditLogEntry {
 
   // Query execution timestamp.
   int64 timestamp_ms = 6;
+
+  // Keep field numbers compatible with v1/generator/proto/audit_log_entry.proto.
+  string database_session_id = 7;
+  int64 rows_returned = 8;
 }

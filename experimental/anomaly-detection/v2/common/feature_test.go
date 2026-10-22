@@ -20,14 +20,18 @@ func TestExtract(t *testing.T) {
 			logEntry: func() *auditpb.AuditLogEntry {
 				entry := &auditpb.AuditLogEntry{}
 				entry.SetDbUser("db_user")
+				entry.SetDbName("db_name")
 				entry.SetNormalizedQueryTemplate("SELECT * FROM users WHERE id = %v")
 				entry.SetTimestampMs(1782000000000)
+				entry.SetRowsReturned(120)
 				return entry
 			}(),
 			want: ExtractedLogFeatures{
 				DbUser:        "db_user",
+				DbName:        "db_name",
 				QueryTemplate: "SELECT * FROM users WHERE id = %v",
 				TimestampMs:   1782000000000,
+				RowsReturned:  120,
 			},
 			wantErr: nil,
 		},
@@ -71,7 +75,7 @@ func TestExtract(t *testing.T) {
 				t.Fatalf("Extract() got unexpected error: %v", err)
 			}
 
-			if got.DbUser != test.want.DbUser || got.QueryTemplate != test.want.QueryTemplate || got.TimestampMs != test.want.TimestampMs {
+			if got != test.want {
 				t.Errorf("Extract(%v) = %v, want %v", test.logEntry, got, test.want)
 			}
 		})
