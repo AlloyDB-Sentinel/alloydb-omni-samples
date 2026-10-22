@@ -70,6 +70,10 @@ message QueryTemplateConfig {
   // Ground truth label (true: anomalous, false: normal) used to evaluate
   // performance of unsupervised anomaly detection models.
   bool is_ground_truth_anomalous = 4;
+
+  // Required for PGAudit generation: true for read templates, false for others.
+  // The generator trusts this declaration; it does not parse or execute SQL.
+  optional bool is_read_query = 5;
 }
 
 message BucketSimulationConfig {

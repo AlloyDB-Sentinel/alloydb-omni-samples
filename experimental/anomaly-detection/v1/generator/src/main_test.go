@@ -447,7 +447,7 @@ bucket_sampling {
 			configText: `
 bucket_sampling {
 	query_template_configs: {
-		template: { normalized_query_template: "SELECT * FROM accounts" }
+		template: { normalized_query_template: "SELECT * FROM accounts" is_read_query: true }
 		bucket_config: {
 			queries_per_bucket_mean: 2.0
 			rows_returned_mean: 25.0
@@ -512,7 +512,7 @@ bucket_sampling {
 			configText: `
 bucket_sampling {
 	query_template_configs: {
-		template: { normalized_query_template: "SELECT * FROM accounts" }
+		template: { normalized_query_template: "SELECT * FROM accounts" is_read_query: true }
 		bucket_config: {
 			queries_per_bucket_mean: 2.0
 			anomalous_rows_probability: 1.0

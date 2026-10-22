@@ -126,6 +126,10 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 
 // GenerateLogs samples and writes synthetic database audit logs to a single logs.binproto file.
 func GenerateLogs(ctx context.Context, configs *genpb.QueryTemplateConfigs, numLogs int, seed int64, outputDir string) error {
+	// Reject invalid settings before creating or truncating the output file.
+	if err := validateConfigs(configs); err != nil {
+		return err
+	}
 	if !filepath.IsAbs(outputDir) {
 		if workspaceDir := os.Getenv("BUILD_WORKSPACE_DIRECTORY"); workspaceDir != "" {
 			outputDir = filepath.Join(workspaceDir, outputDir)
@@ -184,6 +188,9 @@ func GenerateLogsWeighted(configs *genpb.QueryTemplateConfigs, numLogs int, rng 
 
 // GenerateLogsBucketByBucket generates bucket-based audit logs bucket-by-bucket and writes them to the writer.
 func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.Rand, w io.Writer) error {
+	if err := validateConfigs(configs); err != nil {
+		return err
+	}
 	startTime := time.UnixMilli(*startTimeMs)
 	endTime := time.UnixMilli(*endTimeMs)
 	trainEndTime := time.UnixMilli(*trainEndTimeMs)
@@ -205,24 +212,19 @@ func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.R
 			}
 
 			count := SampleQueryCount(cfg, isSpike, current.Hour(), current.Weekday(), rng)
-			isPGAuditScenario := *pgauditScenario || cfg.GetBucketConfig().GetPgauditScenario()
-			if *pgauditScenario {
-				if err := validateBucketSimulationConfig(0, cfg.GetBucketConfig()); err != nil {
-					return fmt.Errorf("invalid PGAudit settings: %w", err)
-				}
-			}
+			pgauditEnabled := isPGAuditScenario(cfg.GetBucketConfig())
 			sessionID := ""
-			if isPGAuditScenario {
+			if pgauditEnabled {
 				sessionID = fmt.Sprintf("%016x", rng.Uint64())
 			}
 
 			for i := 0; i < count; i++ {
 				timestampMs := SampleTimestampMs(cfg, current, bucketSizeMs, rng)
-				if isPGAuditScenario {
-					statement := generator.buildQueryStatement(cfg.GetTemplate())
-					if !IsReadStatement(statement) {
+				if pgauditEnabled {
+					if !cfg.GetTemplate().GetIsReadQuery() {
 						continue
 					}
+					statement := generator.buildQueryStatement(cfg.GetTemplate())
 					isHighRowsAnomaly := !isTrainingPhase && rng.Float64() < cfg.GetBucketConfig().GetAnomalousRowsProbability()
 					isReadBurst := isSpike
 					if isReadBurst {

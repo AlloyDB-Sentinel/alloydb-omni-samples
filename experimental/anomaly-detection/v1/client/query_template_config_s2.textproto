@@ -5,6 +5,7 @@ bucket_sampling {
   query_template_configs {
     template {
       normalized_query_template: "SELECT * FROM users WHERE id = %v"
+      is_read_query: true
       placeholder_values {
         int_placeholder {
           min: 1
