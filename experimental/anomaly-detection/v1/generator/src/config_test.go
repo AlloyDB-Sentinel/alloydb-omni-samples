@@ -24,6 +24,41 @@ func parseProto[T proto.Message](t *testing.T, text string, msg T) T {
 	return msg
 }
 
+func TestValidatePGAuditBucketConfig(t *testing.T) {
+	valid := parseProto(t, `bucket_sampling {
+  query_template_configs: {
+    template: { normalized_query_template: "SELECT * FROM accounts" }
+    bucket_config: {
+      queries_per_bucket_mean: 10
+      rows_returned_mean: 100
+      rows_returned_std_dev: 10
+      anomalous_rows_probability: 0.01
+      anomalous_rows_multiplier: 5
+      rows_returned_max: 10000
+      pgaudit_scenario: true
+    }
+  }
+}`, &cfgpb.QueryTemplateConfigs{})
+	if err := validateConfigs(valid); err != nil {
+		t.Fatalf("valid PGAudit config failed validation: %v", err)
+	}
+
+	invalid := parseProto(t, `bucket_sampling {
+  query_template_configs: {
+    template: { normalized_query_template: "SELECT * FROM accounts" }
+    bucket_config: {
+      queries_per_bucket_mean: 10
+      rows_returned_mean: 100
+      rows_returned_max: 50
+      pgaudit_scenario: true
+    }
+  }
+}`, &cfgpb.QueryTemplateConfigs{})
+	if err := validateConfigs(invalid); err == nil {
+		t.Fatal("invalid PGAudit row-count bounds passed validation")
+	}
+}
+
 func TestValidateConfigs(t *testing.T) {
 	tests := []struct {
 		name    string

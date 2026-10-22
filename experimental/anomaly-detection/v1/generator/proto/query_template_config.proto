@@ -79,9 +79,17 @@ message BucketSimulationConfig {
   double queries_per_bucket_mean = 2;
   double queries_variation_std_dev = 3;
 
-  // Anomalous spike
+  // Anomalous spike affecting the query count per legacy time bucket.
   double anomalous_spike_probability = 4;
   double anomalous_spike_multiplier = 5;
+
+  // Per-query row-count simulation for Scenario 2 PGAudit reads.
+  double rows_returned_mean = 9;
+  double rows_returned_std_dev = 10;
+  double anomalous_rows_probability = 11;
+  double anomalous_rows_multiplier = 12;
+  int64 rows_returned_max = 13;
+  bool pgaudit_scenario = 14;
 
   // false: Uniform distribution
   // true: Spiky/jittered distribution

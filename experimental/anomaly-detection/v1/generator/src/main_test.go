@@ -28,6 +28,7 @@ func backupFlags(t *testing.T) {
 	origTrainEnd := *trainEndTimeMs
 	origEnd := *endTimeMs
 	origBucketSize := *bucketSizeMinutes
+	origPGAuditScenario := *pgauditScenario
 	t.Cleanup(func() {
 		*configFile = origConfigFile
 		*outputDir = origOutputDir
@@ -36,6 +37,7 @@ func backupFlags(t *testing.T) {
 		*trainEndTimeMs = origTrainEnd
 		*endTimeMs = origEnd
 		*bucketSizeMinutes = origBucketSize
+		*pgauditScenario = origPGAuditScenario
 	})
 }
 
@@ -129,6 +131,7 @@ func TestValidateScenarioFlags(t *testing.T) {
 		trainEndTime      int64
 		endTime           int64
 		bucketSizeMinutes int
+		pgaudit           bool
 		wantErr           bool
 	}{
 		{
@@ -151,6 +154,13 @@ func TestValidateScenarioFlags(t *testing.T) {
 			trainEndTime:      1500,
 			bucketSizeMinutes: 60,
 			wantErr:           false,
+		},
+		{
+			name:     "PGAuditFlagRequiresBucketSampling",
+			scenario: "weighted",
+			numLogs:  100,
+			pgaudit:  true,
+			wantErr:  true,
 		},
 		{
 			name:              "BucketSampling_TrainEndTimeZero_ReturnsError",
@@ -209,6 +219,7 @@ func TestValidateScenarioFlags(t *testing.T) {
 			*trainEndTimeMs = test.trainEndTime
 			*endTimeMs = test.endTime
 			*bucketSizeMinutes = test.bucketSizeMinutes
+			*pgauditScenario = test.pgaudit
 
 			var configs *genpb.QueryTemplateConfigs
 			if test.configs != nil {
@@ -333,6 +344,7 @@ func TestGenerateLogsBucketSampling(t *testing.T) {
 		endTime           int64
 		trainEndTime      int64
 		bucketSizeMinutes int
+		pgaudit           bool
 		verify            func(t *testing.T, entries []*genpb.AuditLogEntry)
 		wantErr           bool
 	}{
@@ -370,10 +382,10 @@ bucket_sampling {
 			},
 			wantErr: false,
 		},
-		{
-			name: "multi_bucket_chronological_sorting",
+		{name: "multi_bucket_chronological_sorting",
 			configText: `
-bucket_sampling {
+ bucket_sampling {
+
 	query_template_configs: {
 		template: {
 			normalized_query_template: "SELECT 1"
@@ -401,6 +413,44 @@ bucket_sampling {
 			},
 			wantErr: false,
 		},
+		{name: "pgaudit_rows_and_session_fields",
+			configText: `
+bucket_sampling {
+	query_template_configs: {
+		template: { normalized_query_template: "SELECT * FROM accounts" }
+		bucket_config: {
+			queries_per_bucket_mean: 2.0
+			rows_returned_mean: 25.0
+			rows_returned_std_dev: 0.0
+			anomalous_rows_probability: 0.0
+			anomalous_rows_multiplier: 10.0
+			rows_returned_max: 1000
+			pgaudit_scenario: true
+		}
+	}
+}
+`,
+			startTime:         1719878400000,
+			endTime:           1719882000000,
+			trainEndTime:      1719882000000,
+			bucketSizeMinutes: 60,
+			verify: func(t *testing.T, entries []*genpb.AuditLogEntry) {
+				if len(entries) != 2 {
+					t.Fatalf("got %d entries, want 2", len(entries))
+				}
+				if entries[0].GetDatabaseSessionId() == "" || entries[0].GetDatabaseSessionId() != entries[1].GetDatabaseSessionId() {
+					t.Errorf("expected a shared non-empty database session ID, got %q and %q", entries[0].GetDatabaseSessionId(), entries[1].GetDatabaseSessionId())
+				}
+				for _, entry := range entries {
+					if entry.GetRowsReturned() != 25 {
+						t.Errorf("rows_returned = %d, want 25", entry.GetRowsReturned())
+					}
+					if entry.GetIsGroundTruthAnomalous() {
+						t.Errorf("training events should not be anomalous")
+					}
+				}
+			},
+		},
 		{
 			name: "edge_case_empty_time_window_yields_zero_logs",
 			configText: `
@@ -426,6 +476,42 @@ bucket_sampling {
 				}
 			},
 			wantErr: false,
+		},
+		{
+			name: "pgaudit_query_row_anomalies_are_labeled_in_test_phase",
+			configText: `
+bucket_sampling {
+	query_template_configs: {
+		template: { normalized_query_template: "SELECT * FROM accounts" }
+		bucket_config: {
+			queries_per_bucket_mean: 2.0
+			anomalous_rows_probability: 1.0
+			rows_returned_mean: 20.0
+			rows_returned_std_dev: 0.0
+			anomalous_rows_multiplier: 5.0
+			rows_returned_max: 1000
+			pgaudit_scenario: true
+		}
+	}
+}
+`,
+			startTime:         1719878400000,
+			endTime:           1719882000000,
+			trainEndTime:      1719878400000,
+			bucketSizeMinutes: 60,
+			verify: func(t *testing.T, entries []*genpb.AuditLogEntry) {
+				if len(entries) != 2 {
+					t.Fatalf("got %d entries, want 2", len(entries))
+				}
+				for _, entry := range entries {
+					if !entry.GetIsGroundTruthAnomalous() {
+						t.Errorf("expected anomalous read event")
+					}
+					if entry.GetRowsReturned() != 100 {
+						t.Errorf("rows_returned = %d, want 100", entry.GetRowsReturned())
+					}
+				}
+			},
 		},
 		{
 			name: "edge_case_testing_phase_spike_probability_one_forces_spikes",
@@ -513,6 +599,7 @@ bucket_sampling {
 			*endTimeMs = test.endTime
 			*trainEndTimeMs = test.trainEndTime
 			*bucketSizeMinutes = test.bucketSizeMinutes
+			*pgauditScenario = test.pgaudit
 
 			configs := &genpb.QueryTemplateConfigs{}
 			if err := prototext.Unmarshal([]byte(test.configText), configs); err != nil {

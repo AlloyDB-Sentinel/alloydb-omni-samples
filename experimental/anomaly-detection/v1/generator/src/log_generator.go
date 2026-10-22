@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
+	"strings"
 
 	"google.golang.org/protobuf/encoding/protodelim"
 
@@ -61,6 +63,14 @@ func (g *LogGenerator) BuildBucketLog(cfg *genpb.BucketQueryTemplateConfig, isSp
 	return entry
 }
 
+// BuildPGAuditBucketLog enriches a Scenario 2 read event with PGAudit-shaped fields.
+func (g *LogGenerator) BuildPGAuditBucketLog(cfg *genpb.BucketQueryTemplateConfig, isAnomalous bool, timestampMs int64, sessionID string, rowsReturned int64) *genpb.AuditLogEntry {
+	entry := g.BuildBucketLog(cfg, isAnomalous, timestampMs)
+	entry.SetDatabaseSessionId(sessionID)
+	entry.SetRowsReturned(rowsReturned)
+	return entry
+}
+
 // buildQueryStatement injects randomized values into placeholders (%v) to create the query statement.
 func (g *LogGenerator) buildQueryStatement(cfg *genpb.QueryTemplateConfig) string {
 	var vals []any
@@ -80,4 +90,26 @@ func (g *LogGenerator) buildQueryStatement(cfg *genpb.QueryTemplateConfig) strin
 		}
 	}
 	return fmt.Sprintf(cfg.GetNormalizedQueryTemplate(), vals...)
+}
+
+// SampleRowsReturned draws a non-negative row count, injecting an elevated row-count anomaly when requested.
+func SampleRowsReturned(cfg *genpb.BucketSimulationConfig, isAnomalous bool, rng *rand.Rand) int64 {
+	mean := cfg.GetRowsReturnedMean()
+	if isAnomalous {
+		mean *= cfg.GetAnomalousRowsMultiplier()
+	}
+	rows := int64(math.Round(mean + rng.NormFloat64()*cfg.GetRowsReturnedStdDev()))
+	if rows < 0 {
+		rows = 0
+	}
+	if maxRows := cfg.GetRowsReturnedMax(); rows > maxRows {
+		rows = maxRows
+	}
+	return rows
+}
+
+// IsReadStatement identifies PostgreSQL read statements for row-count simulation.
+func IsReadStatement(statement string) bool {
+	trimmed := strings.TrimSpace(statement)
+	return strings.HasPrefix(strings.ToUpper(trimmed), "SELECT") || strings.HasPrefix(strings.ToUpper(trimmed), "WITH")
 }

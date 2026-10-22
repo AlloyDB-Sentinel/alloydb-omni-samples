@@ -27,6 +27,7 @@ var (
 	numLogs = flag.Int("num_logs", 50000, "Total number of logs to generate.")
 
 	// Scenario 2 and 3 (bucket sampling) flags.
+	pgauditScenario   = flag.Bool("pgaudit_scenario", false, "Generate PGAudit-shaped Scenario 2 read logs with row counts and session IDs.")
 	startTimeMs       = flag.Int64("start_time_ms", 0, "Start timestamp of the simulated logs (in milliseconds).")
 	trainEndTimeMs    = flag.Int64("train_end_time_ms", 0, "Training/test partition timestamp of the simulated logs (in milliseconds).")
 	endTimeMs         = flag.Int64("end_time_ms", 0, "End timestamp of the simulated logs (in milliseconds).")
@@ -106,6 +107,9 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 		if *numLogs <= 0 {
 			return fmt.Errorf("--num_logs must be a positive integer, got %d", *numLogs)
 		}
+	}
+	if *pgauditScenario && configs.GetBucketSampling() == nil {
+		return fmt.Errorf("--pgaudit_scenario requires a bucket_sampling configuration")
 	}
 	return nil
 }
@@ -191,9 +195,39 @@ func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.R
 			}
 
 			count := SampleQueryCount(cfg, isSpike, current.Hour(), current.Weekday(), rng)
+			isPGAuditScenario := *pgauditScenario || cfg.GetBucketConfig().GetPgauditScenario()
+			if *pgauditScenario {
+				if err := validateBucketSimulationConfig(0, cfg.GetBucketConfig()); err != nil {
+					return fmt.Errorf("invalid PGAudit settings: %w", err)
+				}
+			}
+			sessionID := ""
+			if isPGAuditScenario {
+				sessionID = fmt.Sprintf("%016x", rng.Uint64())
+			}
 
 			for i := 0; i < count; i++ {
 				timestampMs := SampleTimestampMs(cfg, current, bucketSizeMs, rng)
+				if isPGAuditScenario {
+					statement := generator.buildQueryStatement(cfg.GetTemplate())
+					if !IsReadStatement(statement) {
+						continue
+					}
+					isHighRowsAnomaly := !isTrainingPhase && rng.Float64() < cfg.GetBucketConfig().GetAnomalousRowsProbability()
+					isReadBurst := isSpike
+					if isReadBurst {
+						rowsReturned := SampleRowsReturned(cfg.GetBucketConfig(), true, rng)
+						entry := generator.BuildPGAuditBucketLog(cfg, true, timestampMs, sessionID, rowsReturned)
+						entry.SetQueryStatement(statement)
+						logs = append(logs, entry)
+						continue
+					}
+					rowsReturned := SampleRowsReturned(cfg.GetBucketConfig(), isHighRowsAnomaly, rng)
+					entry := generator.BuildPGAuditBucketLog(cfg, isHighRowsAnomaly, timestampMs, sessionID, rowsReturned)
+					entry.SetQueryStatement(statement)
+					logs = append(logs, entry)
+					continue
+				}
 				entry := generator.BuildBucketLog(cfg, isSpike, timestampMs)
 				logs = append(logs, entry)
 			}
