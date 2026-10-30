@@ -18,6 +18,12 @@ service PredictionService {
 
   // Pushes a new model to the prediction service.
   rpc PushModel(PushModelRequest) returns (PushModelResponse);
+
+  // Fits a window-score threshold without changing the learned baseline.
+  rpc CalibrateWindows(CalibrateWindowsRequest) returns (CalibrateWindowsResponse);
+
+  // Scores complete, nonoverlapping validation windows using a calibrated model.
+  rpc ScoreWindows(ScoreWindowsRequest) returns (WindowScoreReport);
 }
 
 message ModelMetadataFilter {
@@ -37,6 +43,8 @@ message ModelFilter {
         .VolumetricSpikeTrainingConfig volumetric_spike = 3;
     experimental.anomaly_detection.v2.common.proto
         .TemporalDeviationTrainingConfig temporal_deviation = 4;
+    experimental.anomaly_detection.v2.common.proto
+        .NGramHistogramTrainingConfig ngram_histogram = 5;
   }
 }
 
@@ -60,6 +68,8 @@ message ModelEntry {
         .VolumetricSpikeTrainingConfig volumetric_spike_config = 5;
     experimental.anomaly_detection.v2.common.proto
         .TemporalDeviationTrainingConfig temporal_deviation_config = 6;
+    experimental.anomaly_detection.v2.common.proto
+        .NGramHistogramTrainingConfig ngram_histogram_config = 7;
   }
 }
 
@@ -110,3 +120,71 @@ message PushModelRequest {
 }
 
 message PushModelResponse {}
+
+message NGramDistance {
+  int32 n = 1;
+  double distance = 2; // Jensen-Shannon distance, base 2, in [0, 1].
+}
+
+message NGramOrderScore {
+  int32 n = 1;
+  double score = 2; // RMS standardized deviation for this order.
+  int64 category_count = 3; // Known categories plus one fixed unknown bucket.
+  int64 unknown_occurrences = 4;
+}
+
+message NGramDeviation {
+  int32 n = 1;
+  repeated string actions = 2; // Empty for the aggregated unknown bucket.
+  bool is_unknown_bucket = 3;
+  double observed_proportion = 4;
+  double learned_mean = 5;
+  double learned_variance = 6;
+  double effective_standard_deviation = 7;
+  double standardized_deviation = 8; // Signed: increased/decreased frequency.
+  double squared_deviation = 9;
+  // Contribution to the final score squared; used to rank explanations.
+  double score_contribution = 10;
+}
+
+message WindowScore {
+  int64 window_index = 1; // Zero-based.
+  int64 start_action = 2; // Inclusive, zero-based record position.
+  int64 end_action = 3; // Exclusive.
+  repeated NGramDistance distances = 4 [deprecated = true]; // Legacy JS only.
+  double score = 5; // sqrt(mean of per-order mean squared standardized deviations).
+  // Absent for calibration windows, which have no threshold yet.
+  optional bool is_anomalous = 6;
+  repeated NGramOrderScore order_scores = 7;
+  repeated NGramDeviation top_deviations = 8; // Largest ten contributions.
+}
+
+message WindowScoreReport {
+  int32 window_length = 1;
+  int64 total_actions = 2;
+  int64 complete_windows = 3;
+  int64 trailing_actions = 4; // Not scored.
+  repeated WindowScore windows = 5;
+  optional double threshold = 6;
+  string scoring_version = 7;
+  experimental.anomaly_detection.v2.common.proto.NGramScoringConfig scoring_config = 8;
+}
+
+message CalibrateWindowsRequest {
+  string model_location = 1;
+  string calibration_log_path = 2;
+  double percentile = 3; // In (0, 1); nearest-rank empirical quantile.
+  string output_model_location = 4; // Must differ from the original model.
+  experimental.anomaly_detection.v2.common.proto.NGramScoringConfig scoring_config = 5;
+}
+
+message CalibrateWindowsResponse {
+  string model_location = 1;
+  experimental.anomaly_detection.v2.common.proto.NGramCalibration calibration = 2;
+  WindowScoreReport scores = 3;
+}
+
+message ScoreWindowsRequest {
+  string model_location = 1;
+  string validation_log_path = 2;
+}

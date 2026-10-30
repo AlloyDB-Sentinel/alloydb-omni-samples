@@ -1,0 +1,40 @@
+# proto-file: v2/client/proto/experiment.proto
+# proto-message: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig
+# Baseline is loaded directly from the upstream service_usage workload.
+generator_config_path: "v1/client/markov_service_usage_config.textproto"
+training_actions: 30000
+training_seed: 42
+training_config { max_n: 3 window_length: 300 }
+calibration_percentile: 0.99
+calibration_actions: 300000
+calibration_seed: 43
+validation_actions: 30000
+validation_seed: 44
+
+# Same service actions; frequent writes replace rare writes.
+anomaly_profiles {
+  profile_id: "write-heavy"
+
+  transitions {
+    node_id: "read_point_lookup"
+    edges { destination_id: "read_range_scan" weight: 0.15 }
+    edges { destination_id: "read_point_lookup" weight: 0.15 }
+    edges { destination_id: "write_update" weight: 0.7 }
+  }
+  transitions {
+    node_id: "read_range_scan"
+    edges { destination_id: "read_point_lookup" weight: 0.15 }
+    edges { destination_id: "read_range_scan" weight: 0.15 }
+    edges { destination_id: "write_update" weight: 0.7 }
+  }
+}
+
+
+# Variance-aware scoring: minimum sigma equivalent to one occurrence.
+scoring_config { standard_deviation_floor_count: 1 }
+injections { segment_id: "segment-1" profile_id: "write-heavy" start_action: 1500 num_actions: 900 }
+injections { segment_id: "segment-2" profile_id: "write-heavy" start_action: 6200 num_actions: 600 }
+injections { segment_id: "segment-3" profile_id: "write-heavy" start_action: 12450 num_actions: 900 }
+injections { segment_id: "segment-4" profile_id: "write-heavy" start_action: 18150 num_actions: 1200 }
+injections { segment_id: "segment-5" profile_id: "write-heavy" start_action: 24000 num_actions: 450 }
+injections { segment_id: "segment-6" profile_id: "write-heavy" start_action: 28550 num_actions: 300 }

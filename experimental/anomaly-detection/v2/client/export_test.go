@@ -16,7 +16,7 @@ import (
 	auditpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 )
 
-func TestSplitLogsPreservesPrefixAndExports(t *testing.T) {
+func TestExportLogsUsesEveryRecord(t *testing.T) {
 	dir := t.TempDir()
 	f, err := os.Create(filepath.Join(dir, "logs.binproto"))
 	if err != nil {
@@ -24,7 +24,7 @@ func TestSplitLogsPreservesPrefixAndExports(t *testing.T) {
 	}
 	// Write v1 records, then verify the v2 pipeline preserves all fields.
 	var want []*auditpb.AuditLogEntry
-	for i, action := range []string{"A", "B", "A", "B", "HELD_OUT", "HELD_OUT", "HELD_OUT", "HELD_OUT", "HELD_OUT", "HELD_OUT"} {
+	for i, action := range []string{"A", "B", "A", "B", "C", "C", "C", "C", "C", "C"} {
 		e := &genpb.AuditLogEntry{}
 		e.SetNormalizedQueryTemplate(action)
 		e.SetQueryStatement(action + " statement")
@@ -43,13 +43,13 @@ func TestSplitLogsPreservesPrefixAndExports(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
-	if err := splitLogs(ctx, dir, 4, 10); err != nil {
+	if err := exportLogs(ctx, dir, 10); err != nil {
 		t.Fatal(err)
 	}
 	for _, test := range []struct {
 		path string
 		want []*auditpb.AuditLogEntry
-	}{{"train.binproto", want[:4]}, {"test.binproto", want[4:]}} {
+	}{{"logs.binproto", want}} {
 		var got []string
 		err := common.IngestBinProtoStream(ctx, filepath.Join(dir, test.path), func(e *auditpb.AuditLogEntry) error {
 			got = append(got, e.GetNormalizedQueryTemplate())
@@ -69,6 +69,11 @@ func TestSplitLogsPreservesPrefixAndExports(t *testing.T) {
 			t.Fatalf("%s: got %v want %v", test.path, got, expected)
 		}
 	}
+	for _, name := range []string{"train.binproto", "test.binproto"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
+			t.Fatalf("unexpected split file %s", name)
+		}
+	}
 	data, err := os.ReadFile(filepath.Join(dir, "logs.jsonl"))
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +87,7 @@ func TestSplitLogsPreservesPrefixAndExports(t *testing.T) {
 			t.Fatal("invalid JSONL")
 		}
 	}
-	if err := splitLogs(ctx, dir, 4, 11); err == nil {
+	if err := exportLogs(ctx, dir, 11); err == nil {
 		t.Fatal("expected count mismatch error")
 	}
 }

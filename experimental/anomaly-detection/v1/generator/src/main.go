@@ -24,7 +24,8 @@ var (
 	outputDir  = flag.String("output_dir", "", "Directory path for outputting training/test sets (.binproto). Required.")
 
 	// Scenario 1 (weighted random sampling) flags.
-	numLogs = flag.Int("num_logs", 50000, "Total number of logs to generate.")
+	numLogs    = flag.Int("num_logs", 50000, "Total number of logs to generate.")
+	randomSeed = flag.Int64("seed", 0, "Random seed for reproducible generation. When omitted, a random seed is used.")
 
 	// Scenario 2 and 3 (bucket sampling) flags.
 	startTimeMs       = flag.Int64("start_time_ms", 0, "Start timestamp of the simulated logs (in milliseconds).")
@@ -65,7 +66,14 @@ func main() {
 		log.Printf("Configuration applied - Output Dir: %q, Num Logs: %d, Start: %d", *outputDir, *numLogs, *startTimeMs)
 	}
 
-	if err := GenerateLogs(ctx, configs, *numLogs, rand.Int63(), *outputDir); err != nil {
+	seed := rand.Int63()
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "seed" {
+			seed = *randomSeed
+		}
+	})
+	log.Printf("Generation seed: %d", seed)
+	if err := GenerateLogs(ctx, configs, *numLogs, seed, *outputDir); err != nil {
 		log.Fatalf("Failed to generate logs: %v", err)
 	}
 
@@ -108,6 +116,9 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 		// Scenario 1 (weighted) and markov sampling: count-based generation.
 		if *numLogs <= 0 {
 			return fmt.Errorf("--num_logs must be a positive integer, got %d", *numLogs)
+		}
+		if cfg := configs.GetMarkovSampling(); cfg != nil {
+			return validateMarkovInjectionBounds(cfg, *numLogs)
 		}
 	}
 	return nil

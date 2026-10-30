@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package experimental.anomaly_detection.v2.client.proto;
+
+option go_package = "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/client/proto;clientpb";
+
+message WindowEvaluation {
+  int64 window_index = 1;
+  int64 start_action = 2;
+  int64 end_action = 3;
+  int64 anomalous_actions = 4;
+  double anomalous_fraction = 5;
+  bool expected_anomalous = 6; // Any labeled anomalous action in the window.
+  bool predicted_anomalous = 7;
+  double score = 8;
+  repeated string segment_ids = 9;
+}
+
+message SegmentEvaluation {
+  string segment_id = 1;
+  string profile_id = 2;
+  int64 start_action = 3;
+  int64 end_action = 4;
+  int64 scored_actions = 5;
+  bool detected = 6; // Any flagged scored window intersecting this segment.
+}
+
+message WindowEvaluationReport {
+  string positive_window_policy = 1; // "any_anomalous_action"
+  int64 total_actions = 2;
+  int64 anomalous_actions = 3;
+  int64 scored_anomalous_actions = 4;
+  int64 trailing_anomalous_actions = 5;
+  int64 true_positives = 6;
+  int64 false_positives = 7;
+  int64 true_negatives = 8;
+  int64 false_negatives = 9;
+  optional double precision = 10;
+  optional double recall = 11;
+  optional double false_positive_rate = 12;
+  optional double f1 = 13;
+  int64 scored_segments = 14;
+  int64 detected_segments = 15;
+  optional double segment_recall = 16;
+  repeated WindowEvaluation windows = 17;
+  repeated SegmentEvaluation segments = 18;
+}

@@ -1,0 +1,6 @@
+# Local executables and generated experiment/audit artifacts.
+/bin/
+/output/
+/runs/
+/coverage.out
+*.test

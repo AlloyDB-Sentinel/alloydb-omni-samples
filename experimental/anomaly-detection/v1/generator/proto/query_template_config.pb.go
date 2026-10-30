@@ -334,11 +334,13 @@ func (*queryTemplateConfigs_MarkovSampling) isQueryTemplateConfigs_Scenario() {}
 
 // Directed weighted graph (Markov chain) describing a workload.
 type MarkovSamplingConfig struct {
-	state            protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Nodes *[]*MarkovNode         `protobuf:"bytes,1,rep,name=nodes,proto3"`
-	xxx_hidden_Start *MarkovStartNode       `protobuf:"bytes,2,opt,name=start,proto3"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                      protoimpl.MessageState   `protogen:"opaque.v1"`
+	xxx_hidden_Nodes           *[]*MarkovNode           `protobuf:"bytes,1,rep,name=nodes,proto3"`
+	xxx_hidden_Start           *MarkovStartNode         `protobuf:"bytes,2,opt,name=start,proto3"`
+	xxx_hidden_AnomalyProfiles *[]*MarkovAnomalyProfile `protobuf:"bytes,3,rep,name=anomaly_profiles,json=anomalyProfiles,proto3"`
+	xxx_hidden_Injections      *[]*MarkovInjection      `protobuf:"bytes,4,rep,name=injections,proto3"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *MarkovSamplingConfig) Reset() {
@@ -382,12 +384,38 @@ func (x *MarkovSamplingConfig) GetStart() *MarkovStartNode {
 	return nil
 }
 
+func (x *MarkovSamplingConfig) GetAnomalyProfiles() []*MarkovAnomalyProfile {
+	if x != nil {
+		if x.xxx_hidden_AnomalyProfiles != nil {
+			return *x.xxx_hidden_AnomalyProfiles
+		}
+	}
+	return nil
+}
+
+func (x *MarkovSamplingConfig) GetInjections() []*MarkovInjection {
+	if x != nil {
+		if x.xxx_hidden_Injections != nil {
+			return *x.xxx_hidden_Injections
+		}
+	}
+	return nil
+}
+
 func (x *MarkovSamplingConfig) SetNodes(v []*MarkovNode) {
 	x.xxx_hidden_Nodes = &v
 }
 
 func (x *MarkovSamplingConfig) SetStart(v *MarkovStartNode) {
 	x.xxx_hidden_Start = v
+}
+
+func (x *MarkovSamplingConfig) SetAnomalyProfiles(v []*MarkovAnomalyProfile) {
+	x.xxx_hidden_AnomalyProfiles = &v
+}
+
+func (x *MarkovSamplingConfig) SetInjections(v []*MarkovInjection) {
+	x.xxx_hidden_Injections = &v
 }
 
 func (x *MarkovSamplingConfig) HasStart() bool {
@@ -404,8 +432,11 @@ func (x *MarkovSamplingConfig) ClearStart() {
 type MarkovSamplingConfig_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Nodes []*MarkovNode
-	Start *MarkovStartNode
+	Nodes           []*MarkovNode
+	Start           *MarkovStartNode
+	AnomalyProfiles []*MarkovAnomalyProfile
+	// Ordered, nonoverlapping ranges in the output action sequence.
+	Injections []*MarkovInjection
 }
 
 func (b0 MarkovSamplingConfig_builder) Build() *MarkovSamplingConfig {
@@ -414,6 +445,255 @@ func (b0 MarkovSamplingConfig_builder) Build() *MarkovSamplingConfig {
 	_, _ = b, x
 	x.xxx_hidden_Nodes = &b.Nodes
 	x.xxx_hidden_Start = b.Start
+	x.xxx_hidden_AnomalyProfiles = &b.AnomalyProfiles
+	x.xxx_hidden_Injections = &b.Injections
+	return m0
+}
+
+// A second Markov graph made by reweighting existing edges. Node templates,
+// completion times, start selection and edge destinations stay unchanged.
+type MarkovAnomalyProfile struct {
+	state                  protoimpl.MessageState       `protogen:"opaque.v1"`
+	xxx_hidden_ProfileId   string                       `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3"`
+	xxx_hidden_Transitions *[]*MarkovTransitionOverride `protobuf:"bytes,2,rep,name=transitions,proto3"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *MarkovAnomalyProfile) Reset() {
+	*x = MarkovAnomalyProfile{}
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkovAnomalyProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkovAnomalyProfile) ProtoMessage() {}
+
+func (x *MarkovAnomalyProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *MarkovAnomalyProfile) GetProfileId() string {
+	if x != nil {
+		return x.xxx_hidden_ProfileId
+	}
+	return ""
+}
+
+func (x *MarkovAnomalyProfile) GetTransitions() []*MarkovTransitionOverride {
+	if x != nil {
+		if x.xxx_hidden_Transitions != nil {
+			return *x.xxx_hidden_Transitions
+		}
+	}
+	return nil
+}
+
+func (x *MarkovAnomalyProfile) SetProfileId(v string) {
+	x.xxx_hidden_ProfileId = v
+}
+
+func (x *MarkovAnomalyProfile) SetTransitions(v []*MarkovTransitionOverride) {
+	x.xxx_hidden_Transitions = &v
+}
+
+type MarkovAnomalyProfile_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	ProfileId   string
+	Transitions []*MarkovTransitionOverride
+}
+
+func (b0 MarkovAnomalyProfile_builder) Build() *MarkovAnomalyProfile {
+	m0 := &MarkovAnomalyProfile{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_ProfileId = b.ProfileId
+	x.xxx_hidden_Transitions = &b.Transitions
+	return m0
+}
+
+type MarkovTransitionOverride struct {
+	state             protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_NodeId string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3"`
+	xxx_hidden_Edges  *[]*MarkovEdge         `protobuf:"bytes,2,rep,name=edges,proto3"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *MarkovTransitionOverride) Reset() {
+	*x = MarkovTransitionOverride{}
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkovTransitionOverride) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkovTransitionOverride) ProtoMessage() {}
+
+func (x *MarkovTransitionOverride) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *MarkovTransitionOverride) GetNodeId() string {
+	if x != nil {
+		return x.xxx_hidden_NodeId
+	}
+	return ""
+}
+
+func (x *MarkovTransitionOverride) GetEdges() []*MarkovEdge {
+	if x != nil {
+		if x.xxx_hidden_Edges != nil {
+			return *x.xxx_hidden_Edges
+		}
+	}
+	return nil
+}
+
+func (x *MarkovTransitionOverride) SetNodeId(v string) {
+	x.xxx_hidden_NodeId = v
+}
+
+func (x *MarkovTransitionOverride) SetEdges(v []*MarkovEdge) {
+	x.xxx_hidden_Edges = &v
+}
+
+type MarkovTransitionOverride_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	NodeId string
+	Edges  []*MarkovEdge
+}
+
+func (b0 MarkovTransitionOverride_builder) Build() *MarkovTransitionOverride {
+	m0 := &MarkovTransitionOverride{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_NodeId = b.NodeId
+	x.xxx_hidden_Edges = &b.Edges
+	return m0
+}
+
+type MarkovInjection struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_SegmentId   string                 `protobuf:"bytes,1,opt,name=segment_id,json=segmentId,proto3"`
+	xxx_hidden_ProfileId   string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3"`
+	xxx_hidden_StartAction int64                  `protobuf:"varint,3,opt,name=start_action,json=startAction,proto3"`
+	xxx_hidden_NumActions  int64                  `protobuf:"varint,4,opt,name=num_actions,json=numActions,proto3"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *MarkovInjection) Reset() {
+	*x = MarkovInjection{}
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkovInjection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkovInjection) ProtoMessage() {}
+
+func (x *MarkovInjection) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *MarkovInjection) GetSegmentId() string {
+	if x != nil {
+		return x.xxx_hidden_SegmentId
+	}
+	return ""
+}
+
+func (x *MarkovInjection) GetProfileId() string {
+	if x != nil {
+		return x.xxx_hidden_ProfileId
+	}
+	return ""
+}
+
+func (x *MarkovInjection) GetStartAction() int64 {
+	if x != nil {
+		return x.xxx_hidden_StartAction
+	}
+	return 0
+}
+
+func (x *MarkovInjection) GetNumActions() int64 {
+	if x != nil {
+		return x.xxx_hidden_NumActions
+	}
+	return 0
+}
+
+func (x *MarkovInjection) SetSegmentId(v string) {
+	x.xxx_hidden_SegmentId = v
+}
+
+func (x *MarkovInjection) SetProfileId(v string) {
+	x.xxx_hidden_ProfileId = v
+}
+
+func (x *MarkovInjection) SetStartAction(v int64) {
+	x.xxx_hidden_StartAction = v
+}
+
+func (x *MarkovInjection) SetNumActions(v int64) {
+	x.xxx_hidden_NumActions = v
+}
+
+type MarkovInjection_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	SegmentId   string
+	ProfileId   string
+	StartAction int64
+	NumActions  int64
+}
+
+func (b0 MarkovInjection_builder) Build() *MarkovInjection {
+	m0 := &MarkovInjection{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_SegmentId = b.SegmentId
+	x.xxx_hidden_ProfileId = b.ProfileId
+	x.xxx_hidden_StartAction = b.StartAction
+	x.xxx_hidden_NumActions = b.NumActions
 	return m0
 }
 
@@ -430,7 +710,7 @@ type MarkovNode struct {
 
 func (x *MarkovNode) Reset() {
 	*x = MarkovNode{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[2]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -442,7 +722,7 @@ func (x *MarkovNode) String() string {
 func (*MarkovNode) ProtoMessage() {}
 
 func (x *MarkovNode) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[2]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +832,7 @@ type MarkovEdge struct {
 
 func (x *MarkovEdge) Reset() {
 	*x = MarkovEdge{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[3]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -564,7 +844,7 @@ func (x *MarkovEdge) String() string {
 func (*MarkovEdge) ProtoMessage() {}
 
 func (x *MarkovEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[3]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -623,7 +903,7 @@ type CompletionTime struct {
 
 func (x *CompletionTime) Reset() {
 	*x = CompletionTime{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[4]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -635,7 +915,7 @@ func (x *CompletionTime) String() string {
 func (*CompletionTime) ProtoMessage() {}
 
 func (x *CompletionTime) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[4]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -762,7 +1042,7 @@ func (b0 CompletionTime_builder) Build() *CompletionTime {
 type case_CompletionTime_DurationSpec protoreflect.FieldNumber
 
 func (x case_CompletionTime_DurationSpec) String() string {
-	md := file_v1_generator_proto_query_template_config_proto_msgTypes[4].Descriptor()
+	md := file_v1_generator_proto_query_template_config_proto_msgTypes[7].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -795,7 +1075,7 @@ type DurationRange struct {
 
 func (x *DurationRange) Reset() {
 	*x = DurationRange{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[5]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -807,7 +1087,7 @@ func (x *DurationRange) String() string {
 func (*DurationRange) ProtoMessage() {}
 
 func (x *DurationRange) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[5]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -888,7 +1168,7 @@ type MarkovStartNode struct {
 
 func (x *MarkovStartNode) Reset() {
 	*x = MarkovStartNode{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[6]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -900,7 +1180,7 @@ func (x *MarkovStartNode) String() string {
 func (*MarkovStartNode) ProtoMessage() {}
 
 func (x *MarkovStartNode) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[6]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1023,7 +1303,7 @@ func (b0 MarkovStartNode_builder) Build() *MarkovStartNode {
 type case_MarkovStartNode_StartSpec protoreflect.FieldNumber
 
 func (x case_MarkovStartNode_StartSpec) String() string {
-	md := file_v1_generator_proto_query_template_config_proto_msgTypes[6].Descriptor()
+	md := file_v1_generator_proto_query_template_config_proto_msgTypes[9].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -1055,7 +1335,7 @@ type WeightedStartNodes struct {
 
 func (x *WeightedStartNodes) Reset() {
 	*x = WeightedStartNodes{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[7]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1067,7 +1347,7 @@ func (x *WeightedStartNodes) String() string {
 func (*WeightedStartNodes) ProtoMessage() {}
 
 func (x *WeightedStartNodes) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[7]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1115,7 +1395,7 @@ type WeightedStartNode struct {
 
 func (x *WeightedStartNode) Reset() {
 	*x = WeightedStartNode{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[8]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1127,7 +1407,7 @@ func (x *WeightedStartNode) String() string {
 func (*WeightedStartNode) ProtoMessage() {}
 
 func (x *WeightedStartNode) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[8]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1185,7 +1465,7 @@ type WeightedSamplingConfig struct {
 
 func (x *WeightedSamplingConfig) Reset() {
 	*x = WeightedSamplingConfig{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[9]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1197,7 +1477,7 @@ func (x *WeightedSamplingConfig) String() string {
 func (*WeightedSamplingConfig) ProtoMessage() {}
 
 func (x *WeightedSamplingConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[9]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1244,7 +1524,7 @@ type BucketSamplingConfig struct {
 
 func (x *BucketSamplingConfig) Reset() {
 	*x = BucketSamplingConfig{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[10]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1256,7 +1536,7 @@ func (x *BucketSamplingConfig) String() string {
 func (*BucketSamplingConfig) ProtoMessage() {}
 
 func (x *BucketSamplingConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[10]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1304,7 +1584,7 @@ type WeightedQueryTemplateConfig struct {
 
 func (x *WeightedQueryTemplateConfig) Reset() {
 	*x = WeightedQueryTemplateConfig{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[11]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1316,7 +1596,7 @@ func (x *WeightedQueryTemplateConfig) String() string {
 func (*WeightedQueryTemplateConfig) ProtoMessage() {}
 
 func (x *WeightedQueryTemplateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[11]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1388,7 +1668,7 @@ type BucketQueryTemplateConfig struct {
 
 func (x *BucketQueryTemplateConfig) Reset() {
 	*x = BucketQueryTemplateConfig{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[12]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1400,7 +1680,7 @@ func (x *BucketQueryTemplateConfig) String() string {
 func (*BucketQueryTemplateConfig) ProtoMessage() {}
 
 func (x *BucketQueryTemplateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[12]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1482,7 +1762,7 @@ type QueryTemplateConfig struct {
 
 func (x *QueryTemplateConfig) Reset() {
 	*x = QueryTemplateConfig{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[13]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1494,7 +1774,7 @@ func (x *QueryTemplateConfig) String() string {
 func (*QueryTemplateConfig) ProtoMessage() {}
 
 func (x *QueryTemplateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[13]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1579,7 +1859,7 @@ type BucketSimulationConfig struct {
 
 func (x *BucketSimulationConfig) Reset() {
 	*x = BucketSimulationConfig{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[14]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1591,7 +1871,7 @@ func (x *BucketSimulationConfig) String() string {
 func (*BucketSimulationConfig) ProtoMessage() {}
 
 func (x *BucketSimulationConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[14]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1755,7 +2035,7 @@ type PeakWindow struct {
 
 func (x *PeakWindow) Reset() {
 	*x = PeakWindow{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[15]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1767,7 +2047,7 @@ func (x *PeakWindow) String() string {
 func (*PeakWindow) ProtoMessage() {}
 
 func (x *PeakWindow) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[15]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1855,7 +2135,7 @@ type ConnectionSamplingConfig struct {
 
 func (x *ConnectionSamplingConfig) Reset() {
 	*x = ConnectionSamplingConfig{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[16]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1867,7 +2147,7 @@ func (x *ConnectionSamplingConfig) String() string {
 func (*ConnectionSamplingConfig) ProtoMessage() {}
 
 func (x *ConnectionSamplingConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[16]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1950,7 +2230,7 @@ type ClientProfile struct {
 
 func (x *ClientProfile) Reset() {
 	*x = ClientProfile{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[17]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1962,7 +2242,7 @@ func (x *ClientProfile) String() string {
 func (*ClientProfile) ProtoMessage() {}
 
 func (x *ClientProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[17]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2272,7 +2552,7 @@ func (b0 ClientProfile_builder) Build() *ClientProfile {
 type case_ClientProfile_Schedule protoreflect.FieldNumber
 
 func (x case_ClientProfile_Schedule) String() string {
-	md := file_v1_generator_proto_query_template_config_proto_msgTypes[17].Descriptor()
+	md := file_v1_generator_proto_query_template_config_proto_msgTypes[20].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -2315,7 +2595,7 @@ type ClientAddressPool struct {
 
 func (x *ClientAddressPool) Reset() {
 	*x = ClientAddressPool{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[18]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2327,7 +2607,7 @@ func (x *ClientAddressPool) String() string {
 func (*ClientAddressPool) ProtoMessage() {}
 
 func (x *ClientAddressPool) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[18]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2388,7 +2668,7 @@ type OutcomeWeight struct {
 
 func (x *OutcomeWeight) Reset() {
 	*x = OutcomeWeight{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[19]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2400,7 +2680,7 @@ func (x *OutcomeWeight) String() string {
 func (*OutcomeWeight) ProtoMessage() {}
 
 func (x *OutcomeWeight) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[19]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2459,7 +2739,7 @@ type PeriodicSchedule struct {
 
 func (x *PeriodicSchedule) Reset() {
 	*x = PeriodicSchedule{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[20]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2471,7 +2751,7 @@ func (x *PeriodicSchedule) String() string {
 func (*PeriodicSchedule) ProtoMessage() {}
 
 func (x *PeriodicSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[20]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2556,7 +2836,7 @@ type BurstSchedule struct {
 
 func (x *BurstSchedule) Reset() {
 	*x = BurstSchedule{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[21]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2568,7 +2848,7 @@ func (x *BurstSchedule) String() string {
 func (*BurstSchedule) ProtoMessage() {}
 
 func (x *BurstSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[21]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2667,7 +2947,7 @@ type QueryTemplateConfig_PlaceholderValueSpec struct {
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec) Reset() {
 	*x = QueryTemplateConfig_PlaceholderValueSpec{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[22]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2679,7 +2959,7 @@ func (x *QueryTemplateConfig_PlaceholderValueSpec) String() string {
 func (*QueryTemplateConfig_PlaceholderValueSpec) ProtoMessage() {}
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[22]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2846,7 +3126,7 @@ func (b0 QueryTemplateConfig_PlaceholderValueSpec_builder) Build() *QueryTemplat
 type case_QueryTemplateConfig_PlaceholderValueSpec_Placeholder protoreflect.FieldNumber
 
 func (x case_QueryTemplateConfig_PlaceholderValueSpec_Placeholder) String() string {
-	md := file_v1_generator_proto_query_template_config_proto_msgTypes[22].Descriptor()
+	md := file_v1_generator_proto_query_template_config_proto_msgTypes[25].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -2888,7 +3168,7 @@ type QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder struct {
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder) Reset() {
 	*x = QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[23]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2900,7 +3180,7 @@ func (x *QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder) String() s
 func (*QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder) ProtoMessage() {}
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[23]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2959,7 +3239,7 @@ type QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder struct {
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder) Reset() {
 	*x = QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[24]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2971,7 +3251,7 @@ func (x *QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder) String() str
 func (*QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder) ProtoMessage() {}
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[24]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3029,7 +3309,7 @@ type QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder struct {
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder) Reset() {
 	*x = QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[25]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3041,7 +3321,7 @@ func (x *QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder) String() st
 func (*QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder) ProtoMessage() {}
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[25]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3088,10 +3368,29 @@ const file_v1_generator_proto_query_template_config_proto_rawDesc = "" +
 	"\x13connection_sampling\x18\x03 \x01(\v2K.experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfigH\x00R\x12connectionSampling\x12r\n" +
 	"\x0fmarkov_sampling\x18\x04 \x01(\v2G.experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfigH\x00R\x0emarkovSamplingB\n" +
 	"\n" +
-	"\bscenario\"\xc5\x01\n" +
+	"\bscenario\"\x9d\x03\n" +
 	"\x14MarkovSamplingConfig\x12S\n" +
 	"\x05nodes\x18\x01 \x03(\v2=.experimental.anomaly_detection.v1.generator.proto.MarkovNodeR\x05nodes\x12X\n" +
-	"\x05start\x18\x02 \x01(\v2B.experimental.anomaly_detection.v1.generator.proto.MarkovStartNodeR\x05start\"\xc1\x02\n" +
+	"\x05start\x18\x02 \x01(\v2B.experimental.anomaly_detection.v1.generator.proto.MarkovStartNodeR\x05start\x12r\n" +
+	"\x10anomaly_profiles\x18\x03 \x03(\v2G.experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfileR\x0fanomalyProfiles\x12b\n" +
+	"\n" +
+	"injections\x18\x04 \x03(\v2B.experimental.anomaly_detection.v1.generator.proto.MarkovInjectionR\n" +
+	"injections\"\xa4\x01\n" +
+	"\x14MarkovAnomalyProfile\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\tprofileId\x12m\n" +
+	"\vtransitions\x18\x02 \x03(\v2K.experimental.anomaly_detection.v1.generator.proto.MarkovTransitionOverrideR\vtransitions\"\x88\x01\n" +
+	"\x18MarkovTransitionOverride\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12S\n" +
+	"\x05edges\x18\x02 \x03(\v2=.experimental.anomaly_detection.v1.generator.proto.MarkovEdgeR\x05edges\"\x93\x01\n" +
+	"\x0fMarkovInjection\x12\x1d\n" +
+	"\n" +
+	"segment_id\x18\x01 \x01(\tR\tsegmentId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12!\n" +
+	"\fstart_action\x18\x03 \x01(\x03R\vstartAction\x12\x1f\n" +
+	"\vnum_actions\x18\x04 \x01(\x03R\n" +
+	"numActions\"\xc1\x02\n" +
 	"\n" +
 	"MarkovNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12b\n" +
@@ -3208,84 +3507,91 @@ const file_v1_generator_proto_query_template_config_proto_rawDesc = "" +
 	"\x1bACTIVE_WINDOW_TRAINING_ONLY\x10\x03BsZqgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/generator/proto;generatorpbb\x06proto3"
 
 var file_v1_generator_proto_query_template_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_v1_generator_proto_query_template_config_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_v1_generator_proto_query_template_config_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_v1_generator_proto_query_template_config_proto_goTypes = []any{
 	(ActiveWindow)(0),                                // 0: experimental.anomaly_detection.v1.generator.proto.ActiveWindow
 	(*QueryTemplateConfigs)(nil),                     // 1: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs
 	(*MarkovSamplingConfig)(nil),                     // 2: experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfig
-	(*MarkovNode)(nil),                               // 3: experimental.anomaly_detection.v1.generator.proto.MarkovNode
-	(*MarkovEdge)(nil),                               // 4: experimental.anomaly_detection.v1.generator.proto.MarkovEdge
-	(*CompletionTime)(nil),                           // 5: experimental.anomaly_detection.v1.generator.proto.CompletionTime
-	(*DurationRange)(nil),                            // 6: experimental.anomaly_detection.v1.generator.proto.DurationRange
-	(*MarkovStartNode)(nil),                          // 7: experimental.anomaly_detection.v1.generator.proto.MarkovStartNode
-	(*WeightedStartNodes)(nil),                       // 8: experimental.anomaly_detection.v1.generator.proto.WeightedStartNodes
-	(*WeightedStartNode)(nil),                        // 9: experimental.anomaly_detection.v1.generator.proto.WeightedStartNode
-	(*WeightedSamplingConfig)(nil),                   // 10: experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig
-	(*BucketSamplingConfig)(nil),                     // 11: experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig
-	(*WeightedQueryTemplateConfig)(nil),              // 12: experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig
-	(*BucketQueryTemplateConfig)(nil),                // 13: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig
-	(*QueryTemplateConfig)(nil),                      // 14: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
-	(*BucketSimulationConfig)(nil),                   // 15: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
-	(*PeakWindow)(nil),                               // 16: experimental.anomaly_detection.v1.generator.proto.PeakWindow
-	(*ConnectionSamplingConfig)(nil),                 // 17: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig
-	(*ClientProfile)(nil),                            // 18: experimental.anomaly_detection.v1.generator.proto.ClientProfile
-	(*ClientAddressPool)(nil),                        // 19: experimental.anomaly_detection.v1.generator.proto.ClientAddressPool
-	(*OutcomeWeight)(nil),                            // 20: experimental.anomaly_detection.v1.generator.proto.OutcomeWeight
-	(*PeriodicSchedule)(nil),                         // 21: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule
-	(*BurstSchedule)(nil),                            // 22: experimental.anomaly_detection.v1.generator.proto.BurstSchedule
-	(*QueryTemplateConfig_PlaceholderValueSpec)(nil), // 23: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec
-	(*QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder)(nil), // 24: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholder
-	(*QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder)(nil),   // 25: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholder
-	(*QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder)(nil),  // 26: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.StringPlaceholder
-	(*durationpb.Duration)(nil),                                         // 27: google.protobuf.Duration
-	(*SourceInstance)(nil),                                              // 28: experimental.anomaly_detection.v1.generator.proto.SourceInstance
-	(AttackerProfile)(0),                                                // 29: experimental.anomaly_detection.v1.generator.proto.AttackerProfile
-	(ConnectionOutcome)(0),                                              // 30: experimental.anomaly_detection.v1.generator.proto.ConnectionOutcome
+	(*MarkovAnomalyProfile)(nil),                     // 3: experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfile
+	(*MarkovTransitionOverride)(nil),                 // 4: experimental.anomaly_detection.v1.generator.proto.MarkovTransitionOverride
+	(*MarkovInjection)(nil),                          // 5: experimental.anomaly_detection.v1.generator.proto.MarkovInjection
+	(*MarkovNode)(nil),                               // 6: experimental.anomaly_detection.v1.generator.proto.MarkovNode
+	(*MarkovEdge)(nil),                               // 7: experimental.anomaly_detection.v1.generator.proto.MarkovEdge
+	(*CompletionTime)(nil),                           // 8: experimental.anomaly_detection.v1.generator.proto.CompletionTime
+	(*DurationRange)(nil),                            // 9: experimental.anomaly_detection.v1.generator.proto.DurationRange
+	(*MarkovStartNode)(nil),                          // 10: experimental.anomaly_detection.v1.generator.proto.MarkovStartNode
+	(*WeightedStartNodes)(nil),                       // 11: experimental.anomaly_detection.v1.generator.proto.WeightedStartNodes
+	(*WeightedStartNode)(nil),                        // 12: experimental.anomaly_detection.v1.generator.proto.WeightedStartNode
+	(*WeightedSamplingConfig)(nil),                   // 13: experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig
+	(*BucketSamplingConfig)(nil),                     // 14: experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig
+	(*WeightedQueryTemplateConfig)(nil),              // 15: experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig
+	(*BucketQueryTemplateConfig)(nil),                // 16: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig
+	(*QueryTemplateConfig)(nil),                      // 17: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
+	(*BucketSimulationConfig)(nil),                   // 18: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
+	(*PeakWindow)(nil),                               // 19: experimental.anomaly_detection.v1.generator.proto.PeakWindow
+	(*ConnectionSamplingConfig)(nil),                 // 20: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig
+	(*ClientProfile)(nil),                            // 21: experimental.anomaly_detection.v1.generator.proto.ClientProfile
+	(*ClientAddressPool)(nil),                        // 22: experimental.anomaly_detection.v1.generator.proto.ClientAddressPool
+	(*OutcomeWeight)(nil),                            // 23: experimental.anomaly_detection.v1.generator.proto.OutcomeWeight
+	(*PeriodicSchedule)(nil),                         // 24: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule
+	(*BurstSchedule)(nil),                            // 25: experimental.anomaly_detection.v1.generator.proto.BurstSchedule
+	(*QueryTemplateConfig_PlaceholderValueSpec)(nil), // 26: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec
+	(*QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder)(nil), // 27: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholder
+	(*QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder)(nil),   // 28: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholder
+	(*QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder)(nil),  // 29: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.StringPlaceholder
+	(*durationpb.Duration)(nil),                                         // 30: google.protobuf.Duration
+	(*SourceInstance)(nil),                                              // 31: experimental.anomaly_detection.v1.generator.proto.SourceInstance
+	(AttackerProfile)(0),                                                // 32: experimental.anomaly_detection.v1.generator.proto.AttackerProfile
+	(ConnectionOutcome)(0),                                              // 33: experimental.anomaly_detection.v1.generator.proto.ConnectionOutcome
 }
 var file_v1_generator_proto_query_template_config_proto_depIdxs = []int32{
-	10, // 0: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.weighted_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig
-	11, // 1: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.bucket_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig
-	17, // 2: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.connection_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig
+	13, // 0: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.weighted_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig
+	14, // 1: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.bucket_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig
+	20, // 2: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.connection_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig
 	2,  // 3: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.markov_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfig
-	3,  // 4: experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfig.nodes:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovNode
-	7,  // 5: experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfig.start:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovStartNode
-	14, // 6: experimental.anomaly_detection.v1.generator.proto.MarkovNode.template:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
-	5,  // 7: experimental.anomaly_detection.v1.generator.proto.MarkovNode.completion_time:type_name -> experimental.anomaly_detection.v1.generator.proto.CompletionTime
-	4,  // 8: experimental.anomaly_detection.v1.generator.proto.MarkovNode.edges:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovEdge
-	27, // 9: experimental.anomaly_detection.v1.generator.proto.CompletionTime.fixed:type_name -> google.protobuf.Duration
-	6,  // 10: experimental.anomaly_detection.v1.generator.proto.CompletionTime.range:type_name -> experimental.anomaly_detection.v1.generator.proto.DurationRange
-	27, // 11: experimental.anomaly_detection.v1.generator.proto.DurationRange.min:type_name -> google.protobuf.Duration
-	27, // 12: experimental.anomaly_detection.v1.generator.proto.DurationRange.max:type_name -> google.protobuf.Duration
-	8,  // 13: experimental.anomaly_detection.v1.generator.proto.MarkovStartNode.distribution:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedStartNodes
-	9,  // 14: experimental.anomaly_detection.v1.generator.proto.WeightedStartNodes.starts:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedStartNode
-	12, // 15: experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig.query_template_configs:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig
-	13, // 16: experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig.query_template_configs:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig
-	14, // 17: experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig.template:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
-	14, // 18: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig.template:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
-	15, // 19: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig.bucket_config:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
-	23, // 20: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.placeholder_values:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec
-	16, // 21: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig.peak_windows:type_name -> experimental.anomaly_detection.v1.generator.proto.PeakWindow
-	28, // 22: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig.source:type_name -> experimental.anomaly_detection.v1.generator.proto.SourceInstance
-	18, // 23: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig.client_profiles:type_name -> experimental.anomaly_detection.v1.generator.proto.ClientProfile
-	19, // 24: experimental.anomaly_detection.v1.generator.proto.ClientProfile.client_address_pool:type_name -> experimental.anomaly_detection.v1.generator.proto.ClientAddressPool
-	20, // 25: experimental.anomaly_detection.v1.generator.proto.ClientProfile.outcome_weights:type_name -> experimental.anomaly_detection.v1.generator.proto.OutcomeWeight
-	15, // 26: experimental.anomaly_detection.v1.generator.proto.ClientProfile.bucket_traffic:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
-	21, // 27: experimental.anomaly_detection.v1.generator.proto.ClientProfile.periodic:type_name -> experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule
-	22, // 28: experimental.anomaly_detection.v1.generator.proto.ClientProfile.burst:type_name -> experimental.anomaly_detection.v1.generator.proto.BurstSchedule
-	0,  // 29: experimental.anomaly_detection.v1.generator.proto.ClientProfile.active_window:type_name -> experimental.anomaly_detection.v1.generator.proto.ActiveWindow
-	29, // 30: experimental.anomaly_detection.v1.generator.proto.ClientProfile.attacker_profile:type_name -> experimental.anomaly_detection.v1.generator.proto.AttackerProfile
-	30, // 31: experimental.anomaly_detection.v1.generator.proto.OutcomeWeight.outcome:type_name -> experimental.anomaly_detection.v1.generator.proto.ConnectionOutcome
-	27, // 32: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule.interval:type_name -> google.protobuf.Duration
-	27, // 33: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule.jitter:type_name -> google.protobuf.Duration
-	27, // 34: experimental.anomaly_detection.v1.generator.proto.BurstSchedule.burst_duration:type_name -> google.protobuf.Duration
-	24, // 35: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.int_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholder
-	25, // 36: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.float_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholder
-	26, // 37: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.string_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.StringPlaceholder
-	38, // [38:38] is the sub-list for method output_type
-	38, // [38:38] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	6,  // 4: experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfig.nodes:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovNode
+	10, // 5: experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfig.start:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovStartNode
+	3,  // 6: experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfig.anomaly_profiles:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfile
+	5,  // 7: experimental.anomaly_detection.v1.generator.proto.MarkovSamplingConfig.injections:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovInjection
+	4,  // 8: experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfile.transitions:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovTransitionOverride
+	7,  // 9: experimental.anomaly_detection.v1.generator.proto.MarkovTransitionOverride.edges:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovEdge
+	17, // 10: experimental.anomaly_detection.v1.generator.proto.MarkovNode.template:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
+	8,  // 11: experimental.anomaly_detection.v1.generator.proto.MarkovNode.completion_time:type_name -> experimental.anomaly_detection.v1.generator.proto.CompletionTime
+	7,  // 12: experimental.anomaly_detection.v1.generator.proto.MarkovNode.edges:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovEdge
+	30, // 13: experimental.anomaly_detection.v1.generator.proto.CompletionTime.fixed:type_name -> google.protobuf.Duration
+	9,  // 14: experimental.anomaly_detection.v1.generator.proto.CompletionTime.range:type_name -> experimental.anomaly_detection.v1.generator.proto.DurationRange
+	30, // 15: experimental.anomaly_detection.v1.generator.proto.DurationRange.min:type_name -> google.protobuf.Duration
+	30, // 16: experimental.anomaly_detection.v1.generator.proto.DurationRange.max:type_name -> google.protobuf.Duration
+	11, // 17: experimental.anomaly_detection.v1.generator.proto.MarkovStartNode.distribution:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedStartNodes
+	12, // 18: experimental.anomaly_detection.v1.generator.proto.WeightedStartNodes.starts:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedStartNode
+	15, // 19: experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig.query_template_configs:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig
+	16, // 20: experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig.query_template_configs:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig
+	17, // 21: experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig.template:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
+	17, // 22: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig.template:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
+	18, // 23: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig.bucket_config:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
+	26, // 24: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.placeholder_values:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec
+	19, // 25: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig.peak_windows:type_name -> experimental.anomaly_detection.v1.generator.proto.PeakWindow
+	31, // 26: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig.source:type_name -> experimental.anomaly_detection.v1.generator.proto.SourceInstance
+	21, // 27: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig.client_profiles:type_name -> experimental.anomaly_detection.v1.generator.proto.ClientProfile
+	22, // 28: experimental.anomaly_detection.v1.generator.proto.ClientProfile.client_address_pool:type_name -> experimental.anomaly_detection.v1.generator.proto.ClientAddressPool
+	23, // 29: experimental.anomaly_detection.v1.generator.proto.ClientProfile.outcome_weights:type_name -> experimental.anomaly_detection.v1.generator.proto.OutcomeWeight
+	18, // 30: experimental.anomaly_detection.v1.generator.proto.ClientProfile.bucket_traffic:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
+	24, // 31: experimental.anomaly_detection.v1.generator.proto.ClientProfile.periodic:type_name -> experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule
+	25, // 32: experimental.anomaly_detection.v1.generator.proto.ClientProfile.burst:type_name -> experimental.anomaly_detection.v1.generator.proto.BurstSchedule
+	0,  // 33: experimental.anomaly_detection.v1.generator.proto.ClientProfile.active_window:type_name -> experimental.anomaly_detection.v1.generator.proto.ActiveWindow
+	32, // 34: experimental.anomaly_detection.v1.generator.proto.ClientProfile.attacker_profile:type_name -> experimental.anomaly_detection.v1.generator.proto.AttackerProfile
+	33, // 35: experimental.anomaly_detection.v1.generator.proto.OutcomeWeight.outcome:type_name -> experimental.anomaly_detection.v1.generator.proto.ConnectionOutcome
+	30, // 36: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule.interval:type_name -> google.protobuf.Duration
+	30, // 37: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule.jitter:type_name -> google.protobuf.Duration
+	30, // 38: experimental.anomaly_detection.v1.generator.proto.BurstSchedule.burst_duration:type_name -> google.protobuf.Duration
+	27, // 39: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.int_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholder
+	28, // 40: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.float_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholder
+	29, // 41: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.string_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.StringPlaceholder
+	42, // [42:42] is the sub-list for method output_type
+	42, // [42:42] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_v1_generator_proto_query_template_config_proto_init() }
@@ -3300,21 +3606,21 @@ func file_v1_generator_proto_query_template_config_proto_init() {
 		(*queryTemplateConfigs_ConnectionSampling)(nil),
 		(*queryTemplateConfigs_MarkovSampling)(nil),
 	}
-	file_v1_generator_proto_query_template_config_proto_msgTypes[4].OneofWrappers = []any{
+	file_v1_generator_proto_query_template_config_proto_msgTypes[7].OneofWrappers = []any{
 		(*completionTime_Fixed)(nil),
 		(*completionTime_Range)(nil),
 	}
-	file_v1_generator_proto_query_template_config_proto_msgTypes[6].OneofWrappers = []any{
+	file_v1_generator_proto_query_template_config_proto_msgTypes[9].OneofWrappers = []any{
 		(*markovStartNode_NodeId)(nil),
 		(*markovStartNode_Distribution)(nil),
 	}
-	file_v1_generator_proto_query_template_config_proto_msgTypes[14].OneofWrappers = []any{}
-	file_v1_generator_proto_query_template_config_proto_msgTypes[17].OneofWrappers = []any{
+	file_v1_generator_proto_query_template_config_proto_msgTypes[17].OneofWrappers = []any{}
+	file_v1_generator_proto_query_template_config_proto_msgTypes[20].OneofWrappers = []any{
 		(*clientProfile_BucketTraffic)(nil),
 		(*clientProfile_Periodic)(nil),
 		(*clientProfile_Burst)(nil),
 	}
-	file_v1_generator_proto_query_template_config_proto_msgTypes[22].OneofWrappers = []any{
+	file_v1_generator_proto_query_template_config_proto_msgTypes[25].OneofWrappers = []any{
 		(*queryTemplateConfig_PlaceholderValueSpec_IntPlaceholder)(nil),
 		(*queryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder_)(nil),
 		(*queryTemplateConfig_PlaceholderValueSpec_StringPlaceholder_)(nil),
@@ -3325,7 +3631,7 @@ func file_v1_generator_proto_query_template_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v1_generator_proto_query_template_config_proto_rawDesc), len(file_v1_generator_proto_query_template_config_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   26,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

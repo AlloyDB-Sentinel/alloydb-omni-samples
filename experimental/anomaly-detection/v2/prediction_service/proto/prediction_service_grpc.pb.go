@@ -19,9 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PredictionService_ListModels_FullMethodName = "/experimental.anomaly_detection.v2.prediction.proto.PredictionService/ListModels"
-	PredictionService_Predict_FullMethodName    = "/experimental.anomaly_detection.v2.prediction.proto.PredictionService/Predict"
-	PredictionService_PushModel_FullMethodName  = "/experimental.anomaly_detection.v2.prediction.proto.PredictionService/PushModel"
+	PredictionService_ListModels_FullMethodName       = "/experimental.anomaly_detection.v2.prediction.proto.PredictionService/ListModels"
+	PredictionService_Predict_FullMethodName          = "/experimental.anomaly_detection.v2.prediction.proto.PredictionService/Predict"
+	PredictionService_PushModel_FullMethodName        = "/experimental.anomaly_detection.v2.prediction.proto.PredictionService/PushModel"
+	PredictionService_CalibrateWindows_FullMethodName = "/experimental.anomaly_detection.v2.prediction.proto.PredictionService/CalibrateWindows"
+	PredictionService_ScoreWindows_FullMethodName     = "/experimental.anomaly_detection.v2.prediction.proto.PredictionService/ScoreWindows"
 )
 
 // PredictionServiceClient is the client API for PredictionService service.
@@ -36,6 +38,10 @@ type PredictionServiceClient interface {
 	Predict(ctx context.Context, in *PredictRequest, opts ...grpc.CallOption) (*PredictResponse, error)
 	// Pushes a new model to the prediction service.
 	PushModel(ctx context.Context, in *PushModelRequest, opts ...grpc.CallOption) (*PushModelResponse, error)
+	// Fits a window-score threshold without changing the learned baseline.
+	CalibrateWindows(ctx context.Context, in *CalibrateWindowsRequest, opts ...grpc.CallOption) (*CalibrateWindowsResponse, error)
+	// Scores complete, nonoverlapping validation windows using a calibrated model.
+	ScoreWindows(ctx context.Context, in *ScoreWindowsRequest, opts ...grpc.CallOption) (*WindowScoreReport, error)
 }
 
 type predictionServiceClient struct {
@@ -76,6 +82,26 @@ func (c *predictionServiceClient) PushModel(ctx context.Context, in *PushModelRe
 	return out, nil
 }
 
+func (c *predictionServiceClient) CalibrateWindows(ctx context.Context, in *CalibrateWindowsRequest, opts ...grpc.CallOption) (*CalibrateWindowsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CalibrateWindowsResponse)
+	err := c.cc.Invoke(ctx, PredictionService_CalibrateWindows_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *predictionServiceClient) ScoreWindows(ctx context.Context, in *ScoreWindowsRequest, opts ...grpc.CallOption) (*WindowScoreReport, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WindowScoreReport)
+	err := c.cc.Invoke(ctx, PredictionService_ScoreWindows_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PredictionServiceServer is the server API for PredictionService service.
 // All implementations must embed UnimplementedPredictionServiceServer
 // for forward compatibility.
@@ -88,6 +114,10 @@ type PredictionServiceServer interface {
 	Predict(context.Context, *PredictRequest) (*PredictResponse, error)
 	// Pushes a new model to the prediction service.
 	PushModel(context.Context, *PushModelRequest) (*PushModelResponse, error)
+	// Fits a window-score threshold without changing the learned baseline.
+	CalibrateWindows(context.Context, *CalibrateWindowsRequest) (*CalibrateWindowsResponse, error)
+	// Scores complete, nonoverlapping validation windows using a calibrated model.
+	ScoreWindows(context.Context, *ScoreWindowsRequest) (*WindowScoreReport, error)
 	mustEmbedUnimplementedPredictionServiceServer()
 }
 
@@ -106,6 +136,12 @@ func (UnimplementedPredictionServiceServer) Predict(context.Context, *PredictReq
 }
 func (UnimplementedPredictionServiceServer) PushModel(context.Context, *PushModelRequest) (*PushModelResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PushModel not implemented")
+}
+func (UnimplementedPredictionServiceServer) CalibrateWindows(context.Context, *CalibrateWindowsRequest) (*CalibrateWindowsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CalibrateWindows not implemented")
+}
+func (UnimplementedPredictionServiceServer) ScoreWindows(context.Context, *ScoreWindowsRequest) (*WindowScoreReport, error) {
+	return nil, status.Error(codes.Unimplemented, "method ScoreWindows not implemented")
 }
 func (UnimplementedPredictionServiceServer) mustEmbedUnimplementedPredictionServiceServer() {}
 func (UnimplementedPredictionServiceServer) testEmbeddedByValue()                           {}
@@ -182,6 +218,42 @@ func _PredictionService_PushModel_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PredictionService_CalibrateWindows_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CalibrateWindowsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PredictionServiceServer).CalibrateWindows(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PredictionService_CalibrateWindows_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PredictionServiceServer).CalibrateWindows(ctx, req.(*CalibrateWindowsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PredictionService_ScoreWindows_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ScoreWindowsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PredictionServiceServer).ScoreWindows(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PredictionService_ScoreWindows_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PredictionServiceServer).ScoreWindows(ctx, req.(*ScoreWindowsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PredictionService_ServiceDesc is the grpc.ServiceDesc for PredictionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -200,6 +272,14 @@ var PredictionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PushModel",
 			Handler:    _PredictionService_PushModel_Handler,
+		},
+		{
+			MethodName: "CalibrateWindows",
+			Handler:    _PredictionService_CalibrateWindows_Handler,
+		},
+		{
+			MethodName: "ScoreWindows",
+			Handler:    _PredictionService_ScoreWindows_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package experimental.anomaly_detection.v2.client.proto;
+
+import "v2/common/proto/model.proto";
+import "v1/generator/proto/query_template_config.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/client/proto;clientpb";
+
+// Reproducible normal-training experiment. Paths are relative to the working
+// directory, matching the existing generator/client command conventions.
+message MarkovExperimentConfig {
+  string generator_config_path = 1;
+  int64 training_actions = 2;
+  int64 training_seed = 3;
+  int64 start_time_ms = 4;
+  experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+      training_config = 5;
+  // Empirical percentile fitted to a separate normal calibration stream.
+  double calibration_percentile = 6;
+  optional int64 calibration_actions = 7; // Default 300000 (1000 windows).
+  optional int64 calibration_seed = 8; // Default 43.
+  optional int64 validation_actions = 9; // Default 30000.
+  optional int64 validation_seed = 10; // Default 44.
+  // Used only for generated validation; training/calibration stay normal.
+  repeated experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfile
+      anomaly_profiles = 11;
+  repeated experimental.anomaly_detection.v1.generator.proto.MarkovInjection
+      injections = 12;
+  experimental.anomaly_detection.v2.common.proto.NGramScoringConfig scoring_config = 13;
+}

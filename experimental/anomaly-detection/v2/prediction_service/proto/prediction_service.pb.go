@@ -146,6 +146,15 @@ func (x *ModelFilter) GetTemporalDeviation() *proto.TemporalDeviationTrainingCon
 	return nil
 }
 
+func (x *ModelFilter) GetNgramHistogram() *proto.NGramHistogramTrainingConfig {
+	if x != nil {
+		if x, ok := x.xxx_hidden_ScenarioConfigFilter.(*modelFilter_NgramHistogram); ok {
+			return x.NgramHistogram
+		}
+	}
+	return nil
+}
+
 func (x *ModelFilter) SetMetadataFilter(v *ModelMetadataFilter) {
 	x.xxx_hidden_MetadataFilter = v
 }
@@ -172,6 +181,14 @@ func (x *ModelFilter) SetTemporalDeviation(v *proto.TemporalDeviationTrainingCon
 		return
 	}
 	x.xxx_hidden_ScenarioConfigFilter = &modelFilter_TemporalDeviation{v}
+}
+
+func (x *ModelFilter) SetNgramHistogram(v *proto.NGramHistogramTrainingConfig) {
+	if v == nil {
+		x.xxx_hidden_ScenarioConfigFilter = nil
+		return
+	}
+	x.xxx_hidden_ScenarioConfigFilter = &modelFilter_NgramHistogram{v}
 }
 
 func (x *ModelFilter) HasMetadataFilter() bool {
@@ -212,6 +229,14 @@ func (x *ModelFilter) HasTemporalDeviation() bool {
 	return ok
 }
 
+func (x *ModelFilter) HasNgramHistogram() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_ScenarioConfigFilter.(*modelFilter_NgramHistogram)
+	return ok
+}
+
 func (x *ModelFilter) ClearMetadataFilter() {
 	x.xxx_hidden_MetadataFilter = nil
 }
@@ -238,10 +263,17 @@ func (x *ModelFilter) ClearTemporalDeviation() {
 	}
 }
 
+func (x *ModelFilter) ClearNgramHistogram() {
+	if _, ok := x.xxx_hidden_ScenarioConfigFilter.(*modelFilter_NgramHistogram); ok {
+		x.xxx_hidden_ScenarioConfigFilter = nil
+	}
+}
+
 const ModelFilter_ScenarioConfigFilter_not_set_case case_ModelFilter_ScenarioConfigFilter = 0
 const ModelFilter_TrafficDeviation_case case_ModelFilter_ScenarioConfigFilter = 2
 const ModelFilter_VolumetricSpike_case case_ModelFilter_ScenarioConfigFilter = 3
 const ModelFilter_TemporalDeviation_case case_ModelFilter_ScenarioConfigFilter = 4
+const ModelFilter_NgramHistogram_case case_ModelFilter_ScenarioConfigFilter = 5
 
 func (x *ModelFilter) WhichScenarioConfigFilter() case_ModelFilter_ScenarioConfigFilter {
 	if x == nil {
@@ -254,6 +286,8 @@ func (x *ModelFilter) WhichScenarioConfigFilter() case_ModelFilter_ScenarioConfi
 		return ModelFilter_VolumetricSpike_case
 	case *modelFilter_TemporalDeviation:
 		return ModelFilter_TemporalDeviation_case
+	case *modelFilter_NgramHistogram:
+		return ModelFilter_NgramHistogram_case
 	default:
 		return ModelFilter_ScenarioConfigFilter_not_set_case
 	}
@@ -270,6 +304,7 @@ type ModelFilter_builder struct {
 	TrafficDeviation  *proto.TrafficDeviationTrainingConfig
 	VolumetricSpike   *proto.VolumetricSpikeTrainingConfig
 	TemporalDeviation *proto.TemporalDeviationTrainingConfig
+	NgramHistogram    *proto.NGramHistogramTrainingConfig
 	// -- end of xxx_hidden_ScenarioConfigFilter
 }
 
@@ -286,6 +321,9 @@ func (b0 ModelFilter_builder) Build() *ModelFilter {
 	}
 	if b.TemporalDeviation != nil {
 		x.xxx_hidden_ScenarioConfigFilter = &modelFilter_TemporalDeviation{b.TemporalDeviation}
+	}
+	if b.NgramHistogram != nil {
+		x.xxx_hidden_ScenarioConfigFilter = &modelFilter_NgramHistogram{b.NgramHistogram}
 	}
 	return m0
 }
@@ -316,11 +354,17 @@ type modelFilter_TemporalDeviation struct {
 	TemporalDeviation *proto.TemporalDeviationTrainingConfig `protobuf:"bytes,4,opt,name=temporal_deviation,json=temporalDeviation,proto3,oneof"`
 }
 
+type modelFilter_NgramHistogram struct {
+	NgramHistogram *proto.NGramHistogramTrainingConfig `protobuf:"bytes,5,opt,name=ngram_histogram,json=ngramHistogram,proto3,oneof"`
+}
+
 func (*modelFilter_TrafficDeviation) isModelFilter_ScenarioConfigFilter() {}
 
 func (*modelFilter_VolumetricSpike) isModelFilter_ScenarioConfigFilter() {}
 
 func (*modelFilter_TemporalDeviation) isModelFilter_ScenarioConfigFilter() {}
+
+func (*modelFilter_NgramHistogram) isModelFilter_ScenarioConfigFilter() {}
 
 type ListModelsRequest struct {
 	state                    protoimpl.MessageState `protogen:"opaque.v1"`
@@ -481,6 +525,15 @@ func (x *ModelEntry) GetTemporalDeviationConfig() *proto.TemporalDeviationTraini
 	return nil
 }
 
+func (x *ModelEntry) GetNgramHistogramConfig() *proto.NGramHistogramTrainingConfig {
+	if x != nil {
+		if x, ok := x.xxx_hidden_TrainingConfig.(*modelEntry_NgramHistogramConfig); ok {
+			return x.NgramHistogramConfig
+		}
+	}
+	return nil
+}
+
 func (x *ModelEntry) SetModelLocation(v string) {
 	x.xxx_hidden_ModelLocation = v
 }
@@ -511,6 +564,14 @@ func (x *ModelEntry) SetTemporalDeviationConfig(v *proto.TemporalDeviationTraini
 		return
 	}
 	x.xxx_hidden_TrainingConfig = &modelEntry_TemporalDeviationConfig{v}
+}
+
+func (x *ModelEntry) SetNgramHistogramConfig(v *proto.NGramHistogramTrainingConfig) {
+	if v == nil {
+		x.xxx_hidden_TrainingConfig = nil
+		return
+	}
+	x.xxx_hidden_TrainingConfig = &modelEntry_NgramHistogramConfig{v}
 }
 
 func (x *ModelEntry) HasMetadata() bool {
@@ -551,6 +612,14 @@ func (x *ModelEntry) HasTemporalDeviationConfig() bool {
 	return ok
 }
 
+func (x *ModelEntry) HasNgramHistogramConfig() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_TrainingConfig.(*modelEntry_NgramHistogramConfig)
+	return ok
+}
+
 func (x *ModelEntry) ClearMetadata() {
 	x.xxx_hidden_Metadata = nil
 }
@@ -577,10 +646,17 @@ func (x *ModelEntry) ClearTemporalDeviationConfig() {
 	}
 }
 
+func (x *ModelEntry) ClearNgramHistogramConfig() {
+	if _, ok := x.xxx_hidden_TrainingConfig.(*modelEntry_NgramHistogramConfig); ok {
+		x.xxx_hidden_TrainingConfig = nil
+	}
+}
+
 const ModelEntry_TrainingConfig_not_set_case case_ModelEntry_TrainingConfig = 0
 const ModelEntry_TrafficDeviationConfig_case case_ModelEntry_TrainingConfig = 4
 const ModelEntry_VolumetricSpikeConfig_case case_ModelEntry_TrainingConfig = 5
 const ModelEntry_TemporalDeviationConfig_case case_ModelEntry_TrainingConfig = 6
+const ModelEntry_NgramHistogramConfig_case case_ModelEntry_TrainingConfig = 7
 
 func (x *ModelEntry) WhichTrainingConfig() case_ModelEntry_TrainingConfig {
 	if x == nil {
@@ -593,6 +669,8 @@ func (x *ModelEntry) WhichTrainingConfig() case_ModelEntry_TrainingConfig {
 		return ModelEntry_VolumetricSpikeConfig_case
 	case *modelEntry_TemporalDeviationConfig:
 		return ModelEntry_TemporalDeviationConfig_case
+	case *modelEntry_NgramHistogramConfig:
+		return ModelEntry_NgramHistogramConfig_case
 	default:
 		return ModelEntry_TrainingConfig_not_set_case
 	}
@@ -607,6 +685,7 @@ type ModelEntry_builder struct {
 	TrafficDeviationConfig  *proto.TrafficDeviationTrainingConfig
 	VolumetricSpikeConfig   *proto.VolumetricSpikeTrainingConfig
 	TemporalDeviationConfig *proto.TemporalDeviationTrainingConfig
+	NgramHistogramConfig    *proto.NGramHistogramTrainingConfig
 	// -- end of xxx_hidden_TrainingConfig
 }
 
@@ -624,6 +703,9 @@ func (b0 ModelEntry_builder) Build() *ModelEntry {
 	}
 	if b.TemporalDeviationConfig != nil {
 		x.xxx_hidden_TrainingConfig = &modelEntry_TemporalDeviationConfig{b.TemporalDeviationConfig}
+	}
+	if b.NgramHistogramConfig != nil {
+		x.xxx_hidden_TrainingConfig = &modelEntry_NgramHistogramConfig{b.NgramHistogramConfig}
 	}
 	return m0
 }
@@ -654,11 +736,17 @@ type modelEntry_TemporalDeviationConfig struct {
 	TemporalDeviationConfig *proto.TemporalDeviationTrainingConfig `protobuf:"bytes,6,opt,name=temporal_deviation_config,json=temporalDeviationConfig,proto3,oneof"`
 }
 
+type modelEntry_NgramHistogramConfig struct {
+	NgramHistogramConfig *proto.NGramHistogramTrainingConfig `protobuf:"bytes,7,opt,name=ngram_histogram_config,json=ngramHistogramConfig,proto3,oneof"`
+}
+
 func (*modelEntry_TrafficDeviationConfig) isModelEntry_TrainingConfig() {}
 
 func (*modelEntry_VolumetricSpikeConfig) isModelEntry_TrainingConfig() {}
 
 func (*modelEntry_TemporalDeviationConfig) isModelEntry_TrainingConfig() {}
+
+func (*modelEntry_NgramHistogramConfig) isModelEntry_TrainingConfig() {}
 
 type ListModelsResponse struct {
 	state             protoimpl.MessageState `protogen:"opaque.v1"`
@@ -1428,29 +1516,1056 @@ func (b0 PushModelResponse_builder) Build() *PushModelResponse {
 	return m0
 }
 
+type NGramDistance struct {
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_N        int32                  `protobuf:"varint,1,opt,name=n,proto3"`
+	xxx_hidden_Distance float64                `protobuf:"fixed64,2,opt,name=distance,proto3"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *NGramDistance) Reset() {
+	*x = NGramDistance{}
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NGramDistance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NGramDistance) ProtoMessage() {}
+
+func (x *NGramDistance) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *NGramDistance) GetN() int32 {
+	if x != nil {
+		return x.xxx_hidden_N
+	}
+	return 0
+}
+
+func (x *NGramDistance) GetDistance() float64 {
+	if x != nil {
+		return x.xxx_hidden_Distance
+	}
+	return 0
+}
+
+func (x *NGramDistance) SetN(v int32) {
+	x.xxx_hidden_N = v
+}
+
+func (x *NGramDistance) SetDistance(v float64) {
+	x.xxx_hidden_Distance = v
+}
+
+type NGramDistance_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	N        int32
+	Distance float64
+}
+
+func (b0 NGramDistance_builder) Build() *NGramDistance {
+	m0 := &NGramDistance{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_N = b.N
+	x.xxx_hidden_Distance = b.Distance
+	return m0
+}
+
+type NGramOrderScore struct {
+	state                         protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_N                  int32                  `protobuf:"varint,1,opt,name=n,proto3"`
+	xxx_hidden_Score              float64                `protobuf:"fixed64,2,opt,name=score,proto3"`
+	xxx_hidden_CategoryCount      int64                  `protobuf:"varint,3,opt,name=category_count,json=categoryCount,proto3"`
+	xxx_hidden_UnknownOccurrences int64                  `protobuf:"varint,4,opt,name=unknown_occurrences,json=unknownOccurrences,proto3"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
+}
+
+func (x *NGramOrderScore) Reset() {
+	*x = NGramOrderScore{}
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NGramOrderScore) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NGramOrderScore) ProtoMessage() {}
+
+func (x *NGramOrderScore) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *NGramOrderScore) GetN() int32 {
+	if x != nil {
+		return x.xxx_hidden_N
+	}
+	return 0
+}
+
+func (x *NGramOrderScore) GetScore() float64 {
+	if x != nil {
+		return x.xxx_hidden_Score
+	}
+	return 0
+}
+
+func (x *NGramOrderScore) GetCategoryCount() int64 {
+	if x != nil {
+		return x.xxx_hidden_CategoryCount
+	}
+	return 0
+}
+
+func (x *NGramOrderScore) GetUnknownOccurrences() int64 {
+	if x != nil {
+		return x.xxx_hidden_UnknownOccurrences
+	}
+	return 0
+}
+
+func (x *NGramOrderScore) SetN(v int32) {
+	x.xxx_hidden_N = v
+}
+
+func (x *NGramOrderScore) SetScore(v float64) {
+	x.xxx_hidden_Score = v
+}
+
+func (x *NGramOrderScore) SetCategoryCount(v int64) {
+	x.xxx_hidden_CategoryCount = v
+}
+
+func (x *NGramOrderScore) SetUnknownOccurrences(v int64) {
+	x.xxx_hidden_UnknownOccurrences = v
+}
+
+type NGramOrderScore_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	N                  int32
+	Score              float64
+	CategoryCount      int64
+	UnknownOccurrences int64
+}
+
+func (b0 NGramOrderScore_builder) Build() *NGramOrderScore {
+	m0 := &NGramOrderScore{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_N = b.N
+	x.xxx_hidden_Score = b.Score
+	x.xxx_hidden_CategoryCount = b.CategoryCount
+	x.xxx_hidden_UnknownOccurrences = b.UnknownOccurrences
+	return m0
+}
+
+type NGramDeviation struct {
+	state                                 protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_N                          int32                  `protobuf:"varint,1,opt,name=n,proto3"`
+	xxx_hidden_Actions                    []string               `protobuf:"bytes,2,rep,name=actions,proto3"`
+	xxx_hidden_IsUnknownBucket            bool                   `protobuf:"varint,3,opt,name=is_unknown_bucket,json=isUnknownBucket,proto3"`
+	xxx_hidden_ObservedProportion         float64                `protobuf:"fixed64,4,opt,name=observed_proportion,json=observedProportion,proto3"`
+	xxx_hidden_LearnedMean                float64                `protobuf:"fixed64,5,opt,name=learned_mean,json=learnedMean,proto3"`
+	xxx_hidden_LearnedVariance            float64                `protobuf:"fixed64,6,opt,name=learned_variance,json=learnedVariance,proto3"`
+	xxx_hidden_EffectiveStandardDeviation float64                `protobuf:"fixed64,7,opt,name=effective_standard_deviation,json=effectiveStandardDeviation,proto3"`
+	xxx_hidden_StandardizedDeviation      float64                `protobuf:"fixed64,8,opt,name=standardized_deviation,json=standardizedDeviation,proto3"`
+	xxx_hidden_SquaredDeviation           float64                `protobuf:"fixed64,9,opt,name=squared_deviation,json=squaredDeviation,proto3"`
+	xxx_hidden_ScoreContribution          float64                `protobuf:"fixed64,10,opt,name=score_contribution,json=scoreContribution,proto3"`
+	unknownFields                         protoimpl.UnknownFields
+	sizeCache                             protoimpl.SizeCache
+}
+
+func (x *NGramDeviation) Reset() {
+	*x = NGramDeviation{}
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NGramDeviation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NGramDeviation) ProtoMessage() {}
+
+func (x *NGramDeviation) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *NGramDeviation) GetN() int32 {
+	if x != nil {
+		return x.xxx_hidden_N
+	}
+	return 0
+}
+
+func (x *NGramDeviation) GetActions() []string {
+	if x != nil {
+		return x.xxx_hidden_Actions
+	}
+	return nil
+}
+
+func (x *NGramDeviation) GetIsUnknownBucket() bool {
+	if x != nil {
+		return x.xxx_hidden_IsUnknownBucket
+	}
+	return false
+}
+
+func (x *NGramDeviation) GetObservedProportion() float64 {
+	if x != nil {
+		return x.xxx_hidden_ObservedProportion
+	}
+	return 0
+}
+
+func (x *NGramDeviation) GetLearnedMean() float64 {
+	if x != nil {
+		return x.xxx_hidden_LearnedMean
+	}
+	return 0
+}
+
+func (x *NGramDeviation) GetLearnedVariance() float64 {
+	if x != nil {
+		return x.xxx_hidden_LearnedVariance
+	}
+	return 0
+}
+
+func (x *NGramDeviation) GetEffectiveStandardDeviation() float64 {
+	if x != nil {
+		return x.xxx_hidden_EffectiveStandardDeviation
+	}
+	return 0
+}
+
+func (x *NGramDeviation) GetStandardizedDeviation() float64 {
+	if x != nil {
+		return x.xxx_hidden_StandardizedDeviation
+	}
+	return 0
+}
+
+func (x *NGramDeviation) GetSquaredDeviation() float64 {
+	if x != nil {
+		return x.xxx_hidden_SquaredDeviation
+	}
+	return 0
+}
+
+func (x *NGramDeviation) GetScoreContribution() float64 {
+	if x != nil {
+		return x.xxx_hidden_ScoreContribution
+	}
+	return 0
+}
+
+func (x *NGramDeviation) SetN(v int32) {
+	x.xxx_hidden_N = v
+}
+
+func (x *NGramDeviation) SetActions(v []string) {
+	x.xxx_hidden_Actions = v
+}
+
+func (x *NGramDeviation) SetIsUnknownBucket(v bool) {
+	x.xxx_hidden_IsUnknownBucket = v
+}
+
+func (x *NGramDeviation) SetObservedProportion(v float64) {
+	x.xxx_hidden_ObservedProportion = v
+}
+
+func (x *NGramDeviation) SetLearnedMean(v float64) {
+	x.xxx_hidden_LearnedMean = v
+}
+
+func (x *NGramDeviation) SetLearnedVariance(v float64) {
+	x.xxx_hidden_LearnedVariance = v
+}
+
+func (x *NGramDeviation) SetEffectiveStandardDeviation(v float64) {
+	x.xxx_hidden_EffectiveStandardDeviation = v
+}
+
+func (x *NGramDeviation) SetStandardizedDeviation(v float64) {
+	x.xxx_hidden_StandardizedDeviation = v
+}
+
+func (x *NGramDeviation) SetSquaredDeviation(v float64) {
+	x.xxx_hidden_SquaredDeviation = v
+}
+
+func (x *NGramDeviation) SetScoreContribution(v float64) {
+	x.xxx_hidden_ScoreContribution = v
+}
+
+type NGramDeviation_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	N                          int32
+	Actions                    []string
+	IsUnknownBucket            bool
+	ObservedProportion         float64
+	LearnedMean                float64
+	LearnedVariance            float64
+	EffectiveStandardDeviation float64
+	StandardizedDeviation      float64
+	SquaredDeviation           float64
+	// Contribution to the final score squared; used to rank explanations.
+	ScoreContribution float64
+}
+
+func (b0 NGramDeviation_builder) Build() *NGramDeviation {
+	m0 := &NGramDeviation{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_N = b.N
+	x.xxx_hidden_Actions = b.Actions
+	x.xxx_hidden_IsUnknownBucket = b.IsUnknownBucket
+	x.xxx_hidden_ObservedProportion = b.ObservedProportion
+	x.xxx_hidden_LearnedMean = b.LearnedMean
+	x.xxx_hidden_LearnedVariance = b.LearnedVariance
+	x.xxx_hidden_EffectiveStandardDeviation = b.EffectiveStandardDeviation
+	x.xxx_hidden_StandardizedDeviation = b.StandardizedDeviation
+	x.xxx_hidden_SquaredDeviation = b.SquaredDeviation
+	x.xxx_hidden_ScoreContribution = b.ScoreContribution
+	return m0
+}
+
+type WindowScore struct {
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_WindowIndex   int64                  `protobuf:"varint,1,opt,name=window_index,json=windowIndex,proto3"`
+	xxx_hidden_StartAction   int64                  `protobuf:"varint,2,opt,name=start_action,json=startAction,proto3"`
+	xxx_hidden_EndAction     int64                  `protobuf:"varint,3,opt,name=end_action,json=endAction,proto3"`
+	xxx_hidden_Distances     *[]*NGramDistance      `protobuf:"bytes,4,rep,name=distances,proto3"`
+	xxx_hidden_Score         float64                `protobuf:"fixed64,5,opt,name=score,proto3"`
+	xxx_hidden_IsAnomalous   bool                   `protobuf:"varint,6,opt,name=is_anomalous,json=isAnomalous,proto3,oneof"`
+	xxx_hidden_OrderScores   *[]*NGramOrderScore    `protobuf:"bytes,7,rep,name=order_scores,json=orderScores,proto3"`
+	xxx_hidden_TopDeviations *[]*NGramDeviation     `protobuf:"bytes,8,rep,name=top_deviations,json=topDeviations,proto3"`
+	XXX_raceDetectHookData   protoimpl.RaceDetectHookData
+	XXX_presence             [1]uint32
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *WindowScore) Reset() {
+	*x = WindowScore{}
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WindowScore) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WindowScore) ProtoMessage() {}
+
+func (x *WindowScore) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *WindowScore) GetWindowIndex() int64 {
+	if x != nil {
+		return x.xxx_hidden_WindowIndex
+	}
+	return 0
+}
+
+func (x *WindowScore) GetStartAction() int64 {
+	if x != nil {
+		return x.xxx_hidden_StartAction
+	}
+	return 0
+}
+
+func (x *WindowScore) GetEndAction() int64 {
+	if x != nil {
+		return x.xxx_hidden_EndAction
+	}
+	return 0
+}
+
+// Deprecated: Marked as deprecated in v2/prediction_service/proto/prediction_service.proto.
+func (x *WindowScore) GetDistances() []*NGramDistance {
+	if x != nil {
+		if x.xxx_hidden_Distances != nil {
+			return *x.xxx_hidden_Distances
+		}
+	}
+	return nil
+}
+
+func (x *WindowScore) GetScore() float64 {
+	if x != nil {
+		return x.xxx_hidden_Score
+	}
+	return 0
+}
+
+func (x *WindowScore) GetIsAnomalous() bool {
+	if x != nil {
+		return x.xxx_hidden_IsAnomalous
+	}
+	return false
+}
+
+func (x *WindowScore) GetOrderScores() []*NGramOrderScore {
+	if x != nil {
+		if x.xxx_hidden_OrderScores != nil {
+			return *x.xxx_hidden_OrderScores
+		}
+	}
+	return nil
+}
+
+func (x *WindowScore) GetTopDeviations() []*NGramDeviation {
+	if x != nil {
+		if x.xxx_hidden_TopDeviations != nil {
+			return *x.xxx_hidden_TopDeviations
+		}
+	}
+	return nil
+}
+
+func (x *WindowScore) SetWindowIndex(v int64) {
+	x.xxx_hidden_WindowIndex = v
+}
+
+func (x *WindowScore) SetStartAction(v int64) {
+	x.xxx_hidden_StartAction = v
+}
+
+func (x *WindowScore) SetEndAction(v int64) {
+	x.xxx_hidden_EndAction = v
+}
+
+// Deprecated: Marked as deprecated in v2/prediction_service/proto/prediction_service.proto.
+func (x *WindowScore) SetDistances(v []*NGramDistance) {
+	x.xxx_hidden_Distances = &v
+}
+
+func (x *WindowScore) SetScore(v float64) {
+	x.xxx_hidden_Score = v
+}
+
+func (x *WindowScore) SetIsAnomalous(v bool) {
+	x.xxx_hidden_IsAnomalous = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 8)
+}
+
+func (x *WindowScore) SetOrderScores(v []*NGramOrderScore) {
+	x.xxx_hidden_OrderScores = &v
+}
+
+func (x *WindowScore) SetTopDeviations(v []*NGramDeviation) {
+	x.xxx_hidden_TopDeviations = &v
+}
+
+func (x *WindowScore) HasIsAnomalous() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 5)
+}
+
+func (x *WindowScore) ClearIsAnomalous() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 5)
+	x.xxx_hidden_IsAnomalous = false
+}
+
+type WindowScore_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	WindowIndex int64
+	StartAction int64
+	EndAction   int64
+	// Deprecated: Marked as deprecated in v2/prediction_service/proto/prediction_service.proto.
+	Distances []*NGramDistance
+	Score     float64
+	// Absent for calibration windows, which have no threshold yet.
+	IsAnomalous   *bool
+	OrderScores   []*NGramOrderScore
+	TopDeviations []*NGramDeviation
+}
+
+func (b0 WindowScore_builder) Build() *WindowScore {
+	m0 := &WindowScore{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_WindowIndex = b.WindowIndex
+	x.xxx_hidden_StartAction = b.StartAction
+	x.xxx_hidden_EndAction = b.EndAction
+	x.xxx_hidden_Distances = &b.Distances
+	x.xxx_hidden_Score = b.Score
+	if b.IsAnomalous != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 8)
+		x.xxx_hidden_IsAnomalous = *b.IsAnomalous
+	}
+	x.xxx_hidden_OrderScores = &b.OrderScores
+	x.xxx_hidden_TopDeviations = &b.TopDeviations
+	return m0
+}
+
+type WindowScoreReport struct {
+	state                      protoimpl.MessageState    `protogen:"opaque.v1"`
+	xxx_hidden_WindowLength    int32                     `protobuf:"varint,1,opt,name=window_length,json=windowLength,proto3"`
+	xxx_hidden_TotalActions    int64                     `protobuf:"varint,2,opt,name=total_actions,json=totalActions,proto3"`
+	xxx_hidden_CompleteWindows int64                     `protobuf:"varint,3,opt,name=complete_windows,json=completeWindows,proto3"`
+	xxx_hidden_TrailingActions int64                     `protobuf:"varint,4,opt,name=trailing_actions,json=trailingActions,proto3"`
+	xxx_hidden_Windows         *[]*WindowScore           `protobuf:"bytes,5,rep,name=windows,proto3"`
+	xxx_hidden_Threshold       float64                   `protobuf:"fixed64,6,opt,name=threshold,proto3,oneof"`
+	xxx_hidden_ScoringVersion  string                    `protobuf:"bytes,7,opt,name=scoring_version,json=scoringVersion,proto3"`
+	xxx_hidden_ScoringConfig   *proto.NGramScoringConfig `protobuf:"bytes,8,opt,name=scoring_config,json=scoringConfig,proto3"`
+	XXX_raceDetectHookData     protoimpl.RaceDetectHookData
+	XXX_presence               [1]uint32
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *WindowScoreReport) Reset() {
+	*x = WindowScoreReport{}
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WindowScoreReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WindowScoreReport) ProtoMessage() {}
+
+func (x *WindowScoreReport) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *WindowScoreReport) GetWindowLength() int32 {
+	if x != nil {
+		return x.xxx_hidden_WindowLength
+	}
+	return 0
+}
+
+func (x *WindowScoreReport) GetTotalActions() int64 {
+	if x != nil {
+		return x.xxx_hidden_TotalActions
+	}
+	return 0
+}
+
+func (x *WindowScoreReport) GetCompleteWindows() int64 {
+	if x != nil {
+		return x.xxx_hidden_CompleteWindows
+	}
+	return 0
+}
+
+func (x *WindowScoreReport) GetTrailingActions() int64 {
+	if x != nil {
+		return x.xxx_hidden_TrailingActions
+	}
+	return 0
+}
+
+func (x *WindowScoreReport) GetWindows() []*WindowScore {
+	if x != nil {
+		if x.xxx_hidden_Windows != nil {
+			return *x.xxx_hidden_Windows
+		}
+	}
+	return nil
+}
+
+func (x *WindowScoreReport) GetThreshold() float64 {
+	if x != nil {
+		return x.xxx_hidden_Threshold
+	}
+	return 0
+}
+
+func (x *WindowScoreReport) GetScoringVersion() string {
+	if x != nil {
+		return x.xxx_hidden_ScoringVersion
+	}
+	return ""
+}
+
+func (x *WindowScoreReport) GetScoringConfig() *proto.NGramScoringConfig {
+	if x != nil {
+		return x.xxx_hidden_ScoringConfig
+	}
+	return nil
+}
+
+func (x *WindowScoreReport) SetWindowLength(v int32) {
+	x.xxx_hidden_WindowLength = v
+}
+
+func (x *WindowScoreReport) SetTotalActions(v int64) {
+	x.xxx_hidden_TotalActions = v
+}
+
+func (x *WindowScoreReport) SetCompleteWindows(v int64) {
+	x.xxx_hidden_CompleteWindows = v
+}
+
+func (x *WindowScoreReport) SetTrailingActions(v int64) {
+	x.xxx_hidden_TrailingActions = v
+}
+
+func (x *WindowScoreReport) SetWindows(v []*WindowScore) {
+	x.xxx_hidden_Windows = &v
+}
+
+func (x *WindowScoreReport) SetThreshold(v float64) {
+	x.xxx_hidden_Threshold = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 8)
+}
+
+func (x *WindowScoreReport) SetScoringVersion(v string) {
+	x.xxx_hidden_ScoringVersion = v
+}
+
+func (x *WindowScoreReport) SetScoringConfig(v *proto.NGramScoringConfig) {
+	x.xxx_hidden_ScoringConfig = v
+}
+
+func (x *WindowScoreReport) HasThreshold() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 5)
+}
+
+func (x *WindowScoreReport) HasScoringConfig() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_ScoringConfig != nil
+}
+
+func (x *WindowScoreReport) ClearThreshold() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 5)
+	x.xxx_hidden_Threshold = 0
+}
+
+func (x *WindowScoreReport) ClearScoringConfig() {
+	x.xxx_hidden_ScoringConfig = nil
+}
+
+type WindowScoreReport_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	WindowLength    int32
+	TotalActions    int64
+	CompleteWindows int64
+	TrailingActions int64
+	Windows         []*WindowScore
+	Threshold       *float64
+	ScoringVersion  string
+	ScoringConfig   *proto.NGramScoringConfig
+}
+
+func (b0 WindowScoreReport_builder) Build() *WindowScoreReport {
+	m0 := &WindowScoreReport{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_WindowLength = b.WindowLength
+	x.xxx_hidden_TotalActions = b.TotalActions
+	x.xxx_hidden_CompleteWindows = b.CompleteWindows
+	x.xxx_hidden_TrailingActions = b.TrailingActions
+	x.xxx_hidden_Windows = &b.Windows
+	if b.Threshold != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 8)
+		x.xxx_hidden_Threshold = *b.Threshold
+	}
+	x.xxx_hidden_ScoringVersion = b.ScoringVersion
+	x.xxx_hidden_ScoringConfig = b.ScoringConfig
+	return m0
+}
+
+type CalibrateWindowsRequest struct {
+	state                          protoimpl.MessageState    `protogen:"opaque.v1"`
+	xxx_hidden_ModelLocation       string                    `protobuf:"bytes,1,opt,name=model_location,json=modelLocation,proto3"`
+	xxx_hidden_CalibrationLogPath  string                    `protobuf:"bytes,2,opt,name=calibration_log_path,json=calibrationLogPath,proto3"`
+	xxx_hidden_Percentile          float64                   `protobuf:"fixed64,3,opt,name=percentile,proto3"`
+	xxx_hidden_OutputModelLocation string                    `protobuf:"bytes,4,opt,name=output_model_location,json=outputModelLocation,proto3"`
+	xxx_hidden_ScoringConfig       *proto.NGramScoringConfig `protobuf:"bytes,5,opt,name=scoring_config,json=scoringConfig,proto3"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *CalibrateWindowsRequest) Reset() {
+	*x = CalibrateWindowsRequest{}
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalibrateWindowsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalibrateWindowsRequest) ProtoMessage() {}
+
+func (x *CalibrateWindowsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *CalibrateWindowsRequest) GetModelLocation() string {
+	if x != nil {
+		return x.xxx_hidden_ModelLocation
+	}
+	return ""
+}
+
+func (x *CalibrateWindowsRequest) GetCalibrationLogPath() string {
+	if x != nil {
+		return x.xxx_hidden_CalibrationLogPath
+	}
+	return ""
+}
+
+func (x *CalibrateWindowsRequest) GetPercentile() float64 {
+	if x != nil {
+		return x.xxx_hidden_Percentile
+	}
+	return 0
+}
+
+func (x *CalibrateWindowsRequest) GetOutputModelLocation() string {
+	if x != nil {
+		return x.xxx_hidden_OutputModelLocation
+	}
+	return ""
+}
+
+func (x *CalibrateWindowsRequest) GetScoringConfig() *proto.NGramScoringConfig {
+	if x != nil {
+		return x.xxx_hidden_ScoringConfig
+	}
+	return nil
+}
+
+func (x *CalibrateWindowsRequest) SetModelLocation(v string) {
+	x.xxx_hidden_ModelLocation = v
+}
+
+func (x *CalibrateWindowsRequest) SetCalibrationLogPath(v string) {
+	x.xxx_hidden_CalibrationLogPath = v
+}
+
+func (x *CalibrateWindowsRequest) SetPercentile(v float64) {
+	x.xxx_hidden_Percentile = v
+}
+
+func (x *CalibrateWindowsRequest) SetOutputModelLocation(v string) {
+	x.xxx_hidden_OutputModelLocation = v
+}
+
+func (x *CalibrateWindowsRequest) SetScoringConfig(v *proto.NGramScoringConfig) {
+	x.xxx_hidden_ScoringConfig = v
+}
+
+func (x *CalibrateWindowsRequest) HasScoringConfig() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_ScoringConfig != nil
+}
+
+func (x *CalibrateWindowsRequest) ClearScoringConfig() {
+	x.xxx_hidden_ScoringConfig = nil
+}
+
+type CalibrateWindowsRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	ModelLocation       string
+	CalibrationLogPath  string
+	Percentile          float64
+	OutputModelLocation string
+	ScoringConfig       *proto.NGramScoringConfig
+}
+
+func (b0 CalibrateWindowsRequest_builder) Build() *CalibrateWindowsRequest {
+	m0 := &CalibrateWindowsRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_ModelLocation = b.ModelLocation
+	x.xxx_hidden_CalibrationLogPath = b.CalibrationLogPath
+	x.xxx_hidden_Percentile = b.Percentile
+	x.xxx_hidden_OutputModelLocation = b.OutputModelLocation
+	x.xxx_hidden_ScoringConfig = b.ScoringConfig
+	return m0
+}
+
+type CalibrateWindowsResponse struct {
+	state                    protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_ModelLocation string                  `protobuf:"bytes,1,opt,name=model_location,json=modelLocation,proto3"`
+	xxx_hidden_Calibration   *proto.NGramCalibration `protobuf:"bytes,2,opt,name=calibration,proto3"`
+	xxx_hidden_Scores        *WindowScoreReport      `protobuf:"bytes,3,opt,name=scores,proto3"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *CalibrateWindowsResponse) Reset() {
+	*x = CalibrateWindowsResponse{}
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalibrateWindowsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalibrateWindowsResponse) ProtoMessage() {}
+
+func (x *CalibrateWindowsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *CalibrateWindowsResponse) GetModelLocation() string {
+	if x != nil {
+		return x.xxx_hidden_ModelLocation
+	}
+	return ""
+}
+
+func (x *CalibrateWindowsResponse) GetCalibration() *proto.NGramCalibration {
+	if x != nil {
+		return x.xxx_hidden_Calibration
+	}
+	return nil
+}
+
+func (x *CalibrateWindowsResponse) GetScores() *WindowScoreReport {
+	if x != nil {
+		return x.xxx_hidden_Scores
+	}
+	return nil
+}
+
+func (x *CalibrateWindowsResponse) SetModelLocation(v string) {
+	x.xxx_hidden_ModelLocation = v
+}
+
+func (x *CalibrateWindowsResponse) SetCalibration(v *proto.NGramCalibration) {
+	x.xxx_hidden_Calibration = v
+}
+
+func (x *CalibrateWindowsResponse) SetScores(v *WindowScoreReport) {
+	x.xxx_hidden_Scores = v
+}
+
+func (x *CalibrateWindowsResponse) HasCalibration() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Calibration != nil
+}
+
+func (x *CalibrateWindowsResponse) HasScores() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Scores != nil
+}
+
+func (x *CalibrateWindowsResponse) ClearCalibration() {
+	x.xxx_hidden_Calibration = nil
+}
+
+func (x *CalibrateWindowsResponse) ClearScores() {
+	x.xxx_hidden_Scores = nil
+}
+
+type CalibrateWindowsResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	ModelLocation string
+	Calibration   *proto.NGramCalibration
+	Scores        *WindowScoreReport
+}
+
+func (b0 CalibrateWindowsResponse_builder) Build() *CalibrateWindowsResponse {
+	m0 := &CalibrateWindowsResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_ModelLocation = b.ModelLocation
+	x.xxx_hidden_Calibration = b.Calibration
+	x.xxx_hidden_Scores = b.Scores
+	return m0
+}
+
+type ScoreWindowsRequest struct {
+	state                        protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ModelLocation     string                 `protobuf:"bytes,1,opt,name=model_location,json=modelLocation,proto3"`
+	xxx_hidden_ValidationLogPath string                 `protobuf:"bytes,2,opt,name=validation_log_path,json=validationLogPath,proto3"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *ScoreWindowsRequest) Reset() {
+	*x = ScoreWindowsRequest{}
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoreWindowsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoreWindowsRequest) ProtoMessage() {}
+
+func (x *ScoreWindowsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_prediction_service_proto_prediction_service_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ScoreWindowsRequest) GetModelLocation() string {
+	if x != nil {
+		return x.xxx_hidden_ModelLocation
+	}
+	return ""
+}
+
+func (x *ScoreWindowsRequest) GetValidationLogPath() string {
+	if x != nil {
+		return x.xxx_hidden_ValidationLogPath
+	}
+	return ""
+}
+
+func (x *ScoreWindowsRequest) SetModelLocation(v string) {
+	x.xxx_hidden_ModelLocation = v
+}
+
+func (x *ScoreWindowsRequest) SetValidationLogPath(v string) {
+	x.xxx_hidden_ValidationLogPath = v
+}
+
+type ScoreWindowsRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	ModelLocation     string
+	ValidationLogPath string
+}
+
+func (b0 ScoreWindowsRequest_builder) Build() *ScoreWindowsRequest {
+	m0 := &ScoreWindowsRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_ModelLocation = b.ModelLocation
+	x.xxx_hidden_ValidationLogPath = b.ValidationLogPath
+	return m0
+}
+
 var File_v2_prediction_service_proto_prediction_service_proto protoreflect.FileDescriptor
 
 const file_v2_prediction_service_proto_prediction_service_proto_rawDesc = "" +
 	"\n" +
 	"4v2/prediction_service/proto/prediction_service.proto\x122experimental.anomaly_detection.v2.prediction.proto\x1a+v2/common/proto/anomaly_finding_entry.proto\x1a%v2/common/proto/audit_log_entry.proto\x1a\x1bv2/common/proto/model.proto\">\n" +
 	"\x13ModelMetadataFilter\x12'\n" +
-	"\x0ftrainer_version\x18\x01 \x01(\tR\x0etrainerVersion\"\x97\x04\n" +
+	"\x0ftrainer_version\x18\x01 \x01(\tR\x0etrainerVersion\"\x90\x05\n" +
 	"\vModelFilter\x12p\n" +
 	"\x0fmetadata_filter\x18\x01 \x01(\v2G.experimental.anomaly_detection.v2.prediction.proto.ModelMetadataFilterR\x0emetadataFilter\x12}\n" +
 	"\x11traffic_deviation\x18\x02 \x01(\v2N.experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfigH\x00R\x10trafficDeviation\x12z\n" +
 	"\x10volumetric_spike\x18\x03 \x01(\v2M.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfigH\x00R\x0fvolumetricSpike\x12\x80\x01\n" +
-	"\x12temporal_deviation\x18\x04 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x11temporalDeviationB\x18\n" +
+	"\x12temporal_deviation\x18\x04 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x11temporalDeviation\x12w\n" +
+	"\x0fngram_histogram\x18\x05 \x01(\v2L.experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfigH\x00R\x0engramHistogramB\x18\n" +
 	"\x16scenario_config_filter\"\x93\x01\n" +
 	"\x11ListModelsRequest\x12%\n" +
 	"\x0emodel_location\x18\x01 \x01(\tR\rmodelLocation\x12W\n" +
-	"\x06filter\x18\x02 \x01(\v2?.experimental.anomaly_detection.v2.prediction.proto.ModelFilterR\x06filter\"\xc8\x04\n" +
+	"\x06filter\x18\x02 \x01(\v2?.experimental.anomaly_detection.v2.prediction.proto.ModelFilterR\x06filter\"\xcf\x05\n" +
 	"\n" +
 	"ModelEntry\x12%\n" +
 	"\x0emodel_location\x18\x01 \x01(\tR\rmodelLocation\x12Y\n" +
 	"\bmetadata\x18\x03 \x01(\v2=.experimental.anomaly_detection.v2.common.proto.ModelMetadataR\bmetadata\x12\x8a\x01\n" +
 	"\x18traffic_deviation_config\x18\x04 \x01(\v2N.experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfigH\x00R\x16trafficDeviationConfig\x12\x87\x01\n" +
 	"\x17volumetric_spike_config\x18\x05 \x01(\v2M.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfigH\x00R\x15volumetricSpikeConfig\x12\x8d\x01\n" +
-	"\x19temporal_deviation_config\x18\x06 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x17temporalDeviationConfigB\x11\n" +
+	"\x19temporal_deviation_config\x18\x06 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x17temporalDeviationConfig\x12\x84\x01\n" +
+	"\x16ngram_histogram_config\x18\a \x01(\v2L.experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfigH\x00R\x14ngramHistogramConfigB\x11\n" +
 	"\x0ftraining_config\"l\n" +
 	"\x12ListModelsResponse\x12V\n" +
 	"\x06models\x18\x01 \x03(\v2>.experimental.anomaly_detection.v2.prediction.proto.ModelEntryR\x06models\"o\n" +
@@ -1476,14 +2591,73 @@ const file_v2_prediction_service_proto_prediction_service_proto_rawDesc = "" +
 	"\x10PushModelRequest\x12%\n" +
 	"\x0emodel_location\x18\x01 \x01(\tR\rmodelLocation\x12K\n" +
 	"\x05model\x18\x02 \x01(\v25.experimental.anomaly_detection.v2.common.proto.ModelR\x05model\"\x13\n" +
-	"\x11PushModelResponse2\xe1\x03\n" +
+	"\x11PushModelResponse\"9\n" +
+	"\rNGramDistance\x12\f\n" +
+	"\x01n\x18\x01 \x01(\x05R\x01n\x12\x1a\n" +
+	"\bdistance\x18\x02 \x01(\x01R\bdistance\"\x8d\x01\n" +
+	"\x0fNGramOrderScore\x12\f\n" +
+	"\x01n\x18\x01 \x01(\x05R\x01n\x12\x14\n" +
+	"\x05score\x18\x02 \x01(\x01R\x05score\x12%\n" +
+	"\x0ecategory_count\x18\x03 \x01(\x03R\rcategoryCount\x12/\n" +
+	"\x13unknown_occurrences\x18\x04 \x01(\x03R\x12unknownOccurrences\"\xb8\x03\n" +
+	"\x0eNGramDeviation\x12\f\n" +
+	"\x01n\x18\x01 \x01(\x05R\x01n\x12\x18\n" +
+	"\aactions\x18\x02 \x03(\tR\aactions\x12*\n" +
+	"\x11is_unknown_bucket\x18\x03 \x01(\bR\x0fisUnknownBucket\x12/\n" +
+	"\x13observed_proportion\x18\x04 \x01(\x01R\x12observedProportion\x12!\n" +
+	"\flearned_mean\x18\x05 \x01(\x01R\vlearnedMean\x12)\n" +
+	"\x10learned_variance\x18\x06 \x01(\x01R\x0flearnedVariance\x12@\n" +
+	"\x1ceffective_standard_deviation\x18\a \x01(\x01R\x1aeffectiveStandardDeviation\x125\n" +
+	"\x16standardized_deviation\x18\b \x01(\x01R\x15standardizedDeviation\x12+\n" +
+	"\x11squared_deviation\x18\t \x01(\x01R\x10squaredDeviation\x12-\n" +
+	"\x12score_contribution\x18\n" +
+	" \x01(\x01R\x11scoreContribution\"\xf9\x03\n" +
+	"\vWindowScore\x12!\n" +
+	"\fwindow_index\x18\x01 \x01(\x03R\vwindowIndex\x12!\n" +
+	"\fstart_action\x18\x02 \x01(\x03R\vstartAction\x12\x1d\n" +
+	"\n" +
+	"end_action\x18\x03 \x01(\x03R\tendAction\x12c\n" +
+	"\tdistances\x18\x04 \x03(\v2A.experimental.anomaly_detection.v2.prediction.proto.NGramDistanceB\x02\x18\x01R\tdistances\x12\x14\n" +
+	"\x05score\x18\x05 \x01(\x01R\x05score\x12&\n" +
+	"\fis_anomalous\x18\x06 \x01(\bH\x00R\visAnomalous\x88\x01\x01\x12f\n" +
+	"\forder_scores\x18\a \x03(\v2C.experimental.anomaly_detection.v2.prediction.proto.NGramOrderScoreR\vorderScores\x12i\n" +
+	"\x0etop_deviations\x18\b \x03(\v2B.experimental.anomaly_detection.v2.prediction.proto.NGramDeviationR\rtopDeviationsB\x0f\n" +
+	"\r_is_anomalous\"\xd3\x03\n" +
+	"\x11WindowScoreReport\x12#\n" +
+	"\rwindow_length\x18\x01 \x01(\x05R\fwindowLength\x12#\n" +
+	"\rtotal_actions\x18\x02 \x01(\x03R\ftotalActions\x12)\n" +
+	"\x10complete_windows\x18\x03 \x01(\x03R\x0fcompleteWindows\x12)\n" +
+	"\x10trailing_actions\x18\x04 \x01(\x03R\x0ftrailingActions\x12Y\n" +
+	"\awindows\x18\x05 \x03(\v2?.experimental.anomaly_detection.v2.prediction.proto.WindowScoreR\awindows\x12!\n" +
+	"\tthreshold\x18\x06 \x01(\x01H\x00R\tthreshold\x88\x01\x01\x12'\n" +
+	"\x0fscoring_version\x18\a \x01(\tR\x0escoringVersion\x12i\n" +
+	"\x0escoring_config\x18\b \x01(\v2B.experimental.anomaly_detection.v2.common.proto.NGramScoringConfigR\rscoringConfigB\f\n" +
+	"\n" +
+	"_threshold\"\xb1\x02\n" +
+	"\x17CalibrateWindowsRequest\x12%\n" +
+	"\x0emodel_location\x18\x01 \x01(\tR\rmodelLocation\x120\n" +
+	"\x14calibration_log_path\x18\x02 \x01(\tR\x12calibrationLogPath\x12\x1e\n" +
+	"\n" +
+	"percentile\x18\x03 \x01(\x01R\n" +
+	"percentile\x122\n" +
+	"\x15output_model_location\x18\x04 \x01(\tR\x13outputModelLocation\x12i\n" +
+	"\x0escoring_config\x18\x05 \x01(\v2B.experimental.anomaly_detection.v2.common.proto.NGramScoringConfigR\rscoringConfig\"\x84\x02\n" +
+	"\x18CalibrateWindowsResponse\x12%\n" +
+	"\x0emodel_location\x18\x01 \x01(\tR\rmodelLocation\x12b\n" +
+	"\vcalibration\x18\x02 \x01(\v2@.experimental.anomaly_detection.v2.common.proto.NGramCalibrationR\vcalibration\x12]\n" +
+	"\x06scores\x18\x03 \x01(\v2E.experimental.anomaly_detection.v2.prediction.proto.WindowScoreReportR\x06scores\"l\n" +
+	"\x13ScoreWindowsRequest\x12%\n" +
+	"\x0emodel_location\x18\x01 \x01(\tR\rmodelLocation\x12.\n" +
+	"\x13validation_log_path\x18\x02 \x01(\tR\x11validationLogPath2\xb2\x06\n" +
 	"\x11PredictionService\x12\x9b\x01\n" +
 	"\n" +
 	"ListModels\x12E.experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest\x1aF.experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse\x12\x92\x01\n" +
 	"\aPredict\x12B.experimental.anomaly_detection.v2.prediction.proto.PredictRequest\x1aC.experimental.anomaly_detection.v2.prediction.proto.PredictResponse\x12\x98\x01\n" +
-	"\tPushModel\x12D.experimental.anomaly_detection.v2.prediction.proto.PushModelRequest\x1aE.experimental.anomaly_detection.v2.prediction.proto.PushModelResponseB}Z{github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/prediction_service/proto;predictionpbb\x06proto3"
+	"\tPushModel\x12D.experimental.anomaly_detection.v2.prediction.proto.PushModelRequest\x1aE.experimental.anomaly_detection.v2.prediction.proto.PushModelResponse\x12\xad\x01\n" +
+	"\x10CalibrateWindows\x12K.experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsRequest\x1aL.experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsResponse\x12\x9e\x01\n" +
+	"\fScoreWindows\x12G.experimental.anomaly_detection.v2.prediction.proto.ScoreWindowsRequest\x1aE.experimental.anomaly_detection.v2.prediction.proto.WindowScoreReportB}Z{github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/prediction_service/proto;predictionpbb\x06proto3"
 
-var file_v2_prediction_service_proto_prediction_service_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_v2_prediction_service_proto_prediction_service_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_v2_prediction_service_proto_prediction_service_proto_goTypes = []any{
 	(*ModelMetadataFilter)(nil),                   // 0: experimental.anomaly_detection.v2.prediction.proto.ModelMetadataFilter
 	(*ModelFilter)(nil),                           // 1: experimental.anomaly_detection.v2.prediction.proto.ModelFilter
@@ -1496,44 +2670,69 @@ var file_v2_prediction_service_proto_prediction_service_proto_goTypes = []any{
 	(*PredictResponse)(nil),                       // 8: experimental.anomaly_detection.v2.prediction.proto.PredictResponse
 	(*PushModelRequest)(nil),                      // 9: experimental.anomaly_detection.v2.prediction.proto.PushModelRequest
 	(*PushModelResponse)(nil),                     // 10: experimental.anomaly_detection.v2.prediction.proto.PushModelResponse
-	(*proto.TrafficDeviationTrainingConfig)(nil),  // 11: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
-	(*proto.VolumetricSpikeTrainingConfig)(nil),   // 12: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
-	(*proto.TemporalDeviationTrainingConfig)(nil), // 13: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	(*proto.ModelMetadata)(nil),                   // 14: experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	(*proto.AuditLogEntry)(nil),                   // 15: experimental.anomaly_detection.v2.common.proto.AuditLogEntry
-	(*proto.AnomalyFinding)(nil),                  // 16: experimental.anomaly_detection.v2.common.proto.AnomalyFinding
-	(*proto.Model)(nil),                           // 17: experimental.anomaly_detection.v2.common.proto.Model
+	(*NGramDistance)(nil),                         // 11: experimental.anomaly_detection.v2.prediction.proto.NGramDistance
+	(*NGramOrderScore)(nil),                       // 12: experimental.anomaly_detection.v2.prediction.proto.NGramOrderScore
+	(*NGramDeviation)(nil),                        // 13: experimental.anomaly_detection.v2.prediction.proto.NGramDeviation
+	(*WindowScore)(nil),                           // 14: experimental.anomaly_detection.v2.prediction.proto.WindowScore
+	(*WindowScoreReport)(nil),                     // 15: experimental.anomaly_detection.v2.prediction.proto.WindowScoreReport
+	(*CalibrateWindowsRequest)(nil),               // 16: experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsRequest
+	(*CalibrateWindowsResponse)(nil),              // 17: experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsResponse
+	(*ScoreWindowsRequest)(nil),                   // 18: experimental.anomaly_detection.v2.prediction.proto.ScoreWindowsRequest
+	(*proto.TrafficDeviationTrainingConfig)(nil),  // 19: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
+	(*proto.VolumetricSpikeTrainingConfig)(nil),   // 20: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
+	(*proto.TemporalDeviationTrainingConfig)(nil), // 21: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
+	(*proto.NGramHistogramTrainingConfig)(nil),    // 22: experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	(*proto.ModelMetadata)(nil),                   // 23: experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	(*proto.AuditLogEntry)(nil),                   // 24: experimental.anomaly_detection.v2.common.proto.AuditLogEntry
+	(*proto.AnomalyFinding)(nil),                  // 25: experimental.anomaly_detection.v2.common.proto.AnomalyFinding
+	(*proto.Model)(nil),                           // 26: experimental.anomaly_detection.v2.common.proto.Model
+	(*proto.NGramScoringConfig)(nil),              // 27: experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
+	(*proto.NGramCalibration)(nil),                // 28: experimental.anomaly_detection.v2.common.proto.NGramCalibration
 }
 var file_v2_prediction_service_proto_prediction_service_proto_depIdxs = []int32{
 	0,  // 0: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.metadata_filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelMetadataFilter
-	11, // 1: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
-	12, // 2: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
-	13, // 3: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	1,  // 4: experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest.filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelFilter
-	14, // 5: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	11, // 6: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.traffic_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
-	12, // 7: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.volumetric_spike_config:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
-	13, // 8: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.temporal_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	3,  // 9: experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse.models:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelEntry
-	15, // 10: experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch.log_entries:type_name -> experimental.anomaly_detection.v2.common.proto.AuditLogEntry
-	15, // 11: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.single_log:type_name -> experimental.anomaly_detection.v2.common.proto.AuditLogEntry
-	5,  // 12: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.batch_logs:type_name -> experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch
-	1,  // 13: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelFilter
-	16, // 14: experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch.findings:type_name -> experimental.anomaly_detection.v2.common.proto.AnomalyFinding
-	16, // 15: experimental.anomaly_detection.v2.prediction.proto.PredictResponse.single_finding:type_name -> experimental.anomaly_detection.v2.common.proto.AnomalyFinding
-	7,  // 16: experimental.anomaly_detection.v2.prediction.proto.PredictResponse.batch_findings:type_name -> experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch
-	17, // 17: experimental.anomaly_detection.v2.prediction.proto.PushModelRequest.model:type_name -> experimental.anomaly_detection.v2.common.proto.Model
-	2,  // 18: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ListModels:input_type -> experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest
-	6,  // 19: experimental.anomaly_detection.v2.prediction.proto.PredictionService.Predict:input_type -> experimental.anomaly_detection.v2.prediction.proto.PredictRequest
-	9,  // 20: experimental.anomaly_detection.v2.prediction.proto.PredictionService.PushModel:input_type -> experimental.anomaly_detection.v2.prediction.proto.PushModelRequest
-	4,  // 21: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ListModels:output_type -> experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse
-	8,  // 22: experimental.anomaly_detection.v2.prediction.proto.PredictionService.Predict:output_type -> experimental.anomaly_detection.v2.prediction.proto.PredictResponse
-	10, // 23: experimental.anomaly_detection.v2.prediction.proto.PredictionService.PushModel:output_type -> experimental.anomaly_detection.v2.prediction.proto.PushModelResponse
-	21, // [21:24] is the sub-list for method output_type
-	18, // [18:21] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	19, // 1: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
+	20, // 2: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
+	21, // 3: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
+	22, // 4: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.ngram_histogram:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	1,  // 5: experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest.filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelFilter
+	23, // 6: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	19, // 7: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.traffic_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
+	20, // 8: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.volumetric_spike_config:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
+	21, // 9: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.temporal_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
+	22, // 10: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.ngram_histogram_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	3,  // 11: experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse.models:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelEntry
+	24, // 12: experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch.log_entries:type_name -> experimental.anomaly_detection.v2.common.proto.AuditLogEntry
+	24, // 13: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.single_log:type_name -> experimental.anomaly_detection.v2.common.proto.AuditLogEntry
+	5,  // 14: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.batch_logs:type_name -> experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch
+	1,  // 15: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelFilter
+	25, // 16: experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch.findings:type_name -> experimental.anomaly_detection.v2.common.proto.AnomalyFinding
+	25, // 17: experimental.anomaly_detection.v2.prediction.proto.PredictResponse.single_finding:type_name -> experimental.anomaly_detection.v2.common.proto.AnomalyFinding
+	7,  // 18: experimental.anomaly_detection.v2.prediction.proto.PredictResponse.batch_findings:type_name -> experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch
+	26, // 19: experimental.anomaly_detection.v2.prediction.proto.PushModelRequest.model:type_name -> experimental.anomaly_detection.v2.common.proto.Model
+	11, // 20: experimental.anomaly_detection.v2.prediction.proto.WindowScore.distances:type_name -> experimental.anomaly_detection.v2.prediction.proto.NGramDistance
+	12, // 21: experimental.anomaly_detection.v2.prediction.proto.WindowScore.order_scores:type_name -> experimental.anomaly_detection.v2.prediction.proto.NGramOrderScore
+	13, // 22: experimental.anomaly_detection.v2.prediction.proto.WindowScore.top_deviations:type_name -> experimental.anomaly_detection.v2.prediction.proto.NGramDeviation
+	14, // 23: experimental.anomaly_detection.v2.prediction.proto.WindowScoreReport.windows:type_name -> experimental.anomaly_detection.v2.prediction.proto.WindowScore
+	27, // 24: experimental.anomaly_detection.v2.prediction.proto.WindowScoreReport.scoring_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
+	27, // 25: experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsRequest.scoring_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
+	28, // 26: experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsResponse.calibration:type_name -> experimental.anomaly_detection.v2.common.proto.NGramCalibration
+	15, // 27: experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsResponse.scores:type_name -> experimental.anomaly_detection.v2.prediction.proto.WindowScoreReport
+	2,  // 28: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ListModels:input_type -> experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest
+	6,  // 29: experimental.anomaly_detection.v2.prediction.proto.PredictionService.Predict:input_type -> experimental.anomaly_detection.v2.prediction.proto.PredictRequest
+	9,  // 30: experimental.anomaly_detection.v2.prediction.proto.PredictionService.PushModel:input_type -> experimental.anomaly_detection.v2.prediction.proto.PushModelRequest
+	16, // 31: experimental.anomaly_detection.v2.prediction.proto.PredictionService.CalibrateWindows:input_type -> experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsRequest
+	18, // 32: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ScoreWindows:input_type -> experimental.anomaly_detection.v2.prediction.proto.ScoreWindowsRequest
+	4,  // 33: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ListModels:output_type -> experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse
+	8,  // 34: experimental.anomaly_detection.v2.prediction.proto.PredictionService.Predict:output_type -> experimental.anomaly_detection.v2.prediction.proto.PredictResponse
+	10, // 35: experimental.anomaly_detection.v2.prediction.proto.PredictionService.PushModel:output_type -> experimental.anomaly_detection.v2.prediction.proto.PushModelResponse
+	17, // 36: experimental.anomaly_detection.v2.prediction.proto.PredictionService.CalibrateWindows:output_type -> experimental.anomaly_detection.v2.prediction.proto.CalibrateWindowsResponse
+	15, // 37: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ScoreWindows:output_type -> experimental.anomaly_detection.v2.prediction.proto.WindowScoreReport
+	33, // [33:38] is the sub-list for method output_type
+	28, // [28:33] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_v2_prediction_service_proto_prediction_service_proto_init() }
@@ -1545,11 +2744,13 @@ func file_v2_prediction_service_proto_prediction_service_proto_init() {
 		(*modelFilter_TrafficDeviation)(nil),
 		(*modelFilter_VolumetricSpike)(nil),
 		(*modelFilter_TemporalDeviation)(nil),
+		(*modelFilter_NgramHistogram)(nil),
 	}
 	file_v2_prediction_service_proto_prediction_service_proto_msgTypes[3].OneofWrappers = []any{
 		(*modelEntry_TrafficDeviationConfig)(nil),
 		(*modelEntry_VolumetricSpikeConfig)(nil),
 		(*modelEntry_TemporalDeviationConfig)(nil),
+		(*modelEntry_NgramHistogramConfig)(nil),
 	}
 	file_v2_prediction_service_proto_prediction_service_proto_msgTypes[6].OneofWrappers = []any{
 		(*predictRequest_SingleLog)(nil),
@@ -1561,13 +2762,15 @@ func file_v2_prediction_service_proto_prediction_service_proto_init() {
 		(*predictResponse_BatchFindings)(nil),
 		(*predictResponse_FindingsPath)(nil),
 	}
+	file_v2_prediction_service_proto_prediction_service_proto_msgTypes[14].OneofWrappers = []any{}
+	file_v2_prediction_service_proto_prediction_service_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v2_prediction_service_proto_prediction_service_proto_rawDesc), len(file_v2_prediction_service_proto_prediction_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

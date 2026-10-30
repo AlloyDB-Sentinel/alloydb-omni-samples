@@ -8,36 +8,30 @@ import (
 	"path/filepath"
 
 	"github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common"
-	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	auditpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 )
 
-// splitLogs preserves file order and exports every generated action as JSONL.
+// exportLogs validates the generated count and exports every action as JSONL.
 // The v1 generator and v2 ingestion AuditLogEntry schemas are wire-compatible.
-func splitLogs(ctx context.Context, out string, trainCount, totalCount int) (err error) {
-	paths := []string{"train.binproto", "test.binproto", "logs.jsonl"}
-	var writers []*bufio.Writer
-	for _, path := range paths {
-		file, openErr := os.Create(filepath.Join(out, path))
-		if openErr != nil {
-			return openErr
-		}
-		defer func() {
-			if closeErr := file.Close(); err == nil {
-				err = closeErr
-			}
-		}()
-		writer := bufio.NewWriter(file)
-		writers = append(writers, writer)
-		defer func() {
-			if flushErr := writer.Flush(); err == nil {
-				err = flushErr
-			}
-		}()
+func exportLogs(ctx context.Context, out string, totalCount int64) (err error) {
+	file, err := os.Create(filepath.Join(out, "logs.jsonl"))
+	if err != nil {
+		return err
 	}
-	count := 0
+	defer func() {
+		if closeErr := file.Close(); err == nil {
+			err = closeErr
+		}
+	}()
+	writer := bufio.NewWriter(file)
+	defer func() {
+		if flushErr := writer.Flush(); err == nil {
+			err = flushErr
+		}
+	}()
+	var count int64
 	jsonOptions := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: true}
 	err = common.IngestBinProtoStream(ctx, filepath.Join(out, "logs.binproto"), func(entry *auditpb.AuditLogEntry) error {
 		if err := ctx.Err(); err != nil {
@@ -46,18 +40,11 @@ func splitLogs(ctx context.Context, out string, trainCount, totalCount int) (err
 		if entry.GetNormalizedQueryTemplate() == "" {
 			return fmt.Errorf("log %d has an empty normalized query template", count+1)
 		}
-		writer := writers[1]
-		if count < trainCount {
-			writer = writers[0]
-		}
-		if _, err := protodelim.MarshalTo(writer, entry); err != nil {
-			return err
-		}
 		data, err := jsonOptions.Marshal(entry)
 		if err != nil {
 			return err
 		}
-		if _, err := writers[2].Write(append(data, '\n')); err != nil {
+		if _, err := writer.Write(append(data, '\n')); err != nil {
 			return err
 		}
 		count++

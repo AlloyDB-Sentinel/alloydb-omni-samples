@@ -1,4 +1,4 @@
-// Command client orchestrates Markov generation, splitting and histogram training.
+// Command client orchestrates reproducible Markov generation and baseline training.
 package main
 
 import (
@@ -19,27 +19,25 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	genpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/generator/proto"
+	clientpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/client/proto"
 	modelpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 	trainingpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/training_service/proto"
 )
 
 type options struct {
-	configPath, generatorBin, outputDir, serverAddr string
-	numLogs, maxN                                   int
-	trainFraction                                   float64
-	startTimeMs                                     int64
+	experimentPath, generatorBin, outputDir, serverAddr string
+	predictionAddr, modelPath, validationLogPath        string
 }
 
 func main() {
 	var o options
-	flag.StringVar(&o.configPath, "config_path", "v1/client/markov_generator_config.textproto", "Markov generator configuration.")
-	flag.StringVar(&o.generatorBin, "generator_bin", "./v1/generator/src/generator", "Generator executable.")
-	flag.StringVar(&o.outputDir, "output_dir", "output/markov-histogram", "Directory for generated logs, split logs and trained model exports.")
+	flag.StringVar(&o.experimentPath, "experiment_config", "v2/client/configs/standard_user.textproto", "Experiment configuration (.textproto).")
+	flag.StringVar(&o.generatorBin, "generator_bin", "./bin/generator", "Generator executable.")
+	flag.StringVar(&o.outputDir, "output_dir", "output/experiment", "Directory for training logs, experiment configuration and model exports.")
 	flag.StringVar(&o.serverAddr, "server_addr", "localhost:50051", "Training service address.")
-	flag.IntVar(&o.numLogs, "num_logs", 10000, "Number of actions to generate.")
-	flag.IntVar(&o.maxN, "max_n", 3, "Count n-grams of sizes 1 through this value (1-3).")
-	flag.Float64Var(&o.trainFraction, "train_fraction", 0.4, "Ordered prefix used for training, in (0, 1].")
-	flag.Int64Var(&o.startTimeMs, "start_time_ms", 0, "Simulated initial timestamp in milliseconds.")
+	flag.StringVar(&o.predictionAddr, "prediction_server_addr", "localhost:50052", "Prediction service for calibration and validation scoring.")
+	flag.StringVar(&o.modelPath, "model_path", "", "Validation-only mode: existing calibrated model; requires --validation_log_path.")
+	flag.StringVar(&o.validationLogPath, "validation_log_path", "", "Existing validation logs. Otherwise a separate normal validation stream is generated.")
 	flag.Parse()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -49,14 +47,24 @@ func main() {
 }
 
 func run(ctx context.Context, o options) error {
-	if o.numLogs <= 0 || o.maxN < 1 || o.maxN > 3 || math.IsNaN(o.trainFraction) || o.trainFraction <= 0 || o.trainFraction > 1 {
-		return fmt.Errorf("require num_logs > 0, max_n in [1, 3] and train_fraction in (0, 1]")
+	if o.modelPath != "" {
+		if o.validationLogPath == "" {
+			return fmt.Errorf("--model_path requires --validation_log_path for validation-only mode")
+		}
+		out, err := filepath.Abs(o.outputDir)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(out, 0755); err != nil {
+			return err
+		}
+		return validateWindows(ctx, o, out, o.modelPath, o.validationLogPath)
 	}
-	trainCount := int(math.Floor(float64(o.numLogs) * o.trainFraction))
-	if trainCount == 0 {
-		return fmt.Errorf("training prefix is empty")
+	experiment, err := readExperiment(o.experimentPath)
+	if err != nil {
+		return err
 	}
-	configData, err := os.ReadFile(o.configPath)
+	configData, err := os.ReadFile(experiment.GetGeneratorConfigPath())
 	if err != nil {
 		return err
 	}
@@ -67,6 +75,14 @@ func run(ctx context.Context, o options) error {
 	if config.GetMarkovSampling() == nil {
 		return fmt.Errorf("this pipeline requires a markov_sampling configuration")
 	}
+	if len(config.GetMarkovSampling().GetInjections()) > 0 {
+		return fmt.Errorf("training/calibration generator config must not contain injections; put them in the experiment's validation specification")
+	}
+	for _, node := range config.GetMarkovSampling().GetNodes() {
+		if node.GetTemplate().GetIsGroundTruthAnomalous() {
+			return fmt.Errorf("training/calibration templates must be normal")
+		}
+	}
 	out, err := filepath.Abs(o.outputDir)
 	if err != nil {
 		return err
@@ -74,29 +90,34 @@ func run(ctx context.Context, o options) error {
 	if err := os.MkdirAll(out, 0755); err != nil {
 		return err
 	}
+	if err := os.WriteFile(filepath.Join(out, "experiment.textproto"), []byte(prototext.Format(experiment)), 0644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(out, "generator_config.textproto"), configData, 0644); err != nil {
+		return err
+	}
 	cmd := exec.CommandContext(ctx, o.generatorBin,
-		"--config_file="+o.configPath, "--output_dir="+out,
-		fmt.Sprintf("--num_logs=%d", o.numLogs), fmt.Sprintf("--start_time_ms=%d", o.startTimeMs))
+		"--config_file="+filepath.Join(out, "generator_config.textproto"), "--output_dir="+out,
+		fmt.Sprintf("--num_logs=%d", experiment.GetTrainingActions()), fmt.Sprintf("--start_time_ms=%d", experiment.GetStartTimeMs()),
+		fmt.Sprintf("--seed=%d", experiment.GetTrainingSeed()))
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("generator: %w", err)
 	}
-	if err := splitLogs(ctx, out, trainCount, o.numLogs); err != nil {
+	if err := exportLogs(ctx, out, experiment.GetTrainingActions()); err != nil {
 		return err
 	}
-	log.Printf("Generated %d actions: %d training, %d held out", o.numLogs, trainCount, o.numLogs-trainCount)
+	log.Printf("Generated %d actions; training on every record", experiment.GetTrainingActions())
 
 	conn, err := grpc.NewClient(o.serverAddr, grpc.WithTransportCredentials(local.NewCredentials()))
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-	configPB := &modelpb.NGramHistogramTrainingConfig{}
-	configPB.SetMaxN(int32(o.maxN))
 	trainingConfig := &trainingpb.ModelTrainingConfig{}
-	trainingConfig.SetNgramHistogramConfig(configPB)
+	trainingConfig.SetNgramHistogramConfig(experiment.GetTrainingConfig())
 	req := &trainingpb.TrainModelsRequest{}
-	req.SetTrainLogPath(filepath.Join(out, "train.binproto"))
+	req.SetTrainLogPath(filepath.Join(out, "logs.binproto"))
 	req.SetTrainingConfigs([]*trainingpb.ModelTrainingConfig{trainingConfig})
 	if err := os.WriteFile(filepath.Join(out, "training_request.textproto"), []byte(prototext.Format(req)), 0644); err != nil {
 		return err
@@ -120,7 +141,7 @@ func run(ctx context.Context, o options) error {
 	if err := proto.Unmarshal(modelBytes, model); err != nil {
 		return err
 	}
-	if !model.HasNgramHistogram() || model.GetMetadata().GetTotalLogEntriesProcessed() != int64(trainCount) {
+	if !model.HasNgramHistogram() || model.GetMetadata().GetTotalLogEntriesProcessed() != experiment.GetTrainingActions() {
 		return fmt.Errorf("training returned an unexpected model or action count")
 	}
 	if err := os.WriteFile(filepath.Join(out, "histogram.bin"), modelBytes, 0644); err != nil {
@@ -130,10 +151,70 @@ func run(ctx context.Context, o options) error {
 		return err
 	}
 	for _, d := range model.GetNgramHistogram().GetModelData().GetHistograms() {
-		log.Printf("n=%d: %d windows, %d observed sequences", d.GetN(), d.GetTotalWindows(), len(d.GetEntries()))
+		log.Printf("n=%d: %d n-gram occurrences, %d observed sequences", d.GetN(), d.GetTotalWindows(), len(d.GetEntries()))
 	}
-	log.Printf("Generation and training outputs: %s", out)
-	return nil
+	data := model.GetNgramHistogram().GetModelData()
+	log.Printf("Window statistics: %d complete windows, %d trailing actions", data.GetCompleteWindows(), data.GetTrailingActions())
+	return calibrateAndValidate(ctx, o, experiment, out, model)
+}
+
+func readExperiment(path string) (*clientpb.MarkovExperimentConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	config := &clientpb.MarkovExperimentConfig{}
+	if err := prototext.Unmarshal(data, config); err != nil {
+		return nil, fmt.Errorf("experiment config: %w", err)
+	}
+	training := config.GetTrainingConfig()
+	if training == nil {
+		return nil, fmt.Errorf("training_config is required")
+	}
+	if !training.HasWindowLength() {
+		training.SetWindowLength(300)
+	}
+	if config.GetGeneratorConfigPath() == "" || config.GetTrainingActions() <= 0 || config.GetTrainingActions() > int64(^uint(0)>>1) || training.GetMaxN() < 1 || training.GetMaxN() > 3 || training.GetWindowLength() < training.GetMaxN() {
+		return nil, fmt.Errorf("require a generator config path, positive training_actions, max_n in [1,3], and window_length >= max_n")
+	}
+	if config.GetTrainingActions() < 2*int64(training.GetWindowLength()) {
+		return nil, fmt.Errorf("variance scoring requires at least two complete training windows")
+	}
+	if config.GetScoringConfig() == nil {
+		scoring := &modelpb.NGramScoringConfig{}
+		scoring.SetStandardDeviationFloorCount(1)
+		config.SetScoringConfig(scoring)
+	}
+	floor := config.GetScoringConfig().GetStandardDeviationFloorCount()
+	if math.IsNaN(floor) || math.IsInf(floor, 0) || floor <= 0 {
+		return nil, fmt.Errorf("standard_deviation_floor_count must be finite and positive")
+	}
+	if !config.HasCalibrationActions() {
+		config.SetCalibrationActions(300000)
+	}
+	if !config.HasCalibrationSeed() {
+		config.SetCalibrationSeed(43)
+	}
+	if !config.HasValidationActions() {
+		config.SetValidationActions(30000)
+	}
+	if !config.HasValidationSeed() {
+		config.SetValidationSeed(44)
+	}
+	if config.GetCalibrationActions() < 2*int64(training.GetWindowLength()) || config.GetCalibrationActions() > int64(^uint(0)>>1) || config.GetValidationActions() < int64(training.GetWindowLength()) || config.GetValidationActions() > int64(^uint(0)>>1) {
+		return nil, fmt.Errorf("calibration needs at least two complete windows and validation at least one")
+	}
+	if config.GetTrainingSeed() == config.GetCalibrationSeed() || config.GetTrainingSeed() == config.GetValidationSeed() || config.GetCalibrationSeed() == config.GetValidationSeed() {
+		return nil, fmt.Errorf("training, calibration and validation seeds must differ")
+	}
+	percentile := config.GetCalibrationPercentile()
+	if math.IsNaN(percentile) || percentile <= 0 || percentile >= 1 {
+		return nil, fmt.Errorf("calibration_percentile must be in (0,1)")
+	}
+	if err := validateExperimentInjections(config); err != nil {
+		return nil, err
+	}
+	return config, nil
 }
 
 func writeJSON(path string, message proto.Message) error {

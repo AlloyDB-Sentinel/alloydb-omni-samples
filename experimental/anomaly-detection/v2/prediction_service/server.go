@@ -22,8 +22,8 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
-	findingpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 	auditpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
+	findingpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 	modelpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
 	predictiongrpc "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/prediction_service/proto"
 	predictionpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/prediction_service/proto"
@@ -97,6 +97,9 @@ func (s *predictionServer) Predict(ctx context.Context, req *predictionpb.Predic
 
 	var models []service.Model
 	for _, item := range items {
+		if item.proto.HasNgramHistogram() {
+			return nil, status.Error(codes.FailedPrecondition, "histogram models require the ScoreWindows RPC")
+		}
 		m, err := modelFromProto(item.proto)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to initialize model from %q: %v", item.entry.GetModelLocation(), err)
@@ -171,6 +174,13 @@ func matchesModelFilter(filter *predictionpb.ModelFilter, entry *predictionpb.Mo
 
 	// 2. Scenario config filter
 	switch filter.WhichScenarioConfigFilter() {
+	case predictionpb.ModelFilter_NgramHistogram_case:
+		cfg := entry.GetNgramHistogramConfig()
+		if cfg == nil {
+			return false
+		}
+		requested := filter.GetNgramHistogram()
+		return (requested.GetMaxN() == 0 || requested.GetMaxN() == cfg.GetMaxN()) && (!requested.HasWindowLength() || requested.GetWindowLength() == cfg.GetWindowLength())
 	case predictionpb.ModelFilter_TrafficDeviation_case:
 		cfg := entry.GetTrafficDeviationConfig()
 		if cfg == nil {
@@ -224,6 +234,10 @@ func findMatchingModels(ctx context.Context, location string, filter *prediction
 	// Case 1: Single model file
 	if stat, err := os.Stat(targetPath); err == nil && !stat.IsDir() {
 		return collectModels(ctx, []string{targetPath}, filter, isPredict)
+	} else if os.IsNotExist(err) && !isPredict && strings.TrimSpace(location) != "" {
+		// Listing an explicitly requested missing location is an empty result.
+		// Prediction and a missing default models directory still report errors.
+		return nil, nil
 	}
 
 	// Case 2: Directory of models (custom dir or default models_dir)
@@ -270,6 +284,8 @@ func buildModelEntry(path string, modelProto *modelpb.Model) *predictionpb.Model
 	entry.SetMetadata(modelProto.GetMetadata())
 
 	switch modelProto.WhichScenario() {
+	case modelpb.Model_NgramHistogram_case:
+		entry.SetNgramHistogramConfig(modelProto.GetNgramHistogram().GetConfig())
 	case modelpb.Model_TrafficDeviation_case:
 		entry.SetTrafficDeviationConfig(modelProto.GetTrafficDeviation().GetConfig())
 	case modelpb.Model_VolumetricSpike_case:

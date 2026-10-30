@@ -30,6 +30,8 @@ type AuditLogEntry struct {
 	xxx_hidden_DbName                  string                 `protobuf:"bytes,4,opt,name=db_name,json=dbName,proto3"`
 	xxx_hidden_IsGroundTruthAnomalous  bool                   `protobuf:"varint,5,opt,name=is_ground_truth_anomalous,json=isGroundTruthAnomalous,proto3"`
 	xxx_hidden_TimestampMs             int64                  `protobuf:"varint,6,opt,name=timestamp_ms,json=timestampMs,proto3"`
+	xxx_hidden_GroundTruthProfile      string                 `protobuf:"bytes,7,opt,name=ground_truth_profile,json=groundTruthProfile,proto3"`
+	xxx_hidden_GroundTruthSegmentId    string                 `protobuf:"bytes,8,opt,name=ground_truth_segment_id,json=groundTruthSegmentId,proto3"`
 	unknownFields                      protoimpl.UnknownFields
 	sizeCache                          protoimpl.SizeCache
 }
@@ -101,6 +103,20 @@ func (x *AuditLogEntry) GetTimestampMs() int64 {
 	return 0
 }
 
+func (x *AuditLogEntry) GetGroundTruthProfile() string {
+	if x != nil {
+		return x.xxx_hidden_GroundTruthProfile
+	}
+	return ""
+}
+
+func (x *AuditLogEntry) GetGroundTruthSegmentId() string {
+	if x != nil {
+		return x.xxx_hidden_GroundTruthSegmentId
+	}
+	return ""
+}
+
 func (x *AuditLogEntry) SetNormalizedQueryTemplate(v string) {
 	x.xxx_hidden_NormalizedQueryTemplate = v
 }
@@ -125,6 +141,14 @@ func (x *AuditLogEntry) SetTimestampMs(v int64) {
 	x.xxx_hidden_TimestampMs = v
 }
 
+func (x *AuditLogEntry) SetGroundTruthProfile(v string) {
+	x.xxx_hidden_GroundTruthProfile = v
+}
+
+func (x *AuditLogEntry) SetGroundTruthSegmentId(v string) {
+	x.xxx_hidden_GroundTruthSegmentId = v
+}
+
 type AuditLogEntry_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
@@ -137,6 +161,10 @@ type AuditLogEntry_builder struct {
 	IsGroundTruthAnomalous bool
 	// Query execution timestamp.
 	TimestampMs int64
+	// Wire-compatible synthetic provenance from the v1 generator.
+	// Evaluation only; never used as a detection feature.
+	GroundTruthProfile   string
+	GroundTruthSegmentId string
 }
 
 func (b0 AuditLogEntry_builder) Build() *AuditLogEntry {
@@ -149,6 +177,8 @@ func (b0 AuditLogEntry_builder) Build() *AuditLogEntry {
 	x.xxx_hidden_DbName = b.DbName
 	x.xxx_hidden_IsGroundTruthAnomalous = b.IsGroundTruthAnomalous
 	x.xxx_hidden_TimestampMs = b.TimestampMs
+	x.xxx_hidden_GroundTruthProfile = b.GroundTruthProfile
+	x.xxx_hidden_GroundTruthSegmentId = b.GroundTruthSegmentId
 	return m0
 }
 
@@ -156,14 +186,16 @@ var File_v2_common_proto_audit_log_entry_proto protoreflect.FileDescriptor
 
 const file_v2_common_proto_audit_log_entry_proto_rawDesc = "" +
 	"\n" +
-	"%v2/common/proto/audit_log_entry.proto\x12.experimental.anomaly_detection.v2.common.proto\"\x84\x02\n" +
+	"%v2/common/proto/audit_log_entry.proto\x12.experimental.anomaly_detection.v2.common.proto\"\xed\x02\n" +
 	"\rAuditLogEntry\x12:\n" +
 	"\x19normalized_query_template\x18\x01 \x01(\tR\x17normalizedQueryTemplate\x12'\n" +
 	"\x0fquery_statement\x18\x02 \x01(\tR\x0equeryStatement\x12\x17\n" +
 	"\adb_user\x18\x03 \x01(\tR\x06dbUser\x12\x17\n" +
 	"\adb_name\x18\x04 \x01(\tR\x06dbName\x129\n" +
 	"\x19is_ground_truth_anomalous\x18\x05 \x01(\bR\x16isGroundTruthAnomalous\x12!\n" +
-	"\ftimestamp_ms\x18\x06 \x01(\x03R\vtimestampMsBmZkgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto;commonpbb\x06proto3"
+	"\ftimestamp_ms\x18\x06 \x01(\x03R\vtimestampMs\x120\n" +
+	"\x14ground_truth_profile\x18\a \x01(\tR\x12groundTruthProfile\x125\n" +
+	"\x17ground_truth_segment_id\x18\b \x01(\tR\x14groundTruthSegmentIdBmZkgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto;commonpbb\x06proto3"
 
 var file_v2_common_proto_audit_log_entry_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_v2_common_proto_audit_log_entry_proto_goTypes = []any{

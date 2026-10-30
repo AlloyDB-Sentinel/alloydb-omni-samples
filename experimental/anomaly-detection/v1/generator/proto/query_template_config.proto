@@ -21,6 +21,28 @@ message QueryTemplateConfigs {
 message MarkovSamplingConfig {
   repeated MarkovNode nodes = 1;
   MarkovStartNode start = 2;
+  repeated MarkovAnomalyProfile anomaly_profiles = 3;
+  // Ordered, nonoverlapping ranges in the output action sequence.
+  repeated MarkovInjection injections = 4;
+}
+
+// A second Markov graph made by reweighting existing edges. Node templates,
+// completion times, start selection and edge destinations stay unchanged.
+message MarkovAnomalyProfile {
+  string profile_id = 1; // Nonempty, unique; "normal" is reserved.
+  repeated MarkovTransitionOverride transitions = 2;
+}
+
+message MarkovTransitionOverride {
+  string node_id = 1;
+  repeated MarkovEdge edges = 2; // Same destinations as the original node.
+}
+
+message MarkovInjection {
+  string segment_id = 1; // Nonempty and unique within the output stream.
+  string profile_id = 2;
+  int64 start_action = 3; // Inclusive, zero-based.
+  int64 num_actions = 4; // Positive; range must fit within --num_logs.
 }
 
 // One vertex: a templated operation, a completion time, and its outgoing transitions.

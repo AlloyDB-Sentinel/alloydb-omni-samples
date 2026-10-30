@@ -32,6 +32,13 @@ func IngestBinProtoStream(ctx context.Context, path string, handler LogHandler) 
 		return fmt.Errorf("failed to open file %q: %w", path, err)
 	}
 	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat log file %q: %w", path, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("failed to read log file %q: path is a directory", path)
+	}
 
 	reader := bufio.NewReader(file)
 	for {
@@ -41,6 +48,12 @@ func IngestBinProtoStream(ctx context.Context, path string, handler LogHandler) 
 			break
 		}
 		if err != nil {
+			// A filesystem read failure is an operational error, whereas a
+			// truncated or malformed protobuf stream is invalid input data.
+			var pathErr *os.PathError
+			if errors.As(err, &pathErr) {
+				return fmt.Errorf("failed to read log file %q: %w", path, err)
+			}
 			return fmt.Errorf("%w: failed to unmarshal log entry: %v", ErrInvalidArgument, err)
 		}
 		if err := handler(entry); err != nil {

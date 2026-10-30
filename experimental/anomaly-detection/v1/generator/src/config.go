@@ -485,5 +485,5 @@ func validateMarkovSampling(cfg *cfgpb.MarkovSamplingConfig) error {
 		}
 	}
 
-	return nil
+	return validateMarkovProfiles(cfg, byID)
 }

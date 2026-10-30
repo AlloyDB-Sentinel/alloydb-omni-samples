@@ -38,6 +38,7 @@ func TestTrainNGramHistogramPersistence(t *testing.T) {
 	}
 	cfg := &modelpb.NGramHistogramTrainingConfig{}
 	cfg.SetMaxN(3)
+	cfg.SetWindowLength(3)
 	c := &trainingpb.ModelTrainingConfig{}
 	c.SetNgramHistogramConfig(cfg)
 	pusher := &mockPusher{pushFunc: func(context.Context, string, *modelpb.Model) error {
@@ -63,6 +64,9 @@ func TestTrainNGramHistogramPersistence(t *testing.T) {
 	if !m.HasNgramHistogram() || m.GetMetadata().GetTotalLogEntriesProcessed() != 4 {
 		t.Fatalf("incorrect persisted model: %v", m)
 	}
+	if m.GetNgramHistogram().GetConfig().GetWindowLength() != 3 || m.GetNgramHistogram().GetModelData().GetCompleteWindows() != 1 || m.GetNgramHistogram().GetModelData().GetTrailingActions() != 1 {
+		t.Fatal("window configuration/statistics not persisted")
+	}
 	for i, d := range m.GetNgramHistogram().GetModelData().GetHistograms() {
 		if d.GetTotalWindows() != int64(4-i) || len(d.GetEntries()) != 2 {
 			t.Fatalf("incorrect distribution: %v", d)
@@ -73,6 +77,19 @@ func TestTrainNGramHistogramPersistence(t *testing.T) {
 		t.Fatalf("invalid max_n: %v", err)
 	}
 	cfg.SetMaxN(3)
+	cfg.SetWindowLength(0)
+	if _, err := srv.TrainModels(context.Background(), newReq(path, c)); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("invalid window length: %v", err)
+	}
+	// Existing RPC callers that omit the new optional field keep working.
+	cfg.ClearWindowLength()
+	legacyTrainer, err := initTrainer(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacyTrainer.BuildModel().GetNgramHistogram().GetConfig().GetWindowLength() != 300 {
+		t.Fatal("legacy configuration did not receive default window length")
+	}
 	if err := os.WriteFile(path, []byte{0}, 0644); err != nil {
 		t.Fatal(err)
 	}

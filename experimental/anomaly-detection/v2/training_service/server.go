@@ -87,7 +87,12 @@ func NewTrainingServer(pusher ModelPusher) traininggrpc.TrainingServiceServer {
 func initTrainer(config *trainingpb.ModelTrainingConfig) (service.Trainer, error) {
 	switch config.WhichConfig() {
 	case trainingpb.ModelTrainingConfig_NgramHistogramConfig_case:
-		return service.NewNGramHistogramTrainer(int(config.GetNgramHistogramConfig().GetMaxN()))
+		cfg := config.GetNgramHistogramConfig()
+		windowLength := 300
+		if cfg.HasWindowLength() {
+			windowLength = int(cfg.GetWindowLength())
+		}
+		return service.NewNGramHistogramTrainer(int(cfg.GetMaxN()), windowLength)
 	case trainingpb.ModelTrainingConfig_TrafficDeviationConfig_case:
 		cfg := config.GetTrafficDeviationConfig()
 		return service.NewTrafficDeviationTrainer(cfg.GetAnomalyThresholdRatio())

@@ -87,10 +87,13 @@ func sampleCompletionMs(ct *genpb.CompletionTime, rng *rand.Rand) int64 {
 // markovWalker performs weighted random walks over a markovGraph, emitting one
 // log entry per visited node. All randomness flows from the single seeded rng.
 type markovWalker struct {
-	graph     *markovGraph
-	generator *LogGenerator // reused: buildQueryStatement + constUser/constDbName
-	clockMs   int64         // simulated clock; set once from --start_time_ms, never reset
-	rng       *rand.Rand    // the single seeded source
+	graph                *markovGraph
+	generator            *LogGenerator // reused: buildQueryStatement + constUser/constDbName
+	clockMs              int64         // simulated clock; set once from --start_time_ms, never reset
+	rng                  *rand.Rand    // the single seeded source
+	labelFromInjection   bool
+	groundTruthProfile   string
+	groundTruthSegmentID string
 }
 
 // selectStartID resolves the first node of a walk. A fixed start node is returned
@@ -135,6 +138,11 @@ func (w *markovWalker) emit(n *markovNode, out io.Writer) error {
 	entry.SetDbUser(constUser)
 	entry.SetDbName(constDbName)
 	entry.SetIsGroundTruthAnomalous(template.GetIsGroundTruthAnomalous())
+	if w.labelFromInjection {
+		entry.SetIsGroundTruthAnomalous(w.groundTruthSegmentID != "")
+		entry.SetGroundTruthProfile(w.groundTruthProfile)
+		entry.SetGroundTruthSegmentId(w.groundTruthSegmentID)
+	}
 	entry.SetTimestampMs(w.clockMs)
 
 	if _, err := protodelim.MarshalTo(out, entry); err != nil {
@@ -154,6 +162,9 @@ func (w *markovWalker) emit(n *markovNode, out io.Writer) error {
 // All randomness (start selection, transitions, completion sampling, and placeholder
 // sampling inside buildQueryStatement) flows from the single seeded rng.
 func GenerateLogsMarkov(configs *genpb.QueryTemplateConfigs, numLogs int, startTimeMs int64, rng *rand.Rand, w io.Writer) error {
+	if cfg := configs.GetMarkovSampling(); len(cfg.GetInjections()) > 0 {
+		return generateLogsMarkovInjected(cfg, numLogs, startTimeMs, rng, w)
+	}
 	graph := newMarkovGraph(configs.GetMarkovSampling())
 	walker := &markovWalker{
 		graph:     graph,
