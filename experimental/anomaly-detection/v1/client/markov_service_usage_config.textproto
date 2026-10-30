@@ -1,0 +1,93 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Profile: Service usage.
+# A service account that drives high read traffic (~50 reads/sec) with occasional
+# writes. Reads dominate the graph: the service loops in a tight read state and
+# only rarely transitions to a write. Effective rate is set by completion_time:
+# a ~20 ms read completion spaces reads at roughly 50/sec.
+#
+# Peak vs off-peak is not expressible inside a single Markov chain (the chain has
+# no wall-clock concept). To model "most traffic at peak times", run this config
+# during peak hours with a high --num_logs and a peak --start_time_ms, and run a
+# shorter off-peak invocation separately. The read-heavy edge weights bias the
+# walk toward sustained read bursts regardless of when it runs.
+
+markov_sampling {
+  nodes {
+    id: "read_point_lookup"
+    template {
+      normalized_query_template: "SELECT * FROM sessions WHERE session_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 1000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { nanos: 15000000 }  # 15 ms
+        max { nanos: 25000000 }  # 25 ms -> ~40-66 reads/sec, ~50/sec on average
+      }
+    }
+    # Stay in read traffic the vast majority of the time; rare write excursion.
+    edges { destination_id: "read_range_scan" weight: 0.55 }
+    edges { destination_id: "read_point_lookup" weight: 0.42 }  # self-loop: sustained reads
+    edges { destination_id: "write_update" weight: 0.03 }       # occasional write
+  }
+  nodes {
+    id: "read_range_scan"
+    template {
+      normalized_query_template: "SELECT id, payload FROM events WHERE account_id = %v AND created_at > %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 50000
+        }
+      }
+      placeholder_values {
+        int_placeholder {
+          min: 1600000000
+          max: 1700000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { nanos: 18000000 }  # 18 ms
+        max { nanos: 30000000 }  # 30 ms
+      }
+    }
+    edges { destination_id: "read_point_lookup" weight: 0.7 }
+    edges { destination_id: "read_range_scan" weight: 0.28 }
+    edges { destination_id: "write_update" weight: 0.02 }
+  }
+  nodes {
+    id: "write_update"
+    template {
+      normalized_query_template: "UPDATE sessions SET last_seen = %v WHERE session_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1600000000
+          max: 1700000000
+        }
+      }
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 1000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { nanos: 30000000 }  # 30 ms, writes are a bit slower
+        max { nanos: 60000000 }  # 60 ms
+      }
+    }
+    # Return to reads after the occasional write.
+    edges { destination_id: "read_point_lookup" weight: 1.0 }
+  }
+  start { node_id: "read_point_lookup" }
+}

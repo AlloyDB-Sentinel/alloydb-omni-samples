@@ -1,0 +1,87 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Profile: Maintenance user.
+# A DBA / maintenance account performing DDL operations: creating indexes,
+# altering tables, vacuuming, and adding columns. Traffic is low-frequency but
+# each operation is comparatively slow (seconds), reflecting real DDL cost.
+# The walk strings together a short maintenance session, then terminates at a
+# "session_done" node so each walk is a self-contained maintenance window; the
+# generator restarts a fresh session until --num_logs is reached.
+
+markov_sampling {
+  nodes {
+    id: "create_index"
+    template {
+      normalized_query_template: "CREATE INDEX CONCURRENTLY idx_%v ON orders (customer_id)"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 500
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 2 }
+        max { seconds: 8 }
+      }
+    }
+    edges { destination_id: "alter_table" weight: 0.4 }
+    edges { destination_id: "vacuum_analyze" weight: 0.4 }
+    edges { destination_id: "session_done" weight: 0.2 }
+  }
+  nodes {
+    id: "alter_table"
+    template {
+      normalized_query_template: "ALTER TABLE products ADD COLUMN flag_%v BOOLEAN DEFAULT false"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 200
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 1 }
+        max { seconds: 5 }
+      }
+    }
+    edges { destination_id: "vacuum_analyze" weight: 0.5 }
+    edges { destination_id: "create_index" weight: 0.2 }
+    edges { destination_id: "session_done" weight: 0.3 }
+  }
+  nodes {
+    id: "vacuum_analyze"
+    template {
+      normalized_query_template: "VACUUM ANALYZE %v"
+      placeholder_values {
+        string_placeholder {
+          allowed_values: "orders"
+          allowed_values: "products"
+          allowed_values: "sessions"
+          allowed_values: "events"
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 3 }
+        max { seconds: 20 }
+      }
+    }
+    edges { destination_id: "session_done" weight: 0.7 }
+    edges { destination_id: "create_index" weight: 0.3 }
+  }
+  nodes {
+    id: "session_done"  # terminal: ends the maintenance session
+    template {
+      normalized_query_template: "SELECT 1"
+    }
+    completion_time {
+      fixed { seconds: 1 }
+    }
+  }
+  start { node_id: "create_index" }
+}
