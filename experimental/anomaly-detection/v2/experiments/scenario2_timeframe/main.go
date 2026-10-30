@@ -118,6 +118,18 @@ func divide(numerator, denominator float64) float64 {
 	return numerator / denominator
 }
 
+type bucketObservation struct {
+	maxRowsReturned int64
+	anomalous       bool
+}
+
+func (b *bucketObservation) add(rowsReturned int64, anomalous bool) {
+	if rowsReturned > b.maxRowsReturned {
+		b.maxRowsReturned = rowsReturned
+	}
+	b.anomalous = b.anomalous || anomalous
+}
+
 type seedResult struct {
 	validation []confusion // frame index, then candidate index
 	testing    []confusion
@@ -125,15 +137,18 @@ type seedResult struct {
 }
 
 type frameResult struct {
-	frame         timeframe
-	constant      float64
-	selectedIndex int
-	validation    confusion
-	testing       confusion
-	testMean      metricSet
-	testStddev    metricSet
-	baselineMean  float64
-	baselineStd   float64
+	frame             timeframe
+	trainingBuckets   int
+	validationBuckets int
+	testBuckets       int
+	constant          float64
+	selectedIndex     int
+	validation        confusion
+	testing           confusion
+	testMean          metricSet
+	testStddev        metricSet
+	baselineMean      float64
+	baselineStd       float64
 }
 
 func main() {
@@ -202,7 +217,7 @@ func runExperiment(root, configPath string) ([]frameResult, error) {
 		if err := generateSeed(generatorPath, configPath, seedDir, start, trainEnd, end, seed); err != nil {
 			return nil, err
 		}
-		result, err := evaluateSeed(filepath.Join(seedDir, "logs.binproto"), start, trainEnd, validationEnd)
+		result, err := evaluateSeed(filepath.Join(seedDir, "logs.binproto"), start, trainEnd, validationEnd, end)
 		if err != nil {
 			return nil, fmt.Errorf("evaluate seed %d: %w", seed, err)
 		}
@@ -232,19 +247,24 @@ func generateSeed(generatorPath, configPath, outputDir string, start, trainEnd, 
 	return nil
 }
 
-func evaluateSeed(path string, start, trainEnd, validationEnd time.Time) (seedResult, error) {
+func evaluateSeed(path string, start, trainEnd, validationEnd, end time.Time) (seedResult, error) {
 	result := seedResult{
 		validation: make([]confusion, len(frames)*len(constants)),
 		testing:    make([]confusion, len(frames)*len(constants)),
 		baselines:  make([]moments, len(frames)),
 	}
 	windows := make([]*common.SlidingRowWindow, len(frames))
+	buckets := make([][]bucketObservation, len(frames))
 	for i, frame := range frames {
 		window, err := common.NewSlidingRowWindow(frame.duration)
 		if err != nil {
 			return seedResult{}, err
 		}
 		windows[i] = window
+		if end.Sub(start)%frame.duration != 0 {
+			return seedResult{}, fmt.Errorf("simulation duration must be divisible by timeframe %s", frame.name)
+		}
+		buckets[i] = make([]bucketObservation, int(end.Sub(start)/frame.duration))
 	}
 
 	file, err := os.Open(path)
@@ -272,35 +292,60 @@ func evaluateSeed(path string, start, trainEnd, validationEnd time.Time) (seedRe
 		}
 		previousTimestamp = feature.TimestampMs
 		timestamp := time.UnixMilli(feature.TimestampMs)
+		if timestamp.Before(start) || !timestamp.Before(end) {
+			return seedResult{}, fmt.Errorf("record %d timestamp %s is outside simulation interval [%s, %s)", record, timestamp, start, end)
+		}
+		truth := entry.GetIsGroundTruthAnomalous()
 		for fi, frame := range frames {
 			total, err := windows[fi].Add(feature)
 			if err != nil {
 				return seedResult{}, fmt.Errorf("record %d, frame %s: %w", record, frame.name, err)
 			}
-			if timestamp.Before(trainEnd) {
-				if timestamp.Sub(start) >= frame.duration {
-					result.baselines[fi].add(float64(total))
-				}
-				continue
-			}
-			baseline := result.baselines[fi]
-			if baseline.n == 0 {
-				return seedResult{}, fmt.Errorf("frame %s has no warmed training samples", frame.name)
-			}
-			truth := entry.GetIsGroundTruthAnomalous()
-			for ci, constant := range constants {
-				predicted := float64(total) > baseline.mean+constant*baseline.stddev()
-				flatIndex := fi*len(constants) + ci
-				switch {
-				case timestamp.Before(validationEnd):
-					result.validation[flatIndex].add(predicted, truth)
-				default:
-					result.testing[flatIndex].add(predicted, truth)
-				}
-			}
+			bucketIndex := int(timestamp.Sub(start) / frame.duration)
+			buckets[fi][bucketIndex].add(total, truth)
+		}
+	}
+
+	for fi, frame := range frames {
+		if trainEnd.Sub(start)%frame.duration != 0 || validationEnd.Sub(trainEnd)%frame.duration != 0 {
+			return seedResult{}, fmt.Errorf("training and validation boundaries must align to timeframe %s", frame.name)
+		}
+		trainingBucketCount := int(trainEnd.Sub(start) / frame.duration)
+		validationBucketCount := int(validationEnd.Sub(trainEnd) / frame.duration)
+		baseline, validation, testing := evaluateBuckets(buckets[fi], trainingBucketCount, validationBucketCount)
+		if baseline.n == 0 {
+			return seedResult{}, fmt.Errorf("frame %s has no training buckets", frame.name)
+		}
+		result.baselines[fi] = baseline
+		for ci := range constants {
+			flatIndex := fi*len(constants) + ci
+			result.validation[flatIndex] = validation[ci]
+			result.testing[flatIndex] = testing[ci]
 		}
 	}
 	return result, nil
+}
+
+func evaluateBuckets(buckets []bucketObservation, trainingBucketCount, validationBucketCount int) (moments, []confusion, []confusion) {
+	var baseline moments
+	for _, bucket := range buckets[:trainingBucketCount] {
+		baseline.add(float64(bucket.maxRowsReturned))
+	}
+	validation := make([]confusion, len(constants))
+	testing := make([]confusion, len(constants))
+	validationEnd := trainingBucketCount + validationBucketCount
+	stddev := baseline.stddev()
+	for bucketIndex, bucket := range buckets[trainingBucketCount:] {
+		for ci, constant := range constants {
+			predicted := float64(bucket.maxRowsReturned) > baseline.mean+constant*stddev
+			if trainingBucketCount+bucketIndex < validationEnd {
+				validation[ci].add(predicted, bucket.anomalous)
+			} else {
+				testing[ci].add(predicted, bucket.anomalous)
+			}
+		}
+	}
+	return baseline, validation, testing
 }
 
 func summarize(seeds []seedResult) []frameResult {
@@ -337,15 +382,18 @@ func summarize(seeds []seedResult) []frameResult {
 		baselineStd /= n
 		mean, std := meanAndStd(seedMetrics)
 		results[fi] = frameResult{
-			frame:         frame,
-			constant:      constants[bestIndex],
-			selectedIndex: bestIndex,
-			validation:    bestValidation,
-			testing:       pooledTest,
-			testMean:      mean,
-			testStddev:    std,
-			baselineMean:  baselineMean,
-			baselineStd:   baselineStd,
+			frame:             frame,
+			trainingBuckets:   int(time.Duration(trainDays) * 24 * time.Hour / frame.duration),
+			validationBuckets: int(time.Duration(validationDays) * 24 * time.Hour / frame.duration),
+			testBuckets:       int(time.Duration(testDays) * 24 * time.Hour / frame.duration),
+			constant:          constants[bestIndex],
+			selectedIndex:     bestIndex,
+			validation:        bestValidation,
+			testing:           pooledTest,
+			testMean:          mean,
+			testStddev:        std,
+			baselineMean:      baselineMean,
+			baselineStd:       baselineStd,
 		}
 	}
 	return results
@@ -472,7 +520,12 @@ func writeReport(path string, results []frameResult) error {
 	b.WriteString("## Summary\n\n")
 	b.WriteString(fmt.Sprintf("This experiment independently sweeps the tested standard-deviation constants `c` for each requested rolling timeframe. The candidate grid is `[%s]`; the selected value is the best candidate in that grid, not a continuous optimization. Constants are selected using pooled validation F1; the held-out test period is not used to select them. These results are for the checked-in **synthetic generator and row-count sliding-window implementation**, not production traffic.\n\n", constantList()))
 	b.WriteString("## Protocol\n\n")
-	b.WriteString(fmt.Sprintf("- Signal: sum of `rows_returned` for the same database and database user over the trailing window `(timestamp - duration, timestamp]`, using `common.SlidingRowWindow`.\n- Timeframes: %s.\n- Threshold: predict anomalous when the current rolling total is strictly greater than `training_mean + c * training_stddev`. Mean and population standard deviation are calculated from warmed-up read-event window totals in the training period.\n- Ground truth: the current read event's generator-provided `is_ground_truth_anomalous` label. Each incoming read is one scored sample; windows overlap because they advance on each read.\n- Constant selection: maximize pooled validation F1 (harmonic mean of precision and recall); ties prefer higher precision, then higher accuracy, with the lower `c` retained for any remaining tie. Accuracy, precision, and recall are reported alongside F1.\n- Simulation: %d UTC days of training, %d validation days, and %d held-out test days; legacy generator buckets are %d minutes. Start time is 2026-01-05 00:00 UTC. Ten fixed seeds (%d–%d) use `v1/client/query_template_config_s2.textproto`.\n- Baseline warm-up: discard training window totals until one complete timeframe has elapsed from the start. At evaluation start, the rolling window retains recent training events.\n- Test summary: arithmetic mean and population standard deviation of each metric across the ten per-seed test runs. Pooled test confusion counts are also included in the CSV.\n\n", durationList(), trainDays, validationDays, testDays, generatorBucket, firstSeed, firstSeed+seedCount-1))
+	b.WriteString(fmt.Sprintf("- Signal: sum of `rows_returned` for the same database and database user over the trailing window `(timestamp - duration, timestamp]`, using `common.SlidingRowWindow`.\n- Timeframes: %s.\n- Bucket semantics: each timeframe is divided into fixed, non-overlapping buckets aligned to the simulation start. A bucket's signal is the maximum rolling `rows_returned` total observed on reads in that bucket; its ground truth is anomalous if any read in that bucket is labeled anomalous. Buckets with no reads are included with signal zero and normal ground truth.\n- Threshold: predict a bucket anomalous when its bucket signal is strictly greater than `training_mean + c * training_stddev`. The mean and population standard deviation are calculated from the training buckets' maximum rolling totals, including empty buckets.\n- Constant selection: maximize pooled validation F1 (harmonic mean of precision and recall); ties prefer higher precision, then higher accuracy, with the lower `c` retained for any remaining tie. Accuracy, precision, and recall are reported alongside F1.\n- Simulation: %d UTC days of training, %d validation days, and %d held-out test days; legacy generator buckets are %d minutes. Start time is 2026-01-05 00:00 UTC. Ten fixed seeds (%d–%d) use `v1/client/query_template_config_s2.textproto`.\n- Rolling row totals still advance at each read using `common.SlidingRowWindow`; only the reported prediction and metric sample are aggregated to one per non-overlapping timeframe bucket. Rolling state carries across the train/validation/test boundaries.\n- Test summary: arithmetic mean and population standard deviation of each metric across the ten per-seed test runs. Pooled test confusion counts are also included in the CSV.\n\n", durationList(), trainDays, validationDays, testDays, generatorBucket, firstSeed, firstSeed+seedCount-1))
+	b.WriteString("## Bucket counts per seed\n\n| Timeframe | Training buckets | Validation buckets | Test buckets |\n|---:|---:|---:|---:|\n")
+	for _, result := range results {
+		b.WriteString(fmt.Sprintf("| %s | %d | %d | %d |\n", result.frame.name, result.trainingBuckets, result.validationBuckets, result.testBuckets))
+	}
+	b.WriteString("\nAt 7d there is only one validation and one test bucket per seed (10 of each pooled across seeds); treat those weekly metrics as highly uncertain despite the displayed seed-to-seed spread.\n\n")
 	b.WriteString("## Results\n\n")
 	b.WriteString("| Timeframe | Selected `c` | Validation F1 | Validation accuracy | Validation precision | Validation recall | Test accuracy (mean ± SD) | Test precision (mean ± SD) | Test recall (mean ± SD) | Test F1 (mean ± SD) |\n")
 	b.WriteString("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
@@ -489,7 +542,7 @@ func writeReport(path string, results []frameResult) error {
 	b.WriteString("Held-out test metrics at the validation-selected constant:\n\n![Test metrics by timeframe](test_metrics.svg)\n\n")
 	b.WriteString("Full validation sweep is in [`constant_sweep.csv`](constant_sweep.csv). Test metric columns are populated only for the validation-selected constant of each timeframe, to keep the held-out set out of constant selection.\n\n")
 	b.WriteString("## Interpretation and limitations\n\n")
-	b.WriteString("This branch's implemented `SlidingRowWindow` sums `rows_returned`, so this experiment tests **rolling returned-row volume**, not query count. Ground truth is the label of the current read event, and one read event is one evaluation sample; it does not aggregate event labels into fixed or overlapping time-bucket labels. The current generator emits synthetic, deliberately injected anomalies; selected constants are specific to this configuration, event-label semantics, split, candidate grid, and seed set. Results should not be interpreted as a production threshold or compared numerically with the intern's results until their data, split, label aggregation, and optimization objective are aligned. The next phase can combine timeframe signals after these single-frame constants are reviewed.\n")
+	b.WriteString("This branch's implemented `SlidingRowWindow` sums `rows_returned`, so this experiment tests **rolling returned-row volume**, not query count. Evaluation is per fixed timeframe bucket: the maximum rolling total predicts the bucket, and any generator-labeled anomalous read makes its bucket ground-truth anomalous. These bucket aggregation rules are explicit experiment choices because the progress doc did not define how event labels and read-level scores map to time buckets. The generator emits synthetic, deliberately injected anomalies; selected constants are specific to this configuration, aggregation rules, split, candidate grid, and seed set. Results should not be interpreted as production thresholds or compared numerically with the intern's results until their data, split, aggregation, and optimization objective are aligned. The next phase can combine timeframe signals after these single-frame constants are reviewed.\n")
 	_, err = file.WriteString(b.String())
 	return err
 }
