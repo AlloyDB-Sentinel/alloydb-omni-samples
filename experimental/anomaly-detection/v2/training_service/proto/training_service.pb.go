@@ -81,6 +81,15 @@ func (x *ModelTrainingConfig) GetTemporalDeviationConfig() *proto.TemporalDeviat
 	return nil
 }
 
+func (x *ModelTrainingConfig) GetNgramHistogramConfig() *proto.NGramHistogramTrainingConfig {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Config.(*modelTrainingConfig_NgramHistogramConfig); ok {
+			return x.NgramHistogramConfig
+		}
+	}
+	return nil
+}
+
 func (x *ModelTrainingConfig) SetTrafficDeviationConfig(v *proto.TrafficDeviationTrainingConfig) {
 	if v == nil {
 		x.xxx_hidden_Config = nil
@@ -103,6 +112,14 @@ func (x *ModelTrainingConfig) SetTemporalDeviationConfig(v *proto.TemporalDeviat
 		return
 	}
 	x.xxx_hidden_Config = &modelTrainingConfig_TemporalDeviationConfig{v}
+}
+
+func (x *ModelTrainingConfig) SetNgramHistogramConfig(v *proto.NGramHistogramTrainingConfig) {
+	if v == nil {
+		x.xxx_hidden_Config = nil
+		return
+	}
+	x.xxx_hidden_Config = &modelTrainingConfig_NgramHistogramConfig{v}
 }
 
 func (x *ModelTrainingConfig) HasConfig() bool {
@@ -136,6 +153,14 @@ func (x *ModelTrainingConfig) HasTemporalDeviationConfig() bool {
 	return ok
 }
 
+func (x *ModelTrainingConfig) HasNgramHistogramConfig() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Config.(*modelTrainingConfig_NgramHistogramConfig)
+	return ok
+}
+
 func (x *ModelTrainingConfig) ClearConfig() {
 	x.xxx_hidden_Config = nil
 }
@@ -158,10 +183,17 @@ func (x *ModelTrainingConfig) ClearTemporalDeviationConfig() {
 	}
 }
 
+func (x *ModelTrainingConfig) ClearNgramHistogramConfig() {
+	if _, ok := x.xxx_hidden_Config.(*modelTrainingConfig_NgramHistogramConfig); ok {
+		x.xxx_hidden_Config = nil
+	}
+}
+
 const ModelTrainingConfig_Config_not_set_case case_ModelTrainingConfig_Config = 0
 const ModelTrainingConfig_TrafficDeviationConfig_case case_ModelTrainingConfig_Config = 1
 const ModelTrainingConfig_VolumetricSpikeConfig_case case_ModelTrainingConfig_Config = 2
 const ModelTrainingConfig_TemporalDeviationConfig_case case_ModelTrainingConfig_Config = 3
+const ModelTrainingConfig_NgramHistogramConfig_case case_ModelTrainingConfig_Config = 4
 
 func (x *ModelTrainingConfig) WhichConfig() case_ModelTrainingConfig_Config {
 	if x == nil {
@@ -174,6 +206,8 @@ func (x *ModelTrainingConfig) WhichConfig() case_ModelTrainingConfig_Config {
 		return ModelTrainingConfig_VolumetricSpikeConfig_case
 	case *modelTrainingConfig_TemporalDeviationConfig:
 		return ModelTrainingConfig_TemporalDeviationConfig_case
+	case *modelTrainingConfig_NgramHistogramConfig:
+		return ModelTrainingConfig_NgramHistogramConfig_case
 	default:
 		return ModelTrainingConfig_Config_not_set_case
 	}
@@ -186,6 +220,7 @@ type ModelTrainingConfig_builder struct {
 	TrafficDeviationConfig  *proto.TrafficDeviationTrainingConfig
 	VolumetricSpikeConfig   *proto.VolumetricSpikeTrainingConfig
 	TemporalDeviationConfig *proto.TemporalDeviationTrainingConfig
+	NgramHistogramConfig    *proto.NGramHistogramTrainingConfig
 	// -- end of xxx_hidden_Config
 }
 
@@ -201,6 +236,9 @@ func (b0 ModelTrainingConfig_builder) Build() *ModelTrainingConfig {
 	}
 	if b.TemporalDeviationConfig != nil {
 		x.xxx_hidden_Config = &modelTrainingConfig_TemporalDeviationConfig{b.TemporalDeviationConfig}
+	}
+	if b.NgramHistogramConfig != nil {
+		x.xxx_hidden_Config = &modelTrainingConfig_NgramHistogramConfig{b.NgramHistogramConfig}
 	}
 	return m0
 }
@@ -231,11 +269,17 @@ type modelTrainingConfig_TemporalDeviationConfig struct {
 	TemporalDeviationConfig *proto.TemporalDeviationTrainingConfig `protobuf:"bytes,3,opt,name=temporal_deviation_config,json=temporalDeviationConfig,proto3,oneof"`
 }
 
+type modelTrainingConfig_NgramHistogramConfig struct {
+	NgramHistogramConfig *proto.NGramHistogramTrainingConfig `protobuf:"bytes,4,opt,name=ngram_histogram_config,json=ngramHistogramConfig,proto3,oneof"`
+}
+
 func (*modelTrainingConfig_TrafficDeviationConfig) isModelTrainingConfig_Config() {}
 
 func (*modelTrainingConfig_VolumetricSpikeConfig) isModelTrainingConfig_Config() {}
 
 func (*modelTrainingConfig_TemporalDeviationConfig) isModelTrainingConfig_Config() {}
+
+func (*modelTrainingConfig_NgramHistogramConfig) isModelTrainingConfig_Config() {}
 
 type TrainModelsRequest struct {
 	state                      protoimpl.MessageState  `protogen:"opaque.v1"`
@@ -472,11 +516,12 @@ var File_v2_training_service_proto_training_service_proto protoreflect.FileDescr
 
 const file_v2_training_service_proto_training_service_proto_rawDesc = "" +
 	"\n" +
-	"0v2/training_service/proto/training_service.proto\x120experimental.anomaly_detection.v2.training.proto\x1a\x1bv2/common/proto/model.proto\"\xc6\x03\n" +
+	"0v2/training_service/proto/training_service.proto\x120experimental.anomaly_detection.v2.training.proto\x1a\x1bv2/common/proto/model.proto\"\xcd\x04\n" +
 	"\x13ModelTrainingConfig\x12\x8a\x01\n" +
 	"\x18traffic_deviation_config\x18\x01 \x01(\v2N.experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfigH\x00R\x16trafficDeviationConfig\x12\x87\x01\n" +
 	"\x17volumetric_spike_config\x18\x02 \x01(\v2M.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfigH\x00R\x15volumetricSpikeConfig\x12\x8d\x01\n" +
-	"\x19temporal_deviation_config\x18\x03 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x17temporalDeviationConfigB\b\n" +
+	"\x19temporal_deviation_config\x18\x03 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x17temporalDeviationConfig\x12\x84\x01\n" +
+	"\x16ngram_histogram_config\x18\x04 \x01(\v2L.experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfigH\x00R\x14ngramHistogramConfigB\b\n" +
 	"\x06config\"\xac\x01\n" +
 	"\x12TrainModelsRequest\x12$\n" +
 	"\x0etrain_log_path\x18\x01 \x01(\tR\ftrainLogPath\x12p\n" +
@@ -499,22 +544,24 @@ var file_v2_training_service_proto_training_service_proto_goTypes = []any{
 	(*proto.TrafficDeviationTrainingConfig)(nil),  // 4: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
 	(*proto.VolumetricSpikeTrainingConfig)(nil),   // 5: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
 	(*proto.TemporalDeviationTrainingConfig)(nil), // 6: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	(*proto.ModelMetadata)(nil),                   // 7: experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	(*proto.NGramHistogramTrainingConfig)(nil),    // 7: experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	(*proto.ModelMetadata)(nil),                   // 8: experimental.anomaly_detection.v2.common.proto.ModelMetadata
 }
 var file_v2_training_service_proto_training_service_proto_depIdxs = []int32{
 	4, // 0: experimental.anomaly_detection.v2.training.proto.ModelTrainingConfig.traffic_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
 	5, // 1: experimental.anomaly_detection.v2.training.proto.ModelTrainingConfig.volumetric_spike_config:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
 	6, // 2: experimental.anomaly_detection.v2.training.proto.ModelTrainingConfig.temporal_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	0, // 3: experimental.anomaly_detection.v2.training.proto.TrainModelsRequest.training_configs:type_name -> experimental.anomaly_detection.v2.training.proto.ModelTrainingConfig
-	7, // 4: experimental.anomaly_detection.v2.training.proto.TrainedModelResult.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	2, // 5: experimental.anomaly_detection.v2.training.proto.TrainModelsResponse.results:type_name -> experimental.anomaly_detection.v2.training.proto.TrainedModelResult
-	1, // 6: experimental.anomaly_detection.v2.training.proto.TrainingService.TrainModels:input_type -> experimental.anomaly_detection.v2.training.proto.TrainModelsRequest
-	3, // 7: experimental.anomaly_detection.v2.training.proto.TrainingService.TrainModels:output_type -> experimental.anomaly_detection.v2.training.proto.TrainModelsResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	7, // 3: experimental.anomaly_detection.v2.training.proto.ModelTrainingConfig.ngram_histogram_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	0, // 4: experimental.anomaly_detection.v2.training.proto.TrainModelsRequest.training_configs:type_name -> experimental.anomaly_detection.v2.training.proto.ModelTrainingConfig
+	8, // 5: experimental.anomaly_detection.v2.training.proto.TrainedModelResult.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	2, // 6: experimental.anomaly_detection.v2.training.proto.TrainModelsResponse.results:type_name -> experimental.anomaly_detection.v2.training.proto.TrainedModelResult
+	1, // 7: experimental.anomaly_detection.v2.training.proto.TrainingService.TrainModels:input_type -> experimental.anomaly_detection.v2.training.proto.TrainModelsRequest
+	3, // 8: experimental.anomaly_detection.v2.training.proto.TrainingService.TrainModels:output_type -> experimental.anomaly_detection.v2.training.proto.TrainModelsResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_v2_training_service_proto_training_service_proto_init() }
@@ -526,6 +573,7 @@ func file_v2_training_service_proto_training_service_proto_init() {
 		(*modelTrainingConfig_TrafficDeviationConfig)(nil),
 		(*modelTrainingConfig_VolumetricSpikeConfig)(nil),
 		(*modelTrainingConfig_TemporalDeviationConfig)(nil),
+		(*modelTrainingConfig_NgramHistogramConfig)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

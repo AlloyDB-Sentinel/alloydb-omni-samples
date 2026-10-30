@@ -1242,6 +1242,390 @@ func (b0 TemporalDeviationScenario_builder) Build() *TemporalDeviationScenario {
 	return m0
 }
 
+// Empirical joint probabilities of consecutive normalized query templates.
+// Only observed sequences are stored; omitted sequences have probability zero.
+type NGramHistogramEntry struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Actions     []string               `protobuf:"bytes,1,rep,name=actions,proto3"`
+	xxx_hidden_Count       int64                  `protobuf:"varint,2,opt,name=count,proto3"`
+	xxx_hidden_Probability float64                `protobuf:"fixed64,3,opt,name=probability,proto3"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *NGramHistogramEntry) Reset() {
+	*x = NGramHistogramEntry{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NGramHistogramEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NGramHistogramEntry) ProtoMessage() {}
+
+func (x *NGramHistogramEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *NGramHistogramEntry) GetActions() []string {
+	if x != nil {
+		return x.xxx_hidden_Actions
+	}
+	return nil
+}
+
+func (x *NGramHistogramEntry) GetCount() int64 {
+	if x != nil {
+		return x.xxx_hidden_Count
+	}
+	return 0
+}
+
+func (x *NGramHistogramEntry) GetProbability() float64 {
+	if x != nil {
+		return x.xxx_hidden_Probability
+	}
+	return 0
+}
+
+func (x *NGramHistogramEntry) SetActions(v []string) {
+	x.xxx_hidden_Actions = v
+}
+
+func (x *NGramHistogramEntry) SetCount(v int64) {
+	x.xxx_hidden_Count = v
+}
+
+func (x *NGramHistogramEntry) SetProbability(v float64) {
+	x.xxx_hidden_Probability = v
+}
+
+type NGramHistogramEntry_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Actions     []string
+	Count       int64
+	Probability float64
+}
+
+func (b0 NGramHistogramEntry_builder) Build() *NGramHistogramEntry {
+	m0 := &NGramHistogramEntry{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Actions = b.Actions
+	x.xxx_hidden_Count = b.Count
+	x.xxx_hidden_Probability = b.Probability
+	return m0
+}
+
+type NGramHistogramDistribution struct {
+	state                   protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_N            int32                   `protobuf:"varint,1,opt,name=n,proto3"`
+	xxx_hidden_TotalWindows int64                   `protobuf:"varint,2,opt,name=total_windows,json=totalWindows,proto3"`
+	xxx_hidden_Entries      *[]*NGramHistogramEntry `protobuf:"bytes,3,rep,name=entries,proto3"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *NGramHistogramDistribution) Reset() {
+	*x = NGramHistogramDistribution{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NGramHistogramDistribution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NGramHistogramDistribution) ProtoMessage() {}
+
+func (x *NGramHistogramDistribution) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *NGramHistogramDistribution) GetN() int32 {
+	if x != nil {
+		return x.xxx_hidden_N
+	}
+	return 0
+}
+
+func (x *NGramHistogramDistribution) GetTotalWindows() int64 {
+	if x != nil {
+		return x.xxx_hidden_TotalWindows
+	}
+	return 0
+}
+
+func (x *NGramHistogramDistribution) GetEntries() []*NGramHistogramEntry {
+	if x != nil {
+		if x.xxx_hidden_Entries != nil {
+			return *x.xxx_hidden_Entries
+		}
+	}
+	return nil
+}
+
+func (x *NGramHistogramDistribution) SetN(v int32) {
+	x.xxx_hidden_N = v
+}
+
+func (x *NGramHistogramDistribution) SetTotalWindows(v int64) {
+	x.xxx_hidden_TotalWindows = v
+}
+
+func (x *NGramHistogramDistribution) SetEntries(v []*NGramHistogramEntry) {
+	x.xxx_hidden_Entries = &v
+}
+
+type NGramHistogramDistribution_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	N            int32
+	TotalWindows int64
+	Entries      []*NGramHistogramEntry
+}
+
+func (b0 NGramHistogramDistribution_builder) Build() *NGramHistogramDistribution {
+	m0 := &NGramHistogramDistribution{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_N = b.N
+	x.xxx_hidden_TotalWindows = b.TotalWindows
+	x.xxx_hidden_Entries = &b.Entries
+	return m0
+}
+
+type NGramHistogramModel struct {
+	state                 protoimpl.MessageState         `protogen:"opaque.v1"`
+	xxx_hidden_Histograms *[]*NGramHistogramDistribution `protobuf:"bytes,1,rep,name=histograms,proto3"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *NGramHistogramModel) Reset() {
+	*x = NGramHistogramModel{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NGramHistogramModel) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NGramHistogramModel) ProtoMessage() {}
+
+func (x *NGramHistogramModel) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *NGramHistogramModel) GetHistograms() []*NGramHistogramDistribution {
+	if x != nil {
+		if x.xxx_hidden_Histograms != nil {
+			return *x.xxx_hidden_Histograms
+		}
+	}
+	return nil
+}
+
+func (x *NGramHistogramModel) SetHistograms(v []*NGramHistogramDistribution) {
+	x.xxx_hidden_Histograms = &v
+}
+
+type NGramHistogramModel_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Histograms []*NGramHistogramDistribution
+}
+
+func (b0 NGramHistogramModel_builder) Build() *NGramHistogramModel {
+	m0 := &NGramHistogramModel{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Histograms = &b.Histograms
+	return m0
+}
+
+type NGramHistogramTrainingConfig struct {
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_MaxN int32                  `protobuf:"varint,1,opt,name=max_n,json=maxN,proto3"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *NGramHistogramTrainingConfig) Reset() {
+	*x = NGramHistogramTrainingConfig{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NGramHistogramTrainingConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NGramHistogramTrainingConfig) ProtoMessage() {}
+
+func (x *NGramHistogramTrainingConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *NGramHistogramTrainingConfig) GetMaxN() int32 {
+	if x != nil {
+		return x.xxx_hidden_MaxN
+	}
+	return 0
+}
+
+func (x *NGramHistogramTrainingConfig) SetMaxN(v int32) {
+	x.xxx_hidden_MaxN = v
+}
+
+type NGramHistogramTrainingConfig_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Count sizes 1 through max_n, inclusive. Must be in [1, 3].
+	MaxN int32
+}
+
+func (b0 NGramHistogramTrainingConfig_builder) Build() *NGramHistogramTrainingConfig {
+	m0 := &NGramHistogramTrainingConfig{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_MaxN = b.MaxN
+	return m0
+}
+
+type NGramHistogramScenario struct {
+	state                protoimpl.MessageState        `protogen:"opaque.v1"`
+	xxx_hidden_ModelData *NGramHistogramModel          `protobuf:"bytes,1,opt,name=model_data,json=modelData,proto3"`
+	xxx_hidden_Config    *NGramHistogramTrainingConfig `protobuf:"bytes,2,opt,name=config,proto3"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *NGramHistogramScenario) Reset() {
+	*x = NGramHistogramScenario{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NGramHistogramScenario) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NGramHistogramScenario) ProtoMessage() {}
+
+func (x *NGramHistogramScenario) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *NGramHistogramScenario) GetModelData() *NGramHistogramModel {
+	if x != nil {
+		return x.xxx_hidden_ModelData
+	}
+	return nil
+}
+
+func (x *NGramHistogramScenario) GetConfig() *NGramHistogramTrainingConfig {
+	if x != nil {
+		return x.xxx_hidden_Config
+	}
+	return nil
+}
+
+func (x *NGramHistogramScenario) SetModelData(v *NGramHistogramModel) {
+	x.xxx_hidden_ModelData = v
+}
+
+func (x *NGramHistogramScenario) SetConfig(v *NGramHistogramTrainingConfig) {
+	x.xxx_hidden_Config = v
+}
+
+func (x *NGramHistogramScenario) HasModelData() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_ModelData != nil
+}
+
+func (x *NGramHistogramScenario) HasConfig() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Config != nil
+}
+
+func (x *NGramHistogramScenario) ClearModelData() {
+	x.xxx_hidden_ModelData = nil
+}
+
+func (x *NGramHistogramScenario) ClearConfig() {
+	x.xxx_hidden_Config = nil
+}
+
+type NGramHistogramScenario_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	ModelData *NGramHistogramModel
+	Config    *NGramHistogramTrainingConfig
+}
+
+func (b0 NGramHistogramScenario_builder) Build() *NGramHistogramScenario {
+	m0 := &NGramHistogramScenario{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_ModelData = b.ModelData
+	x.xxx_hidden_Config = b.Config
+	return m0
+}
+
 type ModelMetadata struct {
 	state                               protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_TrainingTime             *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=training_time,json=trainingTime,proto3"`
@@ -1256,7 +1640,7 @@ type ModelMetadata struct {
 
 func (x *ModelMetadata) Reset() {
 	*x = ModelMetadata{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[14]
+	mi := &file_v2_common_proto_model_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1268,7 +1652,7 @@ func (x *ModelMetadata) String() string {
 func (*ModelMetadata) ProtoMessage() {}
 
 func (x *ModelMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[14]
+	mi := &file_v2_common_proto_model_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1415,7 +1799,7 @@ type Model struct {
 
 func (x *Model) Reset() {
 	*x = Model{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[15]
+	mi := &file_v2_common_proto_model_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1427,7 +1811,7 @@ func (x *Model) String() string {
 func (*Model) ProtoMessage() {}
 
 func (x *Model) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[15]
+	mi := &file_v2_common_proto_model_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1465,6 +1849,15 @@ func (x *Model) GetTemporalDeviation() *TemporalDeviationScenario {
 	return nil
 }
 
+func (x *Model) GetNgramHistogram() *NGramHistogramScenario {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Scenario.(*model_NgramHistogram); ok {
+			return x.NgramHistogram
+		}
+	}
+	return nil
+}
+
 func (x *Model) GetMetadata() *ModelMetadata {
 	if x != nil {
 		return x.xxx_hidden_Metadata
@@ -1494,6 +1887,14 @@ func (x *Model) SetTemporalDeviation(v *TemporalDeviationScenario) {
 		return
 	}
 	x.xxx_hidden_Scenario = &model_TemporalDeviation{v}
+}
+
+func (x *Model) SetNgramHistogram(v *NGramHistogramScenario) {
+	if v == nil {
+		x.xxx_hidden_Scenario = nil
+		return
+	}
+	x.xxx_hidden_Scenario = &model_NgramHistogram{v}
 }
 
 func (x *Model) SetMetadata(v *ModelMetadata) {
@@ -1531,6 +1932,14 @@ func (x *Model) HasTemporalDeviation() bool {
 	return ok
 }
 
+func (x *Model) HasNgramHistogram() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Scenario.(*model_NgramHistogram)
+	return ok
+}
+
 func (x *Model) HasMetadata() bool {
 	if x == nil {
 		return false
@@ -1560,6 +1969,12 @@ func (x *Model) ClearTemporalDeviation() {
 	}
 }
 
+func (x *Model) ClearNgramHistogram() {
+	if _, ok := x.xxx_hidden_Scenario.(*model_NgramHistogram); ok {
+		x.xxx_hidden_Scenario = nil
+	}
+}
+
 func (x *Model) ClearMetadata() {
 	x.xxx_hidden_Metadata = nil
 }
@@ -1568,6 +1983,7 @@ const Model_Scenario_not_set_case case_Model_Scenario = 0
 const Model_TrafficDeviation_case case_Model_Scenario = 1
 const Model_VolumetricSpike_case case_Model_Scenario = 2
 const Model_TemporalDeviation_case case_Model_Scenario = 3
+const Model_NgramHistogram_case case_Model_Scenario = 5
 
 func (x *Model) WhichScenario() case_Model_Scenario {
 	if x == nil {
@@ -1580,6 +1996,8 @@ func (x *Model) WhichScenario() case_Model_Scenario {
 		return Model_VolumetricSpike_case
 	case *model_TemporalDeviation:
 		return Model_TemporalDeviation_case
+	case *model_NgramHistogram:
+		return Model_NgramHistogram_case
 	default:
 		return Model_Scenario_not_set_case
 	}
@@ -1592,6 +2010,7 @@ type Model_builder struct {
 	TrafficDeviation  *TrafficDeviationScenario
 	VolumetricSpike   *VolumetricSpikeScenario
 	TemporalDeviation *TemporalDeviationScenario
+	NgramHistogram    *NGramHistogramScenario
 	// -- end of xxx_hidden_Scenario
 	Metadata *ModelMetadata
 }
@@ -1609,6 +2028,9 @@ func (b0 Model_builder) Build() *Model {
 	if b.TemporalDeviation != nil {
 		x.xxx_hidden_Scenario = &model_TemporalDeviation{b.TemporalDeviation}
 	}
+	if b.NgramHistogram != nil {
+		x.xxx_hidden_Scenario = &model_NgramHistogram{b.NgramHistogram}
+	}
 	x.xxx_hidden_Metadata = b.Metadata
 	return m0
 }
@@ -1616,7 +2038,7 @@ func (b0 Model_builder) Build() *Model {
 type case_Model_Scenario protoreflect.FieldNumber
 
 func (x case_Model_Scenario) String() string {
-	md := file_v2_common_proto_model_proto_msgTypes[15].Descriptor()
+	md := file_v2_common_proto_model_proto_msgTypes[20].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -1639,11 +2061,17 @@ type model_TemporalDeviation struct {
 	TemporalDeviation *TemporalDeviationScenario `protobuf:"bytes,3,opt,name=temporal_deviation,json=temporalDeviation,proto3,oneof"`
 }
 
+type model_NgramHistogram struct {
+	NgramHistogram *NGramHistogramScenario `protobuf:"bytes,5,opt,name=ngram_histogram,json=ngramHistogram,proto3,oneof"`
+}
+
 func (*model_TrafficDeviation) isModel_Scenario() {}
 
 func (*model_VolumetricSpike) isModel_Scenario() {}
 
 func (*model_TemporalDeviation) isModel_Scenario() {}
+
+func (*model_NgramHistogram) isModel_Scenario() {}
 
 var File_v2_common_proto_model_proto protoreflect.FileDescriptor
 
@@ -1700,24 +2128,43 @@ const file_v2_common_proto_model_proto_rawDesc = "" +
 	"\x19TemporalDeviationScenario\x12e\n" +
 	"\n" +
 	"model_data\x18\x01 \x01(\v2F.experimental.anomaly_detection.v2.common.proto.TemporalDeviationModelR\tmodelData\x12g\n" +
-	"\x06config\x18\x02 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigR\x06config\"\xf0\x02\n" +
+	"\x06config\x18\x02 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigR\x06config\"g\n" +
+	"\x13NGramHistogramEntry\x12\x18\n" +
+	"\aactions\x18\x01 \x03(\tR\aactions\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\x12 \n" +
+	"\vprobability\x18\x03 \x01(\x01R\vprobability\"\xae\x01\n" +
+	"\x1aNGramHistogramDistribution\x12\f\n" +
+	"\x01n\x18\x01 \x01(\x05R\x01n\x12#\n" +
+	"\rtotal_windows\x18\x02 \x01(\x03R\ftotalWindows\x12]\n" +
+	"\aentries\x18\x03 \x03(\v2C.experimental.anomaly_detection.v2.common.proto.NGramHistogramEntryR\aentries\"\x81\x01\n" +
+	"\x13NGramHistogramModel\x12j\n" +
+	"\n" +
+	"histograms\x18\x01 \x03(\v2J.experimental.anomaly_detection.v2.common.proto.NGramHistogramDistributionR\n" +
+	"histograms\"3\n" +
+	"\x1cNGramHistogramTrainingConfig\x12\x13\n" +
+	"\x05max_n\x18\x01 \x01(\x05R\x04maxN\"\xe2\x01\n" +
+	"\x16NGramHistogramScenario\x12b\n" +
+	"\n" +
+	"model_data\x18\x01 \x01(\v2C.experimental.anomaly_detection.v2.common.proto.NGramHistogramModelR\tmodelData\x12d\n" +
+	"\x06config\x18\x02 \x01(\v2L.experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfigR\x06config\"\xf0\x02\n" +
 	"\rModelMetadata\x12?\n" +
 	"\rtraining_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ftrainingTime\x12'\n" +
 	"\x0ftrainer_version\x18\x02 \x01(\tR\x0etrainerVersion\x12B\n" +
 	"\x0fdata_start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\rdataStartTime\x12>\n" +
 	"\rdata_end_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vdataEndTime\x12=\n" +
 	"\x1btotal_log_entries_processed\x18\x05 \x01(\x03R\x18totalLogEntriesProcessed\x122\n" +
-	"\x15filter_cel_expression\x18\x06 \x01(\tR\x13filterCelExpression\"\xeb\x03\n" +
+	"\x15filter_cel_expression\x18\x06 \x01(\tR\x13filterCelExpression\"\xde\x04\n" +
 	"\x05Model\x12w\n" +
 	"\x11traffic_deviation\x18\x01 \x01(\v2H.experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenarioH\x00R\x10trafficDeviation\x12t\n" +
 	"\x10volumetric_spike\x18\x02 \x01(\v2G.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenarioH\x00R\x0fvolumetricSpike\x12z\n" +
-	"\x12temporal_deviation\x18\x03 \x01(\v2I.experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenarioH\x00R\x11temporalDeviation\x12^\n" +
+	"\x12temporal_deviation\x18\x03 \x01(\v2I.experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenarioH\x00R\x11temporalDeviation\x12q\n" +
+	"\x0fngram_histogram\x18\x05 \x01(\v2F.experimental.anomaly_detection.v2.common.proto.NGramHistogramScenarioH\x00R\x0engramHistogram\x12^\n" +
 	"\bmetadata\x18\x04 \x01(\v2=.experimental.anomaly_detection.v2.common.proto.ModelMetadataH\x01R\bmetadata\x88\x01\x01B\n" +
 	"\n" +
 	"\bscenarioB\v\n" +
 	"\t_metadataBmZkgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto;commonpbb\x06proto3"
 
-var file_v2_common_proto_model_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_v2_common_proto_model_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_v2_common_proto_model_proto_goTypes = []any{
 	(*TrafficDeviationModel)(nil),           // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel
 	(*TrafficDeviationTrainingConfig)(nil),  // 1: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
@@ -1733,20 +2180,25 @@ var file_v2_common_proto_model_proto_goTypes = []any{
 	(*TemporalDeviationModel)(nil),          // 11: experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel
 	(*TemporalDeviationTrainingConfig)(nil), // 12: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
 	(*TemporalDeviationScenario)(nil),       // 13: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
-	(*ModelMetadata)(nil),                   // 14: experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	(*Model)(nil),                           // 15: experimental.anomaly_detection.v2.common.proto.Model
-	nil,                                     // 16: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
-	(*durationpb.Duration)(nil),             // 17: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),           // 18: google.protobuf.Timestamp
+	(*NGramHistogramEntry)(nil),             // 14: experimental.anomaly_detection.v2.common.proto.NGramHistogramEntry
+	(*NGramHistogramDistribution)(nil),      // 15: experimental.anomaly_detection.v2.common.proto.NGramHistogramDistribution
+	(*NGramHistogramModel)(nil),             // 16: experimental.anomaly_detection.v2.common.proto.NGramHistogramModel
+	(*NGramHistogramTrainingConfig)(nil),    // 17: experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	(*NGramHistogramScenario)(nil),          // 18: experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario
+	(*ModelMetadata)(nil),                   // 19: experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	(*Model)(nil),                           // 20: experimental.anomaly_detection.v2.common.proto.Model
+	nil,                                     // 21: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
+	(*durationpb.Duration)(nil),             // 22: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),           // 23: google.protobuf.Timestamp
 }
 var file_v2_common_proto_model_proto_depIdxs = []int32{
-	16, // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.anomaly_scores:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
+	21, // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.anomaly_scores:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
 	0,  // 1: experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel
 	1,  // 2: experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
 	3,  // 3: experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry.key:type_name -> experimental.anomaly_detection.v2.common.proto.CycleBucketKey
 	4,  // 4: experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry.value:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricBaseline
-	17, // 5: experimental.anomaly_detection.v2.common.proto.CycleConfig.bucket_duration:type_name -> google.protobuf.Duration
-	17, // 6: experimental.anomaly_detection.v2.common.proto.CycleConfig.cycle_duration:type_name -> google.protobuf.Duration
+	22, // 5: experimental.anomaly_detection.v2.common.proto.CycleConfig.bucket_duration:type_name -> google.protobuf.Duration
+	22, // 6: experimental.anomaly_detection.v2.common.proto.CycleConfig.cycle_duration:type_name -> google.protobuf.Duration
 	5,  // 7: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel.entries:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry
 	6,  // 8: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
 	6,  // 9: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
@@ -1758,18 +2210,23 @@ var file_v2_common_proto_model_proto_depIdxs = []int32{
 	6,  // 15: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
 	11, // 16: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel
 	12, // 17: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	18, // 18: experimental.anomaly_detection.v2.common.proto.ModelMetadata.training_time:type_name -> google.protobuf.Timestamp
-	18, // 19: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_start_time:type_name -> google.protobuf.Timestamp
-	18, // 20: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_end_time:type_name -> google.protobuf.Timestamp
-	2,  // 21: experimental.anomaly_detection.v2.common.proto.Model.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario
-	9,  // 22: experimental.anomaly_detection.v2.common.proto.Model.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario
-	13, // 23: experimental.anomaly_detection.v2.common.proto.Model.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
-	14, // 24: experimental.anomaly_detection.v2.common.proto.Model.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	14, // 18: experimental.anomaly_detection.v2.common.proto.NGramHistogramDistribution.entries:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramEntry
+	15, // 19: experimental.anomaly_detection.v2.common.proto.NGramHistogramModel.histograms:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramDistribution
+	16, // 20: experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramModel
+	17, // 21: experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	23, // 22: experimental.anomaly_detection.v2.common.proto.ModelMetadata.training_time:type_name -> google.protobuf.Timestamp
+	23, // 23: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_start_time:type_name -> google.protobuf.Timestamp
+	23, // 24: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_end_time:type_name -> google.protobuf.Timestamp
+	2,  // 25: experimental.anomaly_detection.v2.common.proto.Model.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario
+	9,  // 26: experimental.anomaly_detection.v2.common.proto.Model.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario
+	13, // 27: experimental.anomaly_detection.v2.common.proto.Model.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
+	18, // 28: experimental.anomaly_detection.v2.common.proto.Model.ngram_histogram:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario
+	19, // 29: experimental.anomaly_detection.v2.common.proto.Model.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	30, // [30:30] is the sub-list for method output_type
+	30, // [30:30] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_v2_common_proto_model_proto_init() }
@@ -1777,10 +2234,11 @@ func file_v2_common_proto_model_proto_init() {
 	if File_v2_common_proto_model_proto != nil {
 		return
 	}
-	file_v2_common_proto_model_proto_msgTypes[15].OneofWrappers = []any{
+	file_v2_common_proto_model_proto_msgTypes[20].OneofWrappers = []any{
 		(*model_TrafficDeviation)(nil),
 		(*model_VolumetricSpike)(nil),
 		(*model_TemporalDeviation)(nil),
+		(*model_NgramHistogram)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1788,7 +2246,7 @@ func file_v2_common_proto_model_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v2_common_proto_model_proto_rawDesc), len(file_v2_common_proto_model_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

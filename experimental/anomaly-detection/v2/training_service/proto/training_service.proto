@@ -23,6 +23,8 @@ message ModelTrainingConfig {
         .VolumetricSpikeTrainingConfig volumetric_spike_config = 2;
     experimental.anomaly_detection.v2.common.proto
         .TemporalDeviationTrainingConfig temporal_deviation_config = 3;
+    experimental.anomaly_detection.v2.common.proto
+        .NGramHistogramTrainingConfig ngram_histogram_config = 4;
   }
 }
 

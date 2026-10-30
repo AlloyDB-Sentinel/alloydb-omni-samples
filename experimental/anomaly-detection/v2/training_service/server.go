@@ -86,6 +86,8 @@ func NewTrainingServer(pusher ModelPusher) traininggrpc.TrainingServiceServer {
 // initTrainer creates a trainer based on the provided training config.
 func initTrainer(config *trainingpb.ModelTrainingConfig) (service.Trainer, error) {
 	switch config.WhichConfig() {
+	case trainingpb.ModelTrainingConfig_NgramHistogramConfig_case:
+		return service.NewNGramHistogramTrainer(int(config.GetNgramHistogramConfig().GetMaxN()))
 	case trainingpb.ModelTrainingConfig_TrafficDeviationConfig_case:
 		cfg := config.GetTrafficDeviationConfig()
 		return service.NewTrafficDeviationTrainer(cfg.GetAnomalyThresholdRatio())
@@ -139,6 +141,11 @@ func (s *trainingServer) TrainModels(ctx context.Context, req *trainingpb.TrainM
 	// Ingest logs and train all models in a single pass
 	trainLogPath := common.ResolvePath(req.GetTrainLogPath())
 	err := common.IngestBinProtoStream(ctx, trainLogPath, func(entry *auditpb.AuditLogEntry) error {
+		for _, trainer := range trainers {
+			if _, ok := trainer.(*service.NGramHistogramTrainer); ok && entry.GetNormalizedQueryTemplate() == "" {
+				return fmt.Errorf("%w: histogram training requires nonempty normalized query templates", common.ErrInvalidArgument)
+			}
+		}
 		features, err := common.Extract(entry)
 		if err != nil {
 			return err
@@ -184,7 +191,9 @@ func (s *trainingServer) saveAndPush(ctx context.Context, model *modelpb.Model, 
 		return nil, status.Errorf(codes.Internal, "failed to save model to %q: %v", modelLocation, err)
 	}
 
-	if s.pusher != nil {
+	// Histogram training currently produces probabilities only; there is no
+	// corresponding prediction model to push to the prediction service.
+	if s.pusher != nil && !model.HasNgramHistogram() {
 		if err := s.pusher.Push(ctx, modelLocation, model); err != nil {
 			log.Printf("Failed to push model to prediction service: %v", err)
 			return nil, status.Errorf(codes.Internal, "failed to push model to prediction service: %v", err)
@@ -205,14 +214,14 @@ func main() {
 		log.Fatalf("Failed to listen on port %s: %v", *port, err)
 	}
 
-	var pusher *GRPCPusher
+	var pusher ModelPusher
 	if *predictionServiceAddr != "" {
-		var err error
-		pusher, err = NewGRPCPusher(*predictionServiceAddr)
+		grpcPusher, err := NewGRPCPusher(*predictionServiceAddr)
 		if err != nil {
 			log.Fatalf("Failed to connect to prediction service: %v", err)
 		}
-		defer pusher.Close()
+		defer grpcPusher.Close()
+		pusher = grpcPusher
 	}
 
 	grpcServer := grpc.NewServer()

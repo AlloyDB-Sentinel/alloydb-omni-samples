@@ -101,6 +101,34 @@ message TemporalDeviationScenario {
   TemporalDeviationTrainingConfig config = 2;
 }
 
+// Empirical joint probabilities of consecutive normalized query templates.
+// Only observed sequences are stored; omitted sequences have probability zero.
+message NGramHistogramEntry {
+  repeated string actions = 1;
+  int64 count = 2;
+  double probability = 3;
+}
+
+message NGramHistogramDistribution {
+  int32 n = 1;
+  int64 total_windows = 2;
+  repeated NGramHistogramEntry entries = 3;
+}
+
+message NGramHistogramModel {
+  repeated NGramHistogramDistribution histograms = 1;
+}
+
+message NGramHistogramTrainingConfig {
+  // Count sizes 1 through max_n, inclusive. Must be in [1, 3].
+  int32 max_n = 1;
+}
+
+message NGramHistogramScenario {
+  NGramHistogramModel model_data = 1;
+  NGramHistogramTrainingConfig config = 2;
+}
+
 message ModelMetadata {
   google.protobuf.Timestamp training_time = 1;
   string trainer_version = 2;
@@ -120,6 +148,7 @@ message Model {
     TrafficDeviationScenario traffic_deviation = 1;
     VolumetricSpikeScenario volumetric_spike = 2;
     TemporalDeviationScenario temporal_deviation = 3;
+    NGramHistogramScenario ngram_histogram = 5;
   }
 
   optional ModelMetadata metadata = 4;
