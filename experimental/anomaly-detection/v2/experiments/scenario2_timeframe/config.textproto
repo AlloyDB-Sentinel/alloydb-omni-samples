@@ -1,0 +1,42 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+
+bucket_sampling {
+  query_template_configs {
+    template {
+      normalized_query_template: "SELECT * FROM users WHERE id = %v"
+      is_read_query: true
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 100000
+        }
+      }
+    }
+    bucket_config {
+      db_user: "app_user"
+      queries_per_bucket_mean: 120.0
+      queries_variation_std_dev: 20.0
+      anomalous_spike_probability: 0.02
+      anomalous_spike_multiplier: 3.0
+      pgaudit_scenario: true
+      rows_returned_mean: 120.0
+      rows_returned_std_dev: 40.0
+      anomalous_rows_probability: 0.0
+      anomalous_rows_multiplier: 1.0
+      rows_returned_max: 100000
+      peak_windows {
+        window_name: "day"
+        hour_start: 9
+        hour_end: 17
+        multiplier: 1.5
+      }
+      peak_windows {
+        window_name: "night"
+        hour_start: 19
+        hour_end: 22
+        multiplier: 1.2
+      }
+    }
+  }
+}
