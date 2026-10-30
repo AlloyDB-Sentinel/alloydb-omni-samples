@@ -1,0 +1,80 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Profile: Standard user.
+# A normal interactive user who is idle most of the time, then occasionally
+# becomes active and performs a short burst of ~5 reads/writes per minute.
+# Modeled as two regimes:
+#   - "idle": long dwell (~30 s completion) representing a mostly-quiet user,
+#     looping on itself and rarely entering an active burst.
+#   - active read/write nodes: ~12 s completion each, so a burst runs at roughly
+#     5 operations per minute before the user goes idle again.
+# The idle self-loop plus low transition weight into the burst produces the
+# "occasional usage that spikes" shape.
+
+markov_sampling {
+  nodes {
+    id: "idle"
+    template {
+      normalized_query_template: "SELECT 1"
+    }
+    completion_time {
+      range {
+        min { seconds: 20 }
+        max { seconds: 40 }  # long gaps: user is mostly inactive
+      }
+    }
+    edges { destination_id: "idle" weight: 0.85 }          # stay idle
+    edges { destination_id: "active_read" weight: 0.15 }   # occasionally spike into activity
+  }
+  nodes {
+    id: "active_read"
+    template {
+      normalized_query_template: "SELECT * FROM documents WHERE owner_id = %v ORDER BY updated_at DESC"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 100000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 10 }
+        max { seconds: 14 }  # ~12 s -> ~5 ops/min during the burst
+      }
+    }
+    edges { destination_id: "active_read" weight: 0.5 }
+    edges { destination_id: "active_write" weight: 0.35 }
+    edges { destination_id: "idle" weight: 0.15 }  # burst ends, back to idle
+  }
+  nodes {
+    id: "active_write"
+    template {
+      normalized_query_template: "UPDATE documents SET body = %v WHERE doc_id = %v"
+      placeholder_values {
+        string_placeholder {
+          allowed_values: "draft"
+          allowed_values: "published"
+          allowed_values: "archived"
+        }
+      }
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 500000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 10 }
+        max { seconds: 14 }
+      }
+    }
+    edges { destination_id: "active_read" weight: 0.55 }
+    edges { destination_id: "active_write" weight: 0.2 }
+    edges { destination_id: "idle" weight: 0.25 }
+  }
+  start { node_id: "idle" }
+}
