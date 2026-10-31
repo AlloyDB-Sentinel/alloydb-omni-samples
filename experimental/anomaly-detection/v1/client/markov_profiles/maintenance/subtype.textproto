@@ -1,0 +1,40 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Subtype: Maintenance user, "heavy window" variant.
+# Layered on the maintenance-user base graph. Models a longer maintenance window:
+# sessions are less likely to end early and instead string together more DDL and
+# vacuum work before terminating at session_done. Only transition weights change;
+# nodes, templates, and completion times are inherited from the base graph and
+# the derived graph is renormalized once (R17.2).
+#
+# Base edges overridden (all exist in markov_maintenance_user_config.textproto):
+#   create_index   -> vacuum_analyze  0.4 -> 0.55  (more vacuum work)
+#   create_index   -> session_done    0.2 -> 0.05  (rarely stop right away)
+#   vacuum_analyze -> session_done    0.7 -> 0.5   (keep working longer)
+#   vacuum_analyze -> create_index    0.3 -> 0.5   (loop back into more DDL)
+
+markov_subtype {
+  base_graph_path: "../../markov_maintenance_user_config.textproto"
+
+  edge_weight_overrides {
+    source_id: "create_index"
+    destination_id: "vacuum_analyze"
+    weight: 0.55
+  }
+  edge_weight_overrides {
+    source_id: "create_index"
+    destination_id: "session_done"
+    weight: 0.05
+  }
+  edge_weight_overrides {
+    source_id: "vacuum_analyze"
+    destination_id: "session_done"
+    weight: 0.5
+  }
+  edge_weight_overrides {
+    source_id: "vacuum_analyze"
+    destination_id: "create_index"
+    weight: 0.5
+  }
+}

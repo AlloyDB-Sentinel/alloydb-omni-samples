@@ -643,3 +643,173 @@ markov_sampling {
 		t.Errorf("decoded %d entries, want %d", count, numLogs)
 	}
 }
+
+// markovEndToEndBaseGraph is a small three-node base graph with a terminal node
+// ("end"), so a modest --num_logs (5-10) forces the walker to reach the terminal
+// node and restart at least once. It is written to disk as the base that a
+// markov_subtype / markov_individual variant references by relative path, so the
+// end-to-end tests exercise loadConfigs' resolve-and-inline step exactly as in
+// production.
+const markovEndToEndBaseGraph = `
+markov_sampling {
+	nodes: {
+		id: "a"
+		template: {
+			normalized_query_template: "SELECT * FROM t WHERE id = %v"
+			placeholder_values: { int_placeholder: { min: 1 max: 10 } }
+		}
+		completion_time: { fixed: { nanos: 2000000 } }
+		edges: { destination_id: "b" weight: 0.6 }
+		edges: { destination_id: "end" weight: 0.4 }
+	}
+	nodes: {
+		id: "b"
+		template: { normalized_query_template: "SELECT 2" }
+		completion_time: { range: { min: { nanos: 1000000 } max: { nanos: 5000000 } } }
+		edges: { destination_id: "end" weight: 1.0 }
+	}
+	nodes: {
+		id: "end"
+		template: { normalized_query_template: "SELECT 3" }
+		completion_time: { fixed: { nanos: 3000000 } }
+	}
+	start: { node_id: "a" }
+}`
+
+// readBinprotoEntries opens <outputDir>/logs.binproto and decodes every
+// length-delimited AuditLogEntry with protodelim.UnmarshalFrom until io.EOF,
+// matching how the other scenarios read their output back.
+func readBinprotoEntries(t *testing.T, outputDir string) []*genpb.AuditLogEntry {
+	t.Helper()
+	f, err := os.Open(filepath.Join(outputDir, "logs.binproto"))
+	if err != nil {
+		t.Fatalf("failed to open logs.binproto: %v", err)
+	}
+	defer f.Close()
+
+	var entries []*genpb.AuditLogEntry
+	r := bufio.NewReader(f)
+	for {
+		entry := &genpb.AuditLogEntry{}
+		if err := protodelim.UnmarshalFrom(r, entry); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatalf("failed to decode log entry: %v", err)
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+// TestGenerateLogs_MarkovSubtype_EndToEnd verifies that a markov_subtype variant
+// config routes through the production load/dispatch path: loadConfigs resolves
+// and inlines the referenced base graph, GenerateLogs derives the subtype graph
+// and runs the walker, and the resulting logs.binproto decodes back into exactly
+// --num_logs well-formed length-delimited AuditLogEntry records.
+//
+// Validates: Requirements 10.1, 10.4
+func TestGenerateLogs_MarkovSubtype_EndToEnd(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	// Base graph on disk; the variant references it by relative filename so that
+	// loadConfigs' resolveBaseGraphFile exercises relative-path resolution.
+	if err := os.WriteFile(filepath.Join(dir, "base.textpb"), []byte(markovEndToEndBaseGraph), 0o644); err != nil {
+		t.Fatalf("failed to write base graph: %v", err)
+	}
+	variantPath := filepath.Join(dir, "subtype.textpb")
+	// Override a->b / a->end, keeping node "a"'s outgoing sum at 1.0 so the derived
+	// graph is valid after renormalization.
+	variantText := `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.3 }
+	edge_weight_overrides: { source_id: "a" destination_id: "end" weight: 0.7 }
+}`
+	if err := os.WriteFile(variantPath, []byte(variantText), 0o644); err != nil {
+		t.Fatalf("failed to write variant config: %v", err)
+	}
+
+	// loadConfigs resolves and inlines the base graph (sets resolvedBaseGraph),
+	// then GenerateLogs derives and dispatches through the Markov walker.
+	configs, err := loadConfigs(ctx, variantPath)
+	if err != nil {
+		t.Fatalf("loadConfigs failed: %v", err)
+	}
+
+	const numLogs = 8
+	outputDir := t.TempDir()
+	if err := GenerateLogs(ctx, configs, numLogs, 42, outputDir); err != nil {
+		t.Fatalf("GenerateLogs failed: %v", err)
+	}
+
+	entries := readBinprotoEntries(t, outputDir)
+	if len(entries) != numLogs {
+		t.Fatalf("decoded %d entries, want %d", len(entries), numLogs)
+	}
+	for i, entry := range entries {
+		if entry.GetNormalizedQueryTemplate() == "" {
+			t.Errorf("entry %d has empty normalized_query_template", i)
+		}
+		if entry.GetQueryStatement() == "" {
+			t.Errorf("entry %d has empty query_statement", i)
+		}
+	}
+}
+
+// TestGenerateLogs_MarkovIndividual_EndToEnd verifies that a markov_individual
+// variant config routes through the production load/dispatch path: loadConfigs
+// resolves and inlines the referenced base graph, GenerateLogs derives the
+// per-individual graph (drawing from the seeded rng) and runs the walker, and the
+// resulting logs.binproto decodes back into exactly --num_logs well-formed
+// length-delimited AuditLogEntry records.
+//
+// Validates: Requirements 10.1, 10.4
+func TestGenerateLogs_MarkovIndividual_EndToEnd(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "base.textpb"), []byte(markovEndToEndBaseGraph), 0o644); err != nil {
+		t.Fatalf("failed to write base graph: %v", err)
+	}
+	variantPath := filepath.Join(dir, "individual.textpb")
+	// Exercise the per-edge precedence ladder: a pinned override on a->b, a
+	// variance entry on a->end, and a global jitter bound (applies only to edges
+	// with neither an override nor a positive-delta variance). Renormalization at
+	// derivation time keeps the derived graph valid.
+	variantText := `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: 0.5 }
+	edge_variances: { source_id: "a" destination_id: "end" down: 0.1 up: 0.2 }
+	weight_jitter: { bound: 0.05 }
+}`
+	if err := os.WriteFile(variantPath, []byte(variantText), 0o644); err != nil {
+		t.Fatalf("failed to write variant config: %v", err)
+	}
+
+	configs, err := loadConfigs(ctx, variantPath)
+	if err != nil {
+		t.Fatalf("loadConfigs failed: %v", err)
+	}
+
+	const numLogs = 8
+	outputDir := t.TempDir()
+	if err := GenerateLogs(ctx, configs, numLogs, 42, outputDir); err != nil {
+		t.Fatalf("GenerateLogs failed: %v", err)
+	}
+
+	entries := readBinprotoEntries(t, outputDir)
+	if len(entries) != numLogs {
+		t.Fatalf("decoded %d entries, want %d", len(entries), numLogs)
+	}
+	for i, entry := range entries {
+		if entry.GetNormalizedQueryTemplate() == "" {
+			t.Errorf("entry %d has empty normalized_query_template", i)
+		}
+		if entry.GetQueryStatement() == "" {
+			t.Errorf("entry %d has empty query_statement", i)
+		}
+	}
+}

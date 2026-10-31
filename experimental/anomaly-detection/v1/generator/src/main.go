@@ -64,6 +64,12 @@ func main() {
 	} else if mSampling := configs.GetMarkovSampling(); mSampling != nil {
 		log.Printf("Successfully loaded and validated %d Markov nodes (Markov Sampling).", len(mSampling.GetNodes()))
 		log.Printf("Configuration applied - Output Dir: %q, Num Logs: %d, Start: %d", *outputDir, *numLogs, *startTimeMs)
+	} else if configs.GetMarkovSubtype() != nil {
+		log.Printf("Successfully loaded and validated a Markov Subtype variant over a %d-node base graph.", len(resolvedBaseGraph.GetNodes()))
+		log.Printf("Configuration applied - Output Dir: %q, Num Logs: %d, Start: %d", *outputDir, *numLogs, *startTimeMs)
+	} else if configs.GetMarkovIndividual() != nil {
+		log.Printf("Successfully loaded and validated a Markov Individual variant over a %d-node base graph.", len(resolvedBaseGraph.GetNodes()))
+		log.Printf("Configuration applied - Output Dir: %q, Num Logs: %d, Start: %d", *outputDir, *numLogs, *startTimeMs)
 	}
 
 	seed := rand.Int63()
@@ -113,7 +119,10 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 			return fmt.Errorf("--train_end_time_ms must be between start_time_ms and end_time_ms, got %d", *trainEndTimeMs)
 		}
 	} else {
-		// Scenario 1 (weighted) and markov sampling: count-based generation.
+		// Count-based generation: weighted sampling plus every Markov scenario
+		// (markov_sampling, markov_subtype, and markov_individual). None of these are
+		// time-range based, so they all validate --num_logs >= 1 here; the shared
+		// --config_file/--output_dir flags are enforced by validateSharedFlags.
 		if *numLogs <= 0 {
 			return fmt.Errorf("--num_logs must be a positive integer, got %d", *numLogs)
 		}
@@ -167,6 +176,27 @@ func GenerateLogs(ctx context.Context, configs *genpb.QueryTemplateConfigs, numL
 	// Markov sampling.
 	if markovCfg := configs.GetMarkovSampling(); markovCfg != nil {
 		return GenerateLogsMarkov(configs, numLogs, *startTimeMs, rng, w)
+	}
+
+	// Markov subtype: derive a plain MarkovSamplingConfig from the resolved base graph by
+	// applying edge-weight overrides and renormalizing, then feed it through the same walker.
+	if subtypeCfg := configs.GetMarkovSubtype(); subtypeCfg != nil {
+		derived, err := deriveSubtypeGraph(subtypeCfg, resolvedBaseGraph)
+		if err != nil {
+			return err
+		}
+		return generateLogsMarkovFromConfig(derived, numLogs, *startTimeMs, rng, w)
+	}
+
+	// Markov individual: derive a plain MarkovSamplingConfig by applying the per-edge precedence
+	// ladder (override / variance / jitter) off the resolved base. Derivation draws from the same
+	// seeded rng before the walk begins, which is intended and deterministic.
+	if individualCfg := configs.GetMarkovIndividual(); individualCfg != nil {
+		derived, err := deriveIndividualGraph(individualCfg, resolvedBaseGraph, rng)
+		if err != nil {
+			return err
+		}
+		return generateLogsMarkovFromConfig(derived, numLogs, *startTimeMs, rng, w)
 	}
 
 	// Scenario 1: Weighted random sampling.

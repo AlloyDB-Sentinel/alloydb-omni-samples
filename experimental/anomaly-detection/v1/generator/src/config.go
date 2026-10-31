@@ -7,14 +7,26 @@ import (
 	"math"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	cfgpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/generator/proto"
 )
+
+// resolvedBaseGraph carries the base graph referenced by a markov_subtype / markov_individual
+// variant config after loadConfigs resolves its base_graph_path relative to the variant file.
+// Because base-graph resolution is pure file I/O that needs the variant file's directory, it is
+// performed once in loadConfigs — before validateConfigs and before any randomness is drawn — and
+// the resolved base is stashed here so the signature-stable validateConfigs branches
+// (validateSubtype / validateIndividual) and the derivation functions (deriveSubtypeGraph /
+// deriveIndividualGraph) can consume an already-resolved *MarkovSamplingConfig base without
+// threading the variant path through their signatures. It is nil for every non-variant scenario.
+var resolvedBaseGraph *cfgpb.MarkovSamplingConfig
 
 // loadConfigs reads and validates the query template configurations from a textproto file.
 func loadConfigs(ctx context.Context, filePath string) (*cfgpb.QueryTemplateConfigs, error) {
@@ -31,6 +43,25 @@ func loadConfigs(ctx context.Context, filePath string) (*cfgpb.QueryTemplateConf
 	err = prototext.Unmarshal(data, configs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal textproto: %w", err)
+	}
+
+	// 3a. Resolve-and-inline the base graph for variant scenarios before validation. A
+	// markov_subtype / markov_individual references its base graph by a base_graph_path relative
+	// to this file; resolve it once here (pure file I/O) so validateConfigs and the derivation
+	// functions consume an already-resolved base.
+	resolvedBaseGraph = nil
+	if subtype := configs.GetMarkovSubtype(); subtype != nil {
+		base, err := resolveBaseGraphFile(filePath, subtype.GetBaseGraphPath())
+		if err != nil {
+			return nil, fmt.Errorf("markov_subtype: %w", err)
+		}
+		resolvedBaseGraph = base
+	} else if individual := configs.GetMarkovIndividual(); individual != nil {
+		base, err := resolveBaseGraphFile(filePath, individual.GetBaseGraphPath())
+		if err != nil {
+			return nil, fmt.Errorf("markov_individual: %w", err)
+		}
+		resolvedBaseGraph = base
 	}
 
 	// 4. Validate configurations
@@ -110,8 +141,14 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 	} else if configs.GetMarkovSampling() != nil {
 		return validateMarkovSampling(configs.GetMarkovSampling())
 
+	} else if configs.GetMarkovSubtype() != nil {
+		return validateSubtype(configs.GetMarkovSubtype(), resolvedBaseGraph)
+
+	} else if configs.GetMarkovIndividual() != nil {
+		return validateIndividual(configs.GetMarkovIndividual(), resolvedBaseGraph)
+
 	} else {
-		return fmt.Errorf("configuration must specify either weighted_sampling, bucket_sampling, connection_sampling or markov_sampling")
+		return fmt.Errorf("configuration must specify either weighted_sampling, bucket_sampling, connection_sampling, markov_sampling, markov_subtype or markov_individual")
 	}
 
 	return nil
@@ -486,4 +523,216 @@ func validateMarkovSampling(cfg *cfgpb.MarkovSamplingConfig) error {
 	}
 
 	return validateMarkovProfiles(cfg, byID)
+}
+
+// validateSubtype ensures a Markov subtype configuration yields a well-defined derived graph.
+//
+// The base graph is already resolved (via resolveBaseGraphFile in loadConfigs) and independently
+// valid, so this function only checks the subtype's edge-weight overrides against the base:
+//   - every override's source_id names a defined base node (R13.3)
+//   - every override's destination_id names a defined base node (R13.4)
+//   - every override's (source_id, destination_id) pair matches an existing base edge (R13.5)
+//   - every override weight is finite and non-negative (R13.6)
+//   - no two overrides name the same (source_id, destination_id) pair (R13.7)
+//
+// Finally it applies the overrides to a scratch clone of the base and requires each non-terminal
+// node's post-override outgoing sum to be positive, so renormalization to 1.0 is possible (R13.8).
+func validateSubtype(cfg *cfgpb.MarkovSubtypeConfig, base *cfgpb.MarkovSamplingConfig) error {
+	if base == nil {
+		return fmt.Errorf("markov_subtype: base graph was not resolved")
+	}
+
+	// Build a source-id -> destination-id -> edge index over the base graph.
+	baseEdges := make(map[string]map[string]*cfgpb.MarkovEdge, len(base.GetNodes()))
+	byID := make(map[string]bool, len(base.GetNodes()))
+	for _, node := range base.GetNodes() {
+		byID[node.GetId()] = true
+		byDest := make(map[string]*cfgpb.MarkovEdge, len(node.GetEdges()))
+		for _, edge := range node.GetEdges() {
+			byDest[edge.GetDestinationId()] = edge
+		}
+		baseEdges[node.GetId()] = byDest
+	}
+
+	// Per-override checks plus duplicate-pair detection.
+	seen := make(map[string]bool, len(cfg.GetEdgeWeightOverrides()))
+	for i, ov := range cfg.GetEdgeWeightOverrides() {
+		src := ov.GetSourceId()
+		dst := ov.GetDestinationId()
+
+		byDest, ok := baseEdges[src]
+		if !ok {
+			return fmt.Errorf("markov_subtype: edge_weight_override %d: source %q is not a defined node in the base graph", i, src)
+		}
+		if !byID[dst] {
+			return fmt.Errorf("markov_subtype: edge_weight_override %d: destination %q is not a defined node in the base graph", i, dst)
+		}
+		if _, ok := byDest[dst]; !ok {
+			return fmt.Errorf("markov_subtype: edge_weight_override %d: base graph has no edge from %q to %q", i, src, dst)
+		}
+		if !isFiniteNonNegative(ov.GetWeight()) {
+			return fmt.Errorf("markov_subtype: edge_weight_override %d: weight must be finite and non-negative", i)
+		}
+
+		key := src + "\x00" + dst
+		if seen[key] {
+			return fmt.Errorf("markov_subtype: duplicate edge_weight_override for pair (%q, %q)", src, dst)
+		}
+		seen[key] = true
+	}
+
+	// Apply the overrides to a scratch clone and require each non-terminal node's outgoing sum to
+	// be positive so renormalization to 1.0 is possible. Cloning avoids mutating the resolved base.
+	scratch := proto.Clone(base).(*cfgpb.MarkovSamplingConfig)
+	applyEdgeOverrides(scratch.GetNodes(), cfg.GetEdgeWeightOverrides())
+	for _, node := range scratch.GetNodes() {
+		edges := node.GetEdges()
+		if len(edges) == 0 {
+			continue
+		}
+		var sum float64
+		for _, edge := range edges {
+			sum += edge.GetWeight()
+		}
+		// `!(sum > 0)` also rejects a NaN sum.
+		if !(sum > 0) {
+			return fmt.Errorf("markov_subtype: node %q: post-override outgoing edge weights sum to %v, must be positive to renormalize", node.GetId(), sum)
+		}
+	}
+
+	return nil
+}
+
+// validateEdgeOverrides checks a slice of EdgeWeightOverrides against a graph, in order:
+//   - every override's source_id names a defined node (R13.3)
+//   - every override's destination_id names a defined node (R13.4)
+//   - every override's (source_id, destination_id) pair matches an existing edge (R13.5)
+//   - every override weight is finite and non-negative (R13.6)
+//   - no two overrides name the same (source_id, destination_id) pair (R13.7)
+//
+// The prefix (e.g. "markov_individual: subtype_override") names the mechanism in error messages
+// so the shared logic can serve both the subtype_overrides layer and any override list validated
+// against a class graph. It builds its index over the supplied graph nodes.
+func validateEdgeOverrides(prefix string, graphNodes []*cfgpb.MarkovNode, overrides []*cfgpb.EdgeWeightOverride) error {
+	edges := make(map[string]map[string]*cfgpb.MarkovEdge, len(graphNodes))
+	byID := make(map[string]bool, len(graphNodes))
+	for _, node := range graphNodes {
+		byID[node.GetId()] = true
+		byDest := make(map[string]*cfgpb.MarkovEdge, len(node.GetEdges()))
+		for _, edge := range node.GetEdges() {
+			byDest[edge.GetDestinationId()] = edge
+		}
+		edges[node.GetId()] = byDest
+	}
+
+	seen := make(map[string]bool, len(overrides))
+	for i, ov := range overrides {
+		src := ov.GetSourceId()
+		dst := ov.GetDestinationId()
+
+		byDest, ok := edges[src]
+		if !ok {
+			return fmt.Errorf("%s %d: source %q is not a defined node in the class graph", prefix, i, src)
+		}
+		if !byID[dst] {
+			return fmt.Errorf("%s %d: destination %q is not a defined node in the class graph", prefix, i, dst)
+		}
+		if _, ok := byDest[dst]; !ok {
+			return fmt.Errorf("%s %d: class graph has no edge from %q to %q", prefix, i, src, dst)
+		}
+		if !isFiniteNonNegative(ov.GetWeight()) {
+			return fmt.Errorf("%s %d: weight must be finite and non-negative", prefix, i)
+		}
+
+		key := src + "\x00" + dst
+		if seen[key] {
+			return fmt.Errorf("%s: duplicate override for pair (%q, %q)", prefix, src, dst)
+		}
+		seen[key] = true
+	}
+
+	return nil
+}
+
+// validateIndividual ensures a Markov individual configuration yields a well-defined derived graph.
+//
+// The base graph is already resolved (via resolveBaseGraphFile in loadConfigs) and independently
+// valid. The *class graph* is the base with the individual's optional subtype_overrides applied;
+// per-edge mechanisms (individual_edge_overrides, edge_variances, weight_jitter) are validated
+// against that class graph. In order this function:
+//   - validates the subtype_overrides against the base (undefined src/dst, no-such-edge,
+//     non-finite weight, duplicate pair — R13.3-R13.7), then builds the class graph by applying
+//     them to a scratch clone of the base;
+//   - validates each individual_edge_override against the class graph: undefined source or
+//     destination (R16.2), a (src,dst) matching no class edge (R16.3), a non-finite-or-negative
+//     weight (R16.4), and duplicate pairs;
+//   - requires each edge_variance down and up delta to be finite and non-negative (R16.5);
+//   - requires any weight_jitter bound to be finite and non-negative (R16.6).
+//
+// The non-positive pre-renormalization sum (R16.8) is enforced by renormalizeOutgoing at
+// derivation time, and R16.7's "derived graph satisfies every R4 invariant" is structural, so
+// neither is duplicated here.
+func validateIndividual(cfg *cfgpb.MarkovIndividualConfig, base *cfgpb.MarkovSamplingConfig) error {
+	if base == nil {
+		return fmt.Errorf("markov_individual: base graph was not resolved")
+	}
+
+	// Validate the subtype_overrides against the base graph (R13.3-R13.7), then apply them to a
+	// scratch clone to form the class graph that the per-edge mechanisms are checked against.
+	if err := validateEdgeOverrides("markov_individual: subtype_override", base.GetNodes(), cfg.GetSubtypeOverrides()); err != nil {
+		return err
+	}
+	classGraph := proto.Clone(base).(*cfgpb.MarkovSamplingConfig)
+	applyEdgeOverrides(classGraph.GetNodes(), cfg.GetSubtypeOverrides())
+
+	// Validate the individual_edge_overrides against the class graph (R16.2, R16.3, R16.4).
+	if err := validateEdgeOverrides("markov_individual: individual_edge_override", classGraph.GetNodes(), cfg.GetIndividualEdgeOverrides()); err != nil {
+		return err
+	}
+
+	// Edge variance deltas must be finite and non-negative (R16.5).
+	for i, v := range cfg.GetEdgeVariances() {
+		if !isFiniteNonNegative(v.GetDown()) {
+			return fmt.Errorf("markov_individual: edge_variance %d (%q -> %q): down delta must be finite and non-negative", i, v.GetSourceId(), v.GetDestinationId())
+		}
+		if !isFiniteNonNegative(v.GetUp()) {
+			return fmt.Errorf("markov_individual: edge_variance %d (%q -> %q): up delta must be finite and non-negative", i, v.GetSourceId(), v.GetDestinationId())
+		}
+	}
+
+	// A configured weight_jitter bound must be finite and non-negative (R16.6).
+	if cfg.HasWeightJitter() && !isFiniteNonNegative(cfg.GetWeightJitter().GetBound()) {
+		return fmt.Errorf("markov_individual: weight_jitter bound must be finite and non-negative")
+	}
+
+	return nil
+}
+
+// resolveBaseGraphFile loads the base graph referenced by a variant config (a subtype or
+// individual). baseGraphPath is resolved relative to the directory of variantPath. The
+// referenced file must be a QueryTemplateConfigs textproto whose scenario is markov_sampling
+// (a plain base graph); it is validated with validateMarkovSampling. References never chain:
+// a subtype/individual file (or any other scenario) is rejected here so a base reference can
+// never point at another reference.
+func resolveBaseGraphFile(variantPath, baseGraphPath string) (*cfgpb.MarkovSamplingConfig, error) {
+	resolved := filepath.Join(filepath.Dir(variantPath), baseGraphPath)
+	data, err := os.ReadFile(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("base graph file %q could not be read: %w", baseGraphPath, err)
+	}
+
+	base := &cfgpb.QueryTemplateConfigs{}
+	if err := prototext.Unmarshal(data, base); err != nil {
+		return nil, fmt.Errorf("base graph file %q could not be parsed: %w", baseGraphPath, err)
+	}
+
+	markov := base.GetMarkovSampling()
+	if markov == nil {
+		return nil, fmt.Errorf("base graph file %q is not a markov_sampling config", baseGraphPath)
+	}
+	if err := validateMarkovSampling(markov); err != nil {
+		return nil, fmt.Errorf("base graph file %q is invalid: %w", baseGraphPath, err)
+	}
+
+	return markov, nil
 }

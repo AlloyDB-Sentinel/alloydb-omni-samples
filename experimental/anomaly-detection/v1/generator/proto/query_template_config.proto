@@ -13,7 +13,9 @@ message QueryTemplateConfigs {
     WeightedSamplingConfig weighted_sampling = 1;
     BucketSamplingConfig bucket_sampling = 2;
     ConnectionSamplingConfig connection_sampling = 3;
-    MarkovSamplingConfig markov_sampling = 4;  // New fourth scenario.
+    MarkovSamplingConfig markov_sampling = 4;        // New fourth scenario.
+    MarkovSubtypeConfig markov_subtype = 5;          // New: base/override subtype.
+    MarkovIndividualConfig markov_individual = 6;    // New: per-individual parameterization.
   }
 }
 
@@ -87,6 +89,61 @@ message WeightedStartNodes {
 message WeightedStartNode {
   string node_id = 1;
   double weight = 2;  // Finite, non-negative; distribution sums to > 0.
+}
+
+// Subtype: reuse a base graph (referenced by file path), replace specific edge
+// weights, renormalize once.
+message MarkovSubtypeConfig {
+  // Path to the base graph's textproto config, resolved relative to the directory of
+  // the variant config file. The referenced file must be a QueryTemplateConfigs whose
+  // scenario is markov_sampling (a plain base graph), never a subtype/individual.
+  string base_graph_path = 1;
+  repeated EdgeWeightOverride edge_weight_overrides = 2;
+}
+
+// Replaces the base-graph weight of the edge identified by (source_id, destination_id).
+message EdgeWeightOverride {
+  string source_id = 1;
+  string destination_id = 2;
+  double weight = 3;  // Finite, non-negative.
+}
+
+// Individual: derive a per-individual graph from a class (base graph or subtype)
+// via a per-edge precedence ladder that selects exactly one mechanism per non-pinned
+// edge (never variance and jitter together), then one renormalization.
+message MarkovIndividualConfig {
+  // Path to the class's base graph textproto config, resolved relative to the directory
+  // of the variant config file. Must reference a markov_sampling config.
+  string base_graph_path = 1;
+
+  // Optional subtype layer applied to the base graph before per-individual mechanisms.
+  repeated EdgeWeightOverride subtype_overrides = 2;
+
+  // (1) highest precedence: pins an edge's weight; skips variance/jitter.
+  repeated EdgeWeightOverride individual_edge_overrides = 3;
+
+  // (2) per-edge asymmetric two-sided range; sampled around the class weight for a
+  // non-pinned edge with a positive down or up delta, which then skips jitter.
+  repeated EdgeVariance edge_variances = 4;
+
+  // (3) lowest precedence: one global bound applied only to non-pinned edges that have
+  // no variance entry with a positive down or up delta.
+  WeightJitter weight_jitter = 5;
+}
+
+// Per-edge asymmetric variance range keyed by (source_id, destination_id).
+// The individual's weight is sampled uniformly over the closed interval
+// [w - down, w + up], where w is the class (post-override) weight. The symmetric
+// case is down == up. An entry with down == 0 && up == 0 is treated as no variance.
+message EdgeVariance {
+  string source_id = 1;
+  string destination_id = 2;
+  double down = 3;  // Downward delta; finite, non-negative.
+  double up = 4;    // Upward delta; finite, non-negative.
+}
+
+message WeightJitter {
+  double bound = 1;  // Finite, non-negative.
 }
 
 message WeightedSamplingConfig {

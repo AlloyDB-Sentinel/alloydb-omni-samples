@@ -1,0 +1,40 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Subtype: Standard user, "power user" variant.
+# Layered on the standard-user base graph. A more engaged interactive user who
+# leaves the idle state far more often and, once active, skews toward writes
+# (editing documents) rather than just reading. Only transition weights change;
+# nodes, templates, and completion times are inherited from the base graph and
+# the derived graph is renormalized once (R17.2).
+#
+# Base edges overridden (all exist in markov_standard_user_config.textproto):
+#   idle        -> idle          0.85 -> 0.55  (shorter idle stretches)
+#   idle        -> active_read   0.15 -> 0.45  (spikes into activity more often)
+#   active_read -> active_write  0.35 -> 0.5   (more editing during a burst)
+#   active_read -> idle          0.15 -> 0.1   (stays active a little longer)
+
+markov_subtype {
+  base_graph_path: "../../markov_standard_user_config.textproto"
+
+  edge_weight_overrides {
+    source_id: "idle"
+    destination_id: "idle"
+    weight: 0.55
+  }
+  edge_weight_overrides {
+    source_id: "idle"
+    destination_id: "active_read"
+    weight: 0.45
+  }
+  edge_weight_overrides {
+    source_id: "active_read"
+    destination_id: "active_write"
+    weight: 0.5
+  }
+  edge_weight_overrides {
+    source_id: "active_read"
+    destination_id: "idle"
+    weight: 0.1
+  }
+}

@@ -1,0 +1,23 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (standard-user class) demonstrating Weight_Jitter
+# (Requirement 17.4).
+#
+# weight_jitter is the lowest-precedence mechanism: a single global, non-negative
+# bound. It applies to every non-pinned edge that has no variance entry with a
+# positive down/up delta. For each such edge the individual's weight is perturbed
+# by a value drawn uniformly from [-bound, +bound] around the class weight, drawn
+# from the single seeded rng, clamped to be non-negative, then one final
+# renormalization makes each node's outgoing weights sum to 1.0.
+#
+# No individual_edge_overrides or edge_variances are set, so the single
+# weight_jitter bound governs every edge of the standard-user base graph.
+
+markov_individual {
+  base_graph_path: "../../markov_standard_user_config.textproto"
+
+  weight_jitter {
+    bound: 0.05
+  }
+}

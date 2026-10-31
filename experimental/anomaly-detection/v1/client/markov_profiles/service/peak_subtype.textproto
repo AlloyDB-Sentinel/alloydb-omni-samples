@@ -1,0 +1,46 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Subtype: Service usage, peak hours (read-heavy).
+# Layered on the service-usage base graph. During peak hours the service drives
+# an even larger share of read traffic: the read states bias harder toward other
+# reads and the already-rare write excursions become rarer still. Only transition
+# weights change; nodes, templates, and completion times are inherited unchanged
+# from the base graph and the derived graph is renormalized once (R17.1).
+#
+# Base edges overridden (all exist in markov_service_usage_config.textproto):
+#   read_point_lookup -> read_range_scan   0.55 -> 0.65  (more read fan-out)
+#   read_point_lookup -> read_point_lookup  0.42 -> 0.34  (sustained read self-loop)
+#   read_point_lookup -> write_update       0.03 -> 0.01  (rarer write excursion)
+#   read_range_scan   -> read_point_lookup  0.70 -> 0.78  (bias back toward reads)
+#   read_range_scan   -> write_update       0.02 -> 0.005 (rarer write excursion)
+
+markov_subtype {
+  base_graph_path: "../../markov_service_usage_config.textproto"
+
+  edge_weight_overrides {
+    source_id: "read_point_lookup"
+    destination_id: "read_range_scan"
+    weight: 0.65
+  }
+  edge_weight_overrides {
+    source_id: "read_point_lookup"
+    destination_id: "read_point_lookup"
+    weight: 0.34
+  }
+  edge_weight_overrides {
+    source_id: "read_point_lookup"
+    destination_id: "write_update"
+    weight: 0.01
+  }
+  edge_weight_overrides {
+    source_id: "read_range_scan"
+    destination_id: "read_point_lookup"
+    weight: 0.78
+  }
+  edge_weight_overrides {
+    source_id: "read_range_scan"
+    destination_id: "write_update"
+    weight: 0.005
+  }
+}

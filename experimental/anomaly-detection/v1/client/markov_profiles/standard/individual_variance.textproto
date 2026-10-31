@@ -1,0 +1,46 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (standard-user class) demonstrating Edge_Weight_Variance
+# (Requirement 17.4).
+#
+# Each edge_variances entry carries an asymmetric downward delta `down` and
+# upward delta `up` (down != up). For a non-pinned edge whose entry has a
+# positive down or up, the individual's weight is sampled uniformly over the
+# closed interval [w - down, w + up], where w is the class weight, drawn from
+# the single seeded rng, then clamped to be non-negative before renormalization.
+# Variance is mutually exclusive with jitter per edge, so no jitter is set here.
+#
+# Every (source_id, destination_id) below names a real edge of the base graph
+# (idle, active_read, active_write). The asymmetric ranges bias this individual
+# upward toward staying idle and downward on writing.
+
+markov_individual {
+  base_graph_path: "../../markov_standard_user_config.textproto"
+
+  # idle -> idle (class weight 0.85): more headroom upward than downward, so this
+  # individual tends to be a touch quieter than the class.
+  edge_variances {
+    source_id: "idle"
+    destination_id: "idle"
+    down: 0.05
+    up: 0.10
+  }
+
+  # active_read -> active_write (class weight 0.35): wider downward than upward,
+  # so this individual tends to write a little less during bursts.
+  edge_variances {
+    source_id: "active_read"
+    destination_id: "active_write"
+    down: 0.15
+    up: 0.05
+  }
+
+  # active_write -> active_read (class weight 0.55): modest asymmetric spread.
+  edge_variances {
+    source_id: "active_write"
+    destination_id: "active_read"
+    down: 0.10
+    up: 0.20
+  }
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -1438,5 +1439,474 @@ func TestLoadConfigsConnectionExample(t *testing.T) {
 	}
 	if got := len(configs.GetConnectionSampling().GetClientProfiles()); got == 0 {
 		t.Errorf("loadConfigs(%q) returned %d client profiles, want at least 1", examplePath, got)
+	}
+}
+
+// TestValidateSubtype exercises validateSubtype against an already-resolved
+// in-memory base graph. validateSubtype takes a *MarkovSamplingConfig base, so
+// each case parses a base via GetMarkovSampling() and a subtype via
+// GetMarkovSubtype() and asserts the override-level checks (R13.3-R13.8) plus the
+// nil-base guard. The base-ref cases (missing/unparseable/non-markov_sampling,
+// R13.2) are covered by TestResolveBaseGraphFile, which owns that responsibility
+// in the impl.
+//
+// Property 28, Validates R12.2, R13.2, R13.3, R13.4, R13.5, R13.6, R13.7, R13.8
+func TestValidateSubtype(t *testing.T) {
+	// A valid resolved base graph: non-terminal "a" with edges to "b" and "c"
+	// summing to 1.0, and terminal "b"/"c".
+	const baseText = `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.6 }
+		edges { destination_id: "c" weight: 0.4 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	nodes {
+		id: "c"
+		template { normalized_query_template: "SELECT 3" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`
+
+	// parseBase / parseSub turn textprotos into the resolved base and subtype
+	// messages validateSubtype consumes.
+	parseBase := func(t *testing.T) *cfgpb.MarkovSamplingConfig {
+		t.Helper()
+		base := parseProto(t, baseText, &cfgpb.QueryTemplateConfigs{}).GetMarkovSampling()
+		if base == nil {
+			t.Fatal("baseText did not parse into a markov_sampling config")
+		}
+		return base
+	}
+	parseSub := func(t *testing.T, text string) *cfgpb.MarkovSubtypeConfig {
+		t.Helper()
+		sub := parseProto(t, text, &cfgpb.QueryTemplateConfigs{}).GetMarkovSubtype()
+		if sub == nil {
+			t.Fatal("subtype text did not parse into a markov_subtype config")
+		}
+		return sub
+	}
+
+	tests := []struct {
+		name string
+		// subtype is the markov_subtype textproto; nilBase replaces the resolved
+		// base with nil to exercise the "base graph was not resolved" guard.
+		subtype    string
+		nilBase    bool
+		wantErr    bool
+		wantErrSub string
+	}{
+		{
+			name: "valid_sum_preserving_overrides",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.9 }
+	edge_weight_overrides: { source_id: "a" destination_id: "c" weight: 0.1 }
+}`,
+			wantErr: false,
+		},
+		{
+			name: "valid_single_override_renormalizable",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 3.0 }
+}`,
+			wantErr: false,
+		},
+
+		// --- nil base: "base graph was not resolved" (R13.2 surrogate guard). ---
+		{
+			name: "nil_base",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+}`,
+			nilBase:    true,
+			wantErr:    true,
+			wantErrSub: "base graph was not resolved",
+		},
+
+		// --- undefined source (R13.3). ---
+		{
+			name: "undefined_source",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "ghost" destination_id: "b" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `source "ghost" is not a defined node`,
+		},
+
+		// --- undefined destination (R13.4). ---
+		{
+			name: "undefined_destination",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "ghost" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `destination "ghost" is not a defined node`,
+		},
+
+		// --- (src,dst) pair has no base edge (R13.5): "b" is terminal, so a->... is fine but c has no edge from a? a has edges to b and c; use b (terminal) as source with a valid dest. ---
+		{
+			name: "pair_has_no_base_edge",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "b" destination_id: "c" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `base graph has no edge from "b" to "c"`,
+		},
+
+		// --- non-finite / negative weight (R13.6). ---
+		{
+			name: "nan_weight",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: nan }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight must be finite and non-negative",
+		},
+		{
+			name: "inf_weight",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: inf }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight must be finite and non-negative",
+		},
+		{
+			name: "negative_weight",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: -1.0 }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight must be finite and non-negative",
+		},
+
+		// --- duplicate (src,dst) override pair (R13.7). ---
+		{
+			name: "duplicate_pair",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.5 }
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.7 }
+}`,
+			wantErr:    true,
+			wantErrSub: `duplicate edge_weight_override for pair ("a", "b")`,
+		},
+
+		// --- post-override outgoing sum non-positive (R13.8): zero out both edges of "a". ---
+		{
+			name: "non_positive_post_override_sum",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.0 }
+	edge_weight_overrides: { source_id: "a" destination_id: "c" weight: 0.0 }
+}`,
+			wantErr:    true,
+			wantErrSub: "must be positive to renormalize",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var base *cfgpb.MarkovSamplingConfig
+			if !test.nilBase {
+				base = parseBase(t)
+			}
+			sub := parseSub(t, test.subtype)
+
+			err := validateSubtype(sub, base)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validateSubtype() error = %v, wantErr %v", err, test.wantErr)
+			}
+			if test.wantErrSub != "" {
+				if err == nil {
+					t.Fatalf("validateSubtype() error = nil, want error containing %q", test.wantErrSub)
+				}
+				if !strings.Contains(err.Error(), test.wantErrSub) {
+					t.Errorf("validateSubtype() error = %q, want substring %q", err.Error(), test.wantErrSub)
+				}
+			}
+		})
+	}
+}
+
+// TestValidateIndividual verifies individual-configuration validation against a
+// resolved class graph (base + optional subtype_overrides). It covers, by case
+// group: individual_edge_override with an undefined source/destination, a
+// (src,dst) matching no class edge, and a non-finite/negative weight (R16.2,
+// R16.3, R16.4); edge_variance with a non-finite/negative down or up delta
+// (R16.5); weight_jitter with a non-finite/negative bound (R16.6); the nil-base
+// guard; and a well-formed config that validates.
+//
+// R16.8 (non-positive pre-renormalization sum) is NOT checked here: it is enforced
+// at derivation time by renormalizeOutgoing, and is covered by
+// TestDeriveIndividual_NonPositiveSumError in markov_derive_test.go.
+//
+// Property 29, Validates R16.2, R16.3, R16.4, R16.5, R16.6, R16.8
+func TestValidateIndividual(t *testing.T) {
+	// A valid resolved base/class graph: non-terminal "a" with edges to "b" and
+	// "c" summing to 1.0, terminal "b"/"c".
+	const baseText = `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.6 }
+		edges { destination_id: "c" weight: 0.4 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	nodes {
+		id: "c"
+		template { normalized_query_template: "SELECT 3" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`
+
+	parseBase := func(t *testing.T) *cfgpb.MarkovSamplingConfig {
+		t.Helper()
+		base := parseProto(t, baseText, &cfgpb.QueryTemplateConfigs{}).GetMarkovSampling()
+		if base == nil {
+			t.Fatal("baseText did not parse into a markov_sampling config")
+		}
+		return base
+	}
+	parseInd := func(t *testing.T, text string) *cfgpb.MarkovIndividualConfig {
+		t.Helper()
+		ind := parseProto(t, text, &cfgpb.QueryTemplateConfigs{}).GetMarkovIndividual()
+		if ind == nil {
+			t.Fatal("individual text did not parse into a markov_individual config")
+		}
+		return ind
+	}
+
+	tests := []struct {
+		name string
+		// individual is the markov_individual textproto; nilBase replaces the
+		// resolved base with nil to exercise the "base graph was not resolved" guard.
+		individual string
+		nilBase    bool
+		wantErr    bool
+		wantErrSub string
+	}{
+		{
+			name: "valid_full_config",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: 0.5 }
+	edge_variances: { source_id: "a" destination_id: "c" down: 0.1 up: 0.2 }
+	weight_jitter: { bound: 0.05 }
+}`,
+			wantErr: false,
+		},
+		{
+			name: "valid_no_mechanisms",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+}`,
+			wantErr: false,
+		},
+
+		// --- nil base guard. ---
+		{
+			name: "nil_base",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+}`,
+			nilBase:    true,
+			wantErr:    true,
+			wantErrSub: "base graph was not resolved",
+		},
+
+		// --- individual_edge_override undefined source (R16.2). ---
+		{
+			name: "override_undefined_source",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "ghost" destination_id: "b" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `individual_edge_override 0: source "ghost" is not a defined node in the class graph`,
+		},
+
+		// --- individual_edge_override undefined destination (R16.2). ---
+		{
+			name: "override_undefined_destination",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "ghost" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `individual_edge_override 0: destination "ghost" is not a defined node in the class graph`,
+		},
+
+		// --- individual_edge_override names no class edge (R16.3). "b" is
+		//     terminal, so (b -> c) matches no edge. ---
+		{
+			name: "override_no_such_edge",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "b" destination_id: "c" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `individual_edge_override 0: class graph has no edge from "b" to "c"`,
+		},
+
+		// --- individual_edge_override non-finite / negative weight (R16.4). ---
+		{
+			name: "override_nan_weight",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: nan }
+}`,
+			wantErr:    true,
+			wantErrSub: "individual_edge_override 0: weight must be finite and non-negative",
+		},
+		{
+			name: "override_inf_weight",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: inf }
+}`,
+			wantErr:    true,
+			wantErrSub: "individual_edge_override 0: weight must be finite and non-negative",
+		},
+		{
+			name: "override_negative_weight",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: -0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: "individual_edge_override 0: weight must be finite and non-negative",
+		},
+
+		// --- edge_variance non-finite / negative down delta (R16.5). ---
+		{
+			name: "variance_nan_down",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	edge_variances: { source_id: "a" destination_id: "b" down: nan up: 0.1 }
+}`,
+			wantErr:    true,
+			wantErrSub: `edge_variance 0 ("a" -> "b"): down delta must be finite and non-negative`,
+		},
+		{
+			name: "variance_negative_down",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	edge_variances: { source_id: "a" destination_id: "b" down: -0.1 up: 0.1 }
+}`,
+			wantErr:    true,
+			wantErrSub: `edge_variance 0 ("a" -> "b"): down delta must be finite and non-negative`,
+		},
+
+		// --- edge_variance non-finite / negative up delta (R16.5). ---
+		{
+			name: "variance_inf_up",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	edge_variances: { source_id: "a" destination_id: "b" down: 0.1 up: inf }
+}`,
+			wantErr:    true,
+			wantErrSub: `edge_variance 0 ("a" -> "b"): up delta must be finite and non-negative`,
+		},
+		{
+			name: "variance_negative_up",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	edge_variances: { source_id: "a" destination_id: "b" down: 0.1 up: -0.2 }
+}`,
+			wantErr:    true,
+			wantErrSub: `edge_variance 0 ("a" -> "b"): up delta must be finite and non-negative`,
+		},
+
+		// --- weight_jitter non-finite / negative bound (R16.6). ---
+		{
+			name: "jitter_nan_bound",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	weight_jitter: { bound: nan }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight_jitter bound must be finite and non-negative",
+		},
+		{
+			name: "jitter_negative_bound",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	weight_jitter: { bound: -0.05 }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight_jitter bound must be finite and non-negative",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var base *cfgpb.MarkovSamplingConfig
+			if !test.nilBase {
+				base = parseBase(t)
+			}
+			ind := parseInd(t, test.individual)
+
+			err := validateIndividual(ind, base)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validateIndividual() error = %v, wantErr %v", err, test.wantErr)
+			}
+			if test.wantErrSub != "" {
+				if err == nil {
+					t.Fatalf("validateIndividual() error = nil, want error containing %q", test.wantErrSub)
+				}
+				if !strings.Contains(err.Error(), test.wantErrSub) {
+					t.Errorf("validateIndividual() error = %q, want substring %q", err.Error(), test.wantErrSub)
+				}
+			}
+		})
 	}
 }
