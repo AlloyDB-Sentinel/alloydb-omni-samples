@@ -49,7 +49,7 @@ func NewNGramWindowScorer(model *modelpb.Model) (*NGramWindowScorer, error) {
 
 func NewNGramWindowScorerWithConfig(model *modelpb.Model, config *modelpb.NGramScoringConfig) (*NGramWindowScorer, error) {
 	if model == nil || !model.HasNgramHistogram() {
-		return nil, fmt.Errorf("%w: expected histogram model", common.ErrInvalidArgument)
+		return nil, fmt.Errorf("%w: expected NgramHistogram scenario, got %v", common.ErrInvalidArgument, model.WhichScenario())
 	}
 	resolved, err := resolvedScoringConfig(config)
 	if err != nil {
@@ -127,6 +127,21 @@ func NewNGramWindowScorerWithConfig(model *modelpb.Model, config *modelpb.NGramS
 }
 
 func finite(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }
+
+// WindowLength returns the number of actions per scored window.
+func (s *NGramWindowScorer) WindowLength() int { return s.windowLength }
+
+// Threshold returns the calibrated anomaly threshold. It must only be called
+// when the scorer is calibrated; callers should guard with HasThreshold (or the
+// presence of a threshold reported elsewhere, e.g. the calibration metadata on
+// the model).
+func (s *NGramWindowScorer) Threshold() float64 { return *s.threshold }
+
+// HasThreshold reports whether the scorer carries a calibrated anomaly
+// threshold. It is false for a scorer built from a model without calibration,
+// in which case Threshold must not be called. Callers use this to guard the
+// threshold dereference performed by Threshold.
+func (s *NGramWindowScorer) HasThreshold() bool { return s.threshold != nil }
 
 // Score compares each known category's window proportion with its learned mean
 // using max(learned sigma, floor_count/positions). Unknown sequences share one
