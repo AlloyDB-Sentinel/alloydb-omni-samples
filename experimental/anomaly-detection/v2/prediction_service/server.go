@@ -97,9 +97,6 @@ func (s *predictionServer) Predict(ctx context.Context, req *predictionpb.Predic
 
 	var models []service.Model
 	for _, item := range items {
-		if item.proto.HasNgramHistogram() {
-			return nil, status.Error(codes.FailedPrecondition, "histogram models require the ScoreWindows RPC")
-		}
 		m, err := modelFromProto(item.proto)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to initialize model from %q: %v", item.entry.GetModelLocation(), err)
@@ -325,6 +322,9 @@ func modelFromProto(pb *modelpb.Model) (service.Model, error) {
 		return nil, fmt.Errorf("model proto is nil")
 	}
 	switch pb.WhichScenario() {
+	case modelpb.Model_NgramHistogram_case:
+		return service.NewNGramScoringModel(pb)
+
 	case modelpb.Model_TrafficDeviation_case:
 		return service.NewTrafficDeviationModel(pb)
 
@@ -359,15 +359,31 @@ func resetModels(models []service.Model) {
 	}
 }
 
+// predictWithLogging runs a model's Predict and logs any scorer error the model
+// surfaces. Models whose Predict degrades a scoring failure to a not-anomalous
+// finding (e.g. NGramScoringModel, R4.4) expose that error via the optional
+// interface{ TakeLastScoreError() error } seam; the finding itself carries no
+// error, so this call site is where the server records that scoring failed.
+// Models without the seam are called exactly as before.
+func predictWithLogging(m service.Model, entry *auditpb.AuditLogEntry) *findingpb.AnomalyFinding {
+	finding := m.Predict(entry)
+	if t, ok := m.(interface{ TakeLastScoreError() error }); ok {
+		if err := t.TakeLastScoreError(); err != nil {
+			log.Printf("ngram window scoring error during prediction: %v", err)
+		}
+	}
+	return finding
+}
+
 func predictSingle(ctx context.Context, models []service.Model, singleLog *auditpb.AuditLogEntry) (*predictionpb.PredictResponse, error) {
 	resp := &predictionpb.PredictResponse{}
 	if len(models) == 1 {
-		resp.SetSingleFinding(models[0].Predict(singleLog))
+		resp.SetSingleFinding(predictWithLogging(models[0], singleLog))
 		return resp, nil
 	}
 	var findings []*findingpb.AnomalyFinding
 	for _, m := range models {
-		findings = append(findings, m.Predict(singleLog))
+		findings = append(findings, predictWithLogging(m, singleLog))
 	}
 	batchResp := &predictionpb.AnomalyFindingBatch{}
 	batchResp.SetFindings(findings)
@@ -381,7 +397,7 @@ func predictBatch(ctx context.Context, models []service.Model, batchLogs *predic
 	var findings []*findingpb.AnomalyFinding
 	for _, m := range models {
 		for _, entry := range batchLogs.GetLogEntries() {
-			findings = append(findings, m.Predict(entry))
+			findings = append(findings, predictWithLogging(m, entry))
 		}
 	}
 	batchResp := &predictionpb.AnomalyFindingBatch{}
@@ -408,7 +424,7 @@ func predictFile(ctx context.Context, models []service.Model, path string) (*pre
 
 	for _, m := range models {
 		err = common.IngestBinProtoStream(ctx, resolvedPath, func(entry *auditpb.AuditLogEntry) error {
-			data, err := prototext.Marshal(m.Predict(entry))
+			data, err := prototext.Marshal(predictWithLogging(m, entry))
 			if err != nil {
 				return status.Errorf(codes.Internal, "failed to marshal finding to textproto: %v", err)
 			}
