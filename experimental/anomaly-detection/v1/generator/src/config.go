@@ -36,6 +36,13 @@ var resolvedBaseGraph *cfgpb.MarkovSamplingConfig
 // when the config has no injections.
 var resolvedAnomalyGraphs map[string]*cfgpb.MarkovSamplingConfig
 
+// resolvedAutoAnomalyGraphs carries the anomaly graphs referenced by a markov_sampling config's
+// auto_injection spec, keyed by anomaly_graph_path, after loadConfigs resolves each
+// MarkovAutoAnomalyRef relative to the variant file. Like resolvedAnomalyGraphs it is populated once
+// in loadConfigs (pure file I/O, before validation and before randomness) so generation consumes
+// already-resolved graphs. It is nil when the config has no auto_injection.
+var resolvedAutoAnomalyGraphs map[string]*cfgpb.MarkovSamplingConfig
+
 // loadConfigs reads and validates the query template configurations from a textproto file.
 func loadConfigs(ctx context.Context, filePath string) (*cfgpb.QueryTemplateConfigs, error) {
 	// 1. Read config textproto
@@ -85,6 +92,23 @@ func loadConfigs(ctx context.Context, filePath string) (*cfgpb.QueryTemplateConf
 				return nil, fmt.Errorf("markov_sampling: injection %q: %w", injection.GetSegmentId(), err)
 			}
 			resolvedAnomalyGraphs[injection.GetSegmentId()] = graph
+		}
+	}
+
+	// 3c. Resolve-and-inline the per-ref anomaly graphs for an auto_injection markov_sampling config,
+	// keyed by anomaly_graph_path, under the same no-chaining resolver.
+	resolvedAutoAnomalyGraphs = nil
+	if markov := configs.GetMarkovSampling(); markov != nil && markov.GetAutoInjection() != nil {
+		resolvedAutoAnomalyGraphs = make(map[string]*cfgpb.MarkovSamplingConfig)
+		for _, ref := range markov.GetAutoInjection().GetAnomalyRefs() {
+			if _, seen := resolvedAutoAnomalyGraphs[ref.GetAnomalyGraphPath()]; seen {
+				continue
+			}
+			graph, err := resolveBaseGraphFile(filePath, ref.GetAnomalyGraphPath())
+			if err != nil {
+				return nil, fmt.Errorf("markov_sampling: auto_injection: %w", err)
+			}
+			resolvedAutoAnomalyGraphs[ref.GetAnomalyGraphPath()] = graph
 		}
 	}
 
@@ -546,7 +570,10 @@ func validateMarkovSampling(cfg *cfgpb.MarkovSamplingConfig) error {
 		}
 	}
 
-	return validateMarkovInjections(cfg)
+	if err := validateMarkovInjections(cfg); err != nil {
+		return err
+	}
+	return validateMarkovAutoInjection(cfg)
 }
 
 // validateSubtype ensures a Markov subtype configuration yields a well-defined derived graph.
@@ -755,8 +782,8 @@ func resolveBaseGraphFile(variantPath, baseGraphPath string) (*cfgpb.MarkovSampl
 		return nil, fmt.Errorf("base graph file %q is not a markov_sampling config", baseGraphPath)
 	}
 	// References never chain: a referenced base/anomaly graph must be a plain markov_sampling
-	// graph that does not itself carry injections.
-	if len(markov.GetInjections()) > 0 {
+	// graph that does not itself carry manual or automatic injections.
+	if len(markov.GetInjections()) > 0 || markov.GetAutoInjection() != nil {
 		return nil, fmt.Errorf("base graph file %q must not contain injections", baseGraphPath)
 	}
 	if err := validateMarkovSampling(markov); err != nil {

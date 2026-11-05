@@ -162,10 +162,14 @@ func (w *markovWalker) emit(n *markovNode, out io.Writer) error {
 // All randomness (start selection, transitions, completion sampling, and placeholder
 // sampling inside buildQueryStatement) flows from the single seeded rng.
 func GenerateLogsMarkov(configs *genpb.QueryTemplateConfigs, numLogs int, startTimeMs int64, rng *rand.Rand, w io.Writer) error {
-	if cfg := configs.GetMarkovSampling(); len(cfg.GetInjections()) > 0 {
+	cfg := configs.GetMarkovSampling()
+	if cfg.GetAutoInjection() != nil {
+		return generateLogsMarkovAuto(cfg, resolvedAutoAnomalyGraphs, numLogs, startTimeMs, rng, w)
+	}
+	if len(cfg.GetInjections()) > 0 {
 		return generateLogsMarkovInjected(cfg, resolvedAnomalyGraphs, numLogs, startTimeMs, rng, w)
 	}
-	return generateLogsMarkovFromConfig(configs.GetMarkovSampling(), numLogs, startTimeMs, rng, w)
+	return generateLogsMarkovFromConfig(cfg, numLogs, startTimeMs, rng, w)
 }
 
 // generateLogsMarkovFromConfig is the single walker entry point: it runs the walk loop over an

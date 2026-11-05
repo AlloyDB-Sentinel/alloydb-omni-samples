@@ -127,7 +127,10 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 			return fmt.Errorf("--num_logs must be a positive integer, got %d", *numLogs)
 		}
 		if cfg := configs.GetMarkovSampling(); cfg != nil {
-			return validateMarkovInjectionBounds(cfg, *numLogs)
+			if err := validateMarkovInjectionBounds(cfg, *numLogs); err != nil {
+				return err
+			}
+			return validateMarkovAutoInjectionBounds(cfg, *numLogs)
 		}
 	}
 	return nil
