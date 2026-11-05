@@ -2261,6 +2261,163 @@ func (b0 ModelMetadata_builder) Build() *ModelMetadata {
 	return m0
 }
 
+// Scenario-5: Divergence of Recent Query-Type Distribution from Baseline
+type ChiSquaredScenario struct {
+	state             protoimpl.MessageState    `protogen:"opaque.v1"`
+	xxx_hidden_Config *ChiSquaredTrainingConfig `protobuf:"bytes,1,opt,name=config,proto3"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ChiSquaredScenario) Reset() {
+	*x = ChiSquaredScenario{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChiSquaredScenario) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChiSquaredScenario) ProtoMessage() {}
+
+func (x *ChiSquaredScenario) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ChiSquaredScenario) GetConfig() *ChiSquaredTrainingConfig {
+	if x != nil {
+		return x.xxx_hidden_Config
+	}
+	return nil
+}
+
+func (x *ChiSquaredScenario) SetConfig(v *ChiSquaredTrainingConfig) {
+	x.xxx_hidden_Config = v
+}
+
+func (x *ChiSquaredScenario) HasConfig() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Config != nil
+}
+
+func (x *ChiSquaredScenario) ClearConfig() {
+	x.xxx_hidden_Config = nil
+}
+
+type ChiSquaredScenario_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Config *ChiSquaredTrainingConfig
+}
+
+func (b0 ChiSquaredScenario_builder) Build() *ChiSquaredScenario {
+	m0 := &ChiSquaredScenario{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Config = b.Config
+	return m0
+}
+
+type ChiSquaredTrainingConfig struct {
+	state                       protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_M                int64                  `protobuf:"varint,1,opt,name=m,proto3"`
+	xxx_hidden_N                int64                  `protobuf:"varint,2,opt,name=n,proto3"`
+	xxx_hidden_AnomalyThreshold float64                `protobuf:"fixed64,3,opt,name=anomaly_threshold,json=anomalyThreshold,proto3"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *ChiSquaredTrainingConfig) Reset() {
+	*x = ChiSquaredTrainingConfig{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChiSquaredTrainingConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChiSquaredTrainingConfig) ProtoMessage() {}
+
+func (x *ChiSquaredTrainingConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ChiSquaredTrainingConfig) GetM() int64 {
+	if x != nil {
+		return x.xxx_hidden_M
+	}
+	return 0
+}
+
+func (x *ChiSquaredTrainingConfig) GetN() int64 {
+	if x != nil {
+		return x.xxx_hidden_N
+	}
+	return 0
+}
+
+func (x *ChiSquaredTrainingConfig) GetAnomalyThreshold() float64 {
+	if x != nil {
+		return x.xxx_hidden_AnomalyThreshold
+	}
+	return 0
+}
+
+func (x *ChiSquaredTrainingConfig) SetM(v int64) {
+	x.xxx_hidden_M = v
+}
+
+func (x *ChiSquaredTrainingConfig) SetN(v int64) {
+	x.xxx_hidden_N = v
+}
+
+func (x *ChiSquaredTrainingConfig) SetAnomalyThreshold(v float64) {
+	x.xxx_hidden_AnomalyThreshold = v
+}
+
+type ChiSquaredTrainingConfig_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Historical (baseline) rolling window size, in Actions.
+	M int64
+	// Recent (sample under test) rolling window size, in Actions.
+	N int64
+	// Threshold on the chi-squared test-of-homogeneity statistic.
+	AnomalyThreshold float64
+}
+
+func (b0 ChiSquaredTrainingConfig_builder) Build() *ChiSquaredTrainingConfig {
+	m0 := &ChiSquaredTrainingConfig{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_M = b.M
+	x.xxx_hidden_N = b.N
+	x.xxx_hidden_AnomalyThreshold = b.AnomalyThreshold
+	return m0
+}
+
 // Wrapper wrapping all specific anomaly detection models.
 type Model struct {
 	state               protoimpl.MessageState `protogen:"opaque.v1"`
@@ -2272,7 +2429,7 @@ type Model struct {
 
 func (x *Model) Reset() {
 	*x = Model{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[23]
+	mi := &file_v2_common_proto_model_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2284,7 +2441,7 @@ func (x *Model) String() string {
 func (*Model) ProtoMessage() {}
 
 func (x *Model) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[23]
+	mi := &file_v2_common_proto_model_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2331,6 +2488,15 @@ func (x *Model) GetNgramHistogram() *NGramHistogramScenario {
 	return nil
 }
 
+func (x *Model) GetChiSquared() *ChiSquaredScenario {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Scenario.(*model_ChiSquared); ok {
+			return x.ChiSquared
+		}
+	}
+	return nil
+}
+
 func (x *Model) GetMetadata() *ModelMetadata {
 	if x != nil {
 		return x.xxx_hidden_Metadata
@@ -2368,6 +2534,14 @@ func (x *Model) SetNgramHistogram(v *NGramHistogramScenario) {
 		return
 	}
 	x.xxx_hidden_Scenario = &model_NgramHistogram{v}
+}
+
+func (x *Model) SetChiSquared(v *ChiSquaredScenario) {
+	if v == nil {
+		x.xxx_hidden_Scenario = nil
+		return
+	}
+	x.xxx_hidden_Scenario = &model_ChiSquared{v}
 }
 
 func (x *Model) SetMetadata(v *ModelMetadata) {
@@ -2413,6 +2587,14 @@ func (x *Model) HasNgramHistogram() bool {
 	return ok
 }
 
+func (x *Model) HasChiSquared() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Scenario.(*model_ChiSquared)
+	return ok
+}
+
 func (x *Model) HasMetadata() bool {
 	if x == nil {
 		return false
@@ -2448,6 +2630,12 @@ func (x *Model) ClearNgramHistogram() {
 	}
 }
 
+func (x *Model) ClearChiSquared() {
+	if _, ok := x.xxx_hidden_Scenario.(*model_ChiSquared); ok {
+		x.xxx_hidden_Scenario = nil
+	}
+}
+
 func (x *Model) ClearMetadata() {
 	x.xxx_hidden_Metadata = nil
 }
@@ -2457,6 +2645,7 @@ const Model_TrafficDeviation_case case_Model_Scenario = 1
 const Model_VolumetricSpike_case case_Model_Scenario = 2
 const Model_TemporalDeviation_case case_Model_Scenario = 3
 const Model_NgramHistogram_case case_Model_Scenario = 5
+const Model_ChiSquared_case case_Model_Scenario = 6
 
 func (x *Model) WhichScenario() case_Model_Scenario {
 	if x == nil {
@@ -2471,6 +2660,8 @@ func (x *Model) WhichScenario() case_Model_Scenario {
 		return Model_TemporalDeviation_case
 	case *model_NgramHistogram:
 		return Model_NgramHistogram_case
+	case *model_ChiSquared:
+		return Model_ChiSquared_case
 	default:
 		return Model_Scenario_not_set_case
 	}
@@ -2484,6 +2675,7 @@ type Model_builder struct {
 	VolumetricSpike   *VolumetricSpikeScenario
 	TemporalDeviation *TemporalDeviationScenario
 	NgramHistogram    *NGramHistogramScenario
+	ChiSquared        *ChiSquaredScenario
 	// -- end of xxx_hidden_Scenario
 	Metadata *ModelMetadata
 }
@@ -2504,6 +2696,9 @@ func (b0 Model_builder) Build() *Model {
 	if b.NgramHistogram != nil {
 		x.xxx_hidden_Scenario = &model_NgramHistogram{b.NgramHistogram}
 	}
+	if b.ChiSquared != nil {
+		x.xxx_hidden_Scenario = &model_ChiSquared{b.ChiSquared}
+	}
 	x.xxx_hidden_Metadata = b.Metadata
 	return m0
 }
@@ -2511,7 +2706,7 @@ func (b0 Model_builder) Build() *Model {
 type case_Model_Scenario protoreflect.FieldNumber
 
 func (x case_Model_Scenario) String() string {
-	md := file_v2_common_proto_model_proto_msgTypes[23].Descriptor()
+	md := file_v2_common_proto_model_proto_msgTypes[25].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -2538,6 +2733,10 @@ type model_NgramHistogram struct {
 	NgramHistogram *NGramHistogramScenario `protobuf:"bytes,5,opt,name=ngram_histogram,json=ngramHistogram,proto3,oneof"`
 }
 
+type model_ChiSquared struct {
+	ChiSquared *ChiSquaredScenario `protobuf:"bytes,6,opt,name=chi_squared,json=chiSquared,proto3,oneof"`
+}
+
 func (*model_TrafficDeviation) isModel_Scenario() {}
 
 func (*model_VolumetricSpike) isModel_Scenario() {}
@@ -2545,6 +2744,8 @@ func (*model_VolumetricSpike) isModel_Scenario() {}
 func (*model_TemporalDeviation) isModel_Scenario() {}
 
 func (*model_NgramHistogram) isModel_Scenario() {}
+
+func (*model_ChiSquared) isModel_Scenario() {}
 
 var File_v2_common_proto_model_proto protoreflect.FileDescriptor
 
@@ -2653,18 +2854,26 @@ const file_v2_common_proto_model_proto_rawDesc = "" +
 	"\x0fdata_start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\rdataStartTime\x12>\n" +
 	"\rdata_end_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vdataEndTime\x12=\n" +
 	"\x1btotal_log_entries_processed\x18\x05 \x01(\x03R\x18totalLogEntriesProcessed\x122\n" +
-	"\x15filter_cel_expression\x18\x06 \x01(\tR\x13filterCelExpression\"\xde\x04\n" +
+	"\x15filter_cel_expression\x18\x06 \x01(\tR\x13filterCelExpression\"v\n" +
+	"\x12ChiSquaredScenario\x12`\n" +
+	"\x06config\x18\x01 \x01(\v2H.experimental.anomaly_detection.v2.common.proto.ChiSquaredTrainingConfigR\x06config\"c\n" +
+	"\x18ChiSquaredTrainingConfig\x12\f\n" +
+	"\x01m\x18\x01 \x01(\x03R\x01m\x12\f\n" +
+	"\x01n\x18\x02 \x01(\x03R\x01n\x12+\n" +
+	"\x11anomaly_threshold\x18\x03 \x01(\x01R\x10anomalyThreshold\"\xc5\x05\n" +
 	"\x05Model\x12w\n" +
 	"\x11traffic_deviation\x18\x01 \x01(\v2H.experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenarioH\x00R\x10trafficDeviation\x12t\n" +
 	"\x10volumetric_spike\x18\x02 \x01(\v2G.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenarioH\x00R\x0fvolumetricSpike\x12z\n" +
 	"\x12temporal_deviation\x18\x03 \x01(\v2I.experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenarioH\x00R\x11temporalDeviation\x12q\n" +
-	"\x0fngram_histogram\x18\x05 \x01(\v2F.experimental.anomaly_detection.v2.common.proto.NGramHistogramScenarioH\x00R\x0engramHistogram\x12^\n" +
+	"\x0fngram_histogram\x18\x05 \x01(\v2F.experimental.anomaly_detection.v2.common.proto.NGramHistogramScenarioH\x00R\x0engramHistogram\x12e\n" +
+	"\vchi_squared\x18\x06 \x01(\v2B.experimental.anomaly_detection.v2.common.proto.ChiSquaredScenarioH\x00R\n" +
+	"chiSquared\x12^\n" +
 	"\bmetadata\x18\x04 \x01(\v2=.experimental.anomaly_detection.v2.common.proto.ModelMetadataH\x01R\bmetadata\x88\x01\x01B\n" +
 	"\n" +
 	"\bscenarioB\v\n" +
 	"\t_metadataBmZkgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto;commonpbb\x06proto3"
 
-var file_v2_common_proto_model_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_v2_common_proto_model_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_v2_common_proto_model_proto_goTypes = []any{
 	(*TrafficDeviationModel)(nil),           // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel
 	(*TrafficDeviationTrainingConfig)(nil),  // 1: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
@@ -2689,19 +2898,21 @@ var file_v2_common_proto_model_proto_goTypes = []any{
 	(*NGramCalibration)(nil),                // 20: experimental.anomaly_detection.v2.common.proto.NGramCalibration
 	(*NGramScoringConfig)(nil),              // 21: experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
 	(*ModelMetadata)(nil),                   // 22: experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	(*Model)(nil),                           // 23: experimental.anomaly_detection.v2.common.proto.Model
-	nil,                                     // 24: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
-	(*durationpb.Duration)(nil),             // 25: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),           // 26: google.protobuf.Timestamp
+	(*ChiSquaredScenario)(nil),              // 23: experimental.anomaly_detection.v2.common.proto.ChiSquaredScenario
+	(*ChiSquaredTrainingConfig)(nil),        // 24: experimental.anomaly_detection.v2.common.proto.ChiSquaredTrainingConfig
+	(*Model)(nil),                           // 25: experimental.anomaly_detection.v2.common.proto.Model
+	nil,                                     // 26: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
+	(*durationpb.Duration)(nil),             // 27: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),           // 28: google.protobuf.Timestamp
 }
 var file_v2_common_proto_model_proto_depIdxs = []int32{
-	24, // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.anomaly_scores:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
+	26, // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.anomaly_scores:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
 	0,  // 1: experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel
 	1,  // 2: experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
 	3,  // 3: experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry.key:type_name -> experimental.anomaly_detection.v2.common.proto.CycleBucketKey
 	4,  // 4: experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry.value:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricBaseline
-	25, // 5: experimental.anomaly_detection.v2.common.proto.CycleConfig.bucket_duration:type_name -> google.protobuf.Duration
-	25, // 6: experimental.anomaly_detection.v2.common.proto.CycleConfig.cycle_duration:type_name -> google.protobuf.Duration
+	27, // 5: experimental.anomaly_detection.v2.common.proto.CycleConfig.bucket_duration:type_name -> google.protobuf.Duration
+	27, // 6: experimental.anomaly_detection.v2.common.proto.CycleConfig.cycle_duration:type_name -> google.protobuf.Duration
 	5,  // 7: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel.entries:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry
 	6,  // 8: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
 	6,  // 9: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
@@ -2719,21 +2930,23 @@ var file_v2_common_proto_model_proto_depIdxs = []int32{
 	17, // 21: experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramModel
 	18, // 22: experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
 	20, // 23: experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario.calibration:type_name -> experimental.anomaly_detection.v2.common.proto.NGramCalibration
-	26, // 24: experimental.anomaly_detection.v2.common.proto.NGramCalibration.calibration_time:type_name -> google.protobuf.Timestamp
+	28, // 24: experimental.anomaly_detection.v2.common.proto.NGramCalibration.calibration_time:type_name -> google.protobuf.Timestamp
 	21, // 25: experimental.anomaly_detection.v2.common.proto.NGramCalibration.scoring_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
-	26, // 26: experimental.anomaly_detection.v2.common.proto.ModelMetadata.training_time:type_name -> google.protobuf.Timestamp
-	26, // 27: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_start_time:type_name -> google.protobuf.Timestamp
-	26, // 28: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_end_time:type_name -> google.protobuf.Timestamp
-	2,  // 29: experimental.anomaly_detection.v2.common.proto.Model.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario
-	9,  // 30: experimental.anomaly_detection.v2.common.proto.Model.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario
-	13, // 31: experimental.anomaly_detection.v2.common.proto.Model.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
-	19, // 32: experimental.anomaly_detection.v2.common.proto.Model.ngram_histogram:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario
-	22, // 33: experimental.anomaly_detection.v2.common.proto.Model.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	34, // [34:34] is the sub-list for method output_type
-	34, // [34:34] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	28, // 26: experimental.anomaly_detection.v2.common.proto.ModelMetadata.training_time:type_name -> google.protobuf.Timestamp
+	28, // 27: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_start_time:type_name -> google.protobuf.Timestamp
+	28, // 28: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_end_time:type_name -> google.protobuf.Timestamp
+	24, // 29: experimental.anomaly_detection.v2.common.proto.ChiSquaredScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.ChiSquaredTrainingConfig
+	2,  // 30: experimental.anomaly_detection.v2.common.proto.Model.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario
+	9,  // 31: experimental.anomaly_detection.v2.common.proto.Model.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario
+	13, // 32: experimental.anomaly_detection.v2.common.proto.Model.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
+	19, // 33: experimental.anomaly_detection.v2.common.proto.Model.ngram_histogram:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramScenario
+	23, // 34: experimental.anomaly_detection.v2.common.proto.Model.chi_squared:type_name -> experimental.anomaly_detection.v2.common.proto.ChiSquaredScenario
+	22, // 35: experimental.anomaly_detection.v2.common.proto.Model.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	36, // [36:36] is the sub-list for method output_type
+	36, // [36:36] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_v2_common_proto_model_proto_init() }
@@ -2743,11 +2956,12 @@ func file_v2_common_proto_model_proto_init() {
 	}
 	file_v2_common_proto_model_proto_msgTypes[15].OneofWrappers = []any{}
 	file_v2_common_proto_model_proto_msgTypes[18].OneofWrappers = []any{}
-	file_v2_common_proto_model_proto_msgTypes[23].OneofWrappers = []any{
+	file_v2_common_proto_model_proto_msgTypes[25].OneofWrappers = []any{
 		(*model_TrafficDeviation)(nil),
 		(*model_VolumetricSpike)(nil),
 		(*model_TemporalDeviation)(nil),
 		(*model_NgramHistogram)(nil),
+		(*model_ChiSquared)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2755,7 +2969,7 @@ func file_v2_common_proto_model_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v2_common_proto_model_proto_rawDesc), len(file_v2_common_proto_model_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

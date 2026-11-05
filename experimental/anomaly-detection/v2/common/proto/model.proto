@@ -181,6 +181,22 @@ message ModelMetadata {
   string filter_cel_expression = 6;
 }
 
+// Scenario-5: Divergence of Recent Query-Type Distribution from Baseline
+message ChiSquaredScenario {
+  ChiSquaredTrainingConfig config = 1;
+}
+
+message ChiSquaredTrainingConfig {
+  // Historical (baseline) rolling window size, in Actions.
+  int64 m = 1;
+
+  // Recent (sample under test) rolling window size, in Actions.
+  int64 n = 2;
+
+  // Threshold on the chi-squared test-of-homogeneity statistic.
+  double anomaly_threshold = 3;
+}
+
 // Wrapper wrapping all specific anomaly detection models.
 message Model {
   oneof scenario {
@@ -188,6 +204,7 @@ message Model {
     VolumetricSpikeScenario volumetric_spike = 2;
     TemporalDeviationScenario temporal_deviation = 3;
     NGramHistogramScenario ngram_histogram = 5;
+    ChiSquaredScenario chi_squared = 6;
   }
 
   optional ModelMetadata metadata = 4;
