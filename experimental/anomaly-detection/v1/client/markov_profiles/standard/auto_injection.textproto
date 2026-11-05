@@ -1,0 +1,94 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Automatic anomaly injection example.
+# A standard-user base stream with anomalous bursts auto-placed by the generator to a
+# target anomalous fraction, rather than hand-listing each injection segment. Anomalous
+# bursts run separate full anomaly graphs (service-usage and maintenance-user) referenced
+# by relative path; selection is weighted 3:1. Deterministic for a fixed seed (R22-R25).
+
+markov_sampling {
+  nodes {
+    id: "idle"
+    template {
+      normalized_query_template: "SELECT 1"
+    }
+    completion_time {
+      range {
+        min { seconds: 20 }
+        max { seconds: 40 }  # long gaps: user is mostly inactive
+      }
+    }
+    edges { destination_id: "idle" weight: 0.85 }          # stay idle
+    edges { destination_id: "active_read" weight: 0.15 }   # occasionally spike into activity
+  }
+  nodes {
+    id: "active_read"
+    template {
+      normalized_query_template: "SELECT * FROM documents WHERE owner_id = %v ORDER BY updated_at DESC"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 100000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 10 }
+        max { seconds: 14 }  # ~12 s -> ~5 ops/min during the burst
+      }
+    }
+    edges { destination_id: "active_read" weight: 0.5 }
+    edges { destination_id: "active_write" weight: 0.35 }
+    edges { destination_id: "idle" weight: 0.15 }  # burst ends, back to idle
+  }
+  nodes {
+    id: "active_write"
+    template {
+      normalized_query_template: "UPDATE documents SET body = %v WHERE doc_id = %v"
+      placeholder_values {
+        string_placeholder {
+          allowed_values: "draft"
+          allowed_values: "published"
+          allowed_values: "archived"
+        }
+      }
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 500000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 10 }
+        max { seconds: 14 }
+      }
+    }
+    edges { destination_id: "active_read" weight: 0.55 }
+    edges { destination_id: "active_write" weight: 0.2 }
+    edges { destination_id: "idle" weight: 0.25 }
+  }
+  start { node_id: "idle" }
+
+  # Automatic anomaly injection: auto-place anomalous bursts over ~8% of the stream,
+  # each burst 10-40 actions long, drawn from two separate full anomaly graphs (the
+  # service-usage and maintenance-user profiles) chosen 3:1 by selection weight. The
+  # generator positions non-overlapping segments deterministically from the seeded rng;
+  # no segment ranges are hand-specified.
+  auto_injection {
+    anomalous_fraction: 0.08
+    min_actions: 10
+    max_actions: 40
+    anomaly_refs {
+      anomaly_graph_path: "../../markov_service_usage_config.textproto"
+      selection_weight: 3
+    }
+    anomaly_refs {
+      anomaly_graph_path: "../../markov_maintenance_user_config.textproto"
+      selection_weight: 1
+    }
+  }
+}
