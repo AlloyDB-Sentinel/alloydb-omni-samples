@@ -120,6 +120,12 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 		if *numLogs <= 0 {
 			return fmt.Errorf("--num_logs must be a positive integer, got %d", *numLogs)
 		}
+		if cfg := configs.GetMarkovSampling(); cfg != nil {
+			if err := validateMarkovInjectionBounds(cfg, *numLogs); err != nil {
+				return err
+			}
+			return validateMarkovAutoInjectionBounds(cfg, *numLogs)
+		}
 	}
 	if *pgauditScenario && configs.GetBucketSampling() == nil {
 		return fmt.Errorf("--pgaudit_scenario requires a bucket_sampling configuration")

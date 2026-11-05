@@ -140,3 +140,213 @@ func generateLogsMarkovInjected(cfg *genpb.MarkovSamplingConfig, anomalyGraphs m
 	}
 	return nil
 }
+
+// Automatic anomaly injection (auto_injection): the generator positions non-overlapping anomaly
+// segments to a target anomalous fraction instead of the author enumerating each one. Placement is
+// planned entirely up front from the single seeded rng in a fixed draw order (per segment: gap,
+// then length, then graph selection), so the realized placement is deterministic. The planned
+// segments are then run through the exact same two-cursor loop as manual injection
+// (generateLogsMarkovInjected) by synthesizing an equivalent MarkovInjection list.
+
+// autoSelector precomputes a cumulative-weight table over an auto_injection's anomaly_refs so a
+// referenced graph can be chosen per segment with the same idiom as edge/start selection. When no
+// ref carries a positive selection_weight, selection is uniform.
+type autoSelector struct {
+	paths             []string
+	cumulativeWeights []float64 // last element == total weight
+}
+
+func newAutoSelector(refs []*genpb.MarkovAutoAnomalyRef) *autoSelector {
+	s := &autoSelector{}
+	var total float64
+	var anyWeight bool
+	for _, ref := range refs {
+		w := ref.GetSelectionWeight()
+		if w > 0 {
+			anyWeight = true
+		}
+	}
+	for _, ref := range refs {
+		w := ref.GetSelectionWeight()
+		if !anyWeight {
+			w = 1.0 // uniform when no positive weights are configured
+		}
+		total += w
+		s.paths = append(s.paths, ref.GetAnomalyGraphPath())
+		s.cumulativeWeights = append(s.cumulativeWeights, total)
+	}
+	return s
+}
+
+// selectPath draws one referenced anomaly-graph path using the cumulative-weight idiom.
+func (s *autoSelector) selectPath(rng *rand.Rand) string {
+	total := s.cumulativeWeights[len(s.cumulativeWeights)-1]
+	r := rng.Float64() * total
+	for i, cw := range s.cumulativeWeights {
+		if r < cw {
+			return s.paths[i]
+		}
+	}
+	return s.paths[len(s.paths)-1]
+}
+
+// plannedSegment is one auto-placed anomaly segment: a half-open [start, start+length) range, the
+// referenced anomaly graph path, and the generator-assigned "auto-N" segment id.
+type plannedSegment struct {
+	start     int64
+	length    int64
+	graphPath string
+	segmentID string
+}
+
+// planAutoInjections positions non-overlapping anomaly segments across a stream of total actions,
+// targeting an anomalous budget of round(anomalous_fraction * total). For each segment it draws, in
+// a fixed order, a gap of normal actions, a length uniform in [min_actions, max_actions] clamped to
+// the remaining budget and stream, and a referenced graph by selection weight. Planning stops when
+// the budget is exhausted or the stream ends. All draws come from rng, so the plan is deterministic.
+func planAutoInjections(auto *genpb.MarkovAutoInjection, total int, rng *rand.Rand) []plannedSegment {
+	budget := int64(math.Round(auto.GetAnomalousFraction() * float64(total)))
+	if budget <= 0 {
+		return nil
+	}
+	selector := newAutoSelector(auto.GetAnomalyRefs())
+	minLen := auto.GetMinActions()
+	maxLen := auto.GetMaxActions()
+
+	var planned []plannedSegment
+	var pos int64
+	remaining := budget
+	index := 0
+	for remaining > 0 && pos < int64(total) {
+		// Draw a gap of normal actions. The gap is spread across the room left over after the
+		// remaining budget is reserved, so segments stay distributed across the stream rather than
+		// bunching at the front. maxGap is the slack between the stream end and the remaining budget.
+		maxGap := int64(total) - pos - remaining
+		if maxGap < 0 {
+			maxGap = 0
+		}
+		var gap int64
+		if maxGap > 0 {
+			gap = rng.Int63n(maxGap + 1)
+		}
+		pos += gap
+		if pos >= int64(total) {
+			break
+		}
+
+		// Draw a segment length uniform in [minLen, maxLen], then clamp to the remaining budget and
+		// the room left in the stream.
+		length := minLen
+		if maxLen > minLen {
+			length = minLen + rng.Int63n(maxLen-minLen+1)
+		}
+		if length > remaining {
+			length = remaining
+		}
+		if length > int64(total)-pos {
+			length = int64(total) - pos
+		}
+		if length <= 0 {
+			break
+		}
+
+		graphPath := selector.selectPath(rng)
+		planned = append(planned, plannedSegment{
+			start:     pos,
+			length:    length,
+			graphPath: graphPath,
+			segmentID: fmt.Sprintf("auto-%d", index),
+		})
+		pos += length
+		remaining -= length
+		index++
+	}
+	return planned
+}
+
+// generateLogsMarkovAuto plans auto-injection segments, then runs the shared injected two-cursor
+// loop. It synthesizes a MarkovSamplingConfig carrying the planned segments as MarkovInjections and
+// a segment_id-keyed anomaly-graph map, so generation reuses generateLogsMarkovInjected verbatim.
+func generateLogsMarkovAuto(cfg *genpb.MarkovSamplingConfig, autoAnomalyGraphs map[string]*genpb.MarkovSamplingConfig, total int, start int64, rng *rand.Rand, out io.Writer) error {
+	if err := validateMarkovAutoInjectionBounds(cfg, total); err != nil {
+		return err
+	}
+	planned := planAutoInjections(cfg.GetAutoInjection(), total, rng)
+
+	// Build a synthetic config identical to cfg but with the planned segments as injections, plus a
+	// segment_id -> resolved anomaly graph map. autoAnomalyGraphs is keyed by anomaly_graph_path.
+	synthetic := genpb.MarkovSamplingConfig_builder{
+		Nodes: cfg.GetNodes(),
+		Start: cfg.GetStart(),
+	}.Build()
+	injections := make([]*genpb.MarkovInjection, 0, len(planned))
+	bySegment := make(map[string]*genpb.MarkovSamplingConfig, len(planned))
+	for _, seg := range planned {
+		injections = append(injections, genpb.MarkovInjection_builder{
+			SegmentId:        seg.segmentID,
+			AnomalyGraphPath: seg.graphPath,
+			StartAction:      seg.start,
+			NumActions:       seg.length,
+		}.Build())
+		bySegment[seg.segmentID] = autoAnomalyGraphs[seg.graphPath]
+	}
+	synthetic.SetInjections(injections)
+
+	return generateLogsMarkovInjected(synthetic, bySegment, total, start, rng, out)
+}
+
+// validateMarkovAutoInjection checks a markov_sampling config's auto_injection spec. The referenced
+// anomaly graphs are resolved and validated separately (resolveBaseGraphFile in loadConfigs); this
+// function enforces the spec-level invariants: mutual exclusion with manual injections, a valid
+// target fraction, a valid segment-length range, at least one reference, and finite non-negative
+// selection weights that (when any is positive) sum to a positive value.
+func validateMarkovAutoInjection(cfg *genpb.MarkovSamplingConfig) error {
+	auto := cfg.GetAutoInjection()
+	if auto == nil {
+		return nil
+	}
+	if len(cfg.GetInjections()) > 0 {
+		return fmt.Errorf("markov_sampling: auto_injection and injections are mutually exclusive")
+	}
+	f := auto.GetAnomalousFraction()
+	if math.IsNaN(f) || math.IsInf(f, 0) || f < 0.0 || f > 1.0 {
+		return fmt.Errorf("markov_sampling: auto_injection anomalous_fraction must be in [0,1]")
+	}
+	if auto.GetMinActions() < 1 || auto.GetMaxActions() < auto.GetMinActions() {
+		return fmt.Errorf("markov_sampling: auto_injection requires min_actions>=1 and max_actions>=min_actions")
+	}
+	if len(auto.GetAnomalyRefs()) == 0 {
+		return fmt.Errorf("markov_sampling: auto_injection requires at least one anomaly_ref")
+	}
+	var totalWeight float64
+	for _, ref := range auto.GetAnomalyRefs() {
+		w := ref.GetSelectionWeight()
+		if !isFiniteNonNegative(w) {
+			return fmt.Errorf("markov_sampling: auto_injection selection weights must be finite, non-negative and sum to a positive value")
+		}
+		totalWeight += w
+	}
+	// Uniform selection (all weights zero/unset) is allowed; only reject a mix that sums to <= 0
+	// while claiming to be weighted — which cannot happen here since all weights are non-negative
+	// and "all zero" is treated as uniform. A negative total is impossible given the check above.
+	_ = totalWeight
+	return nil
+}
+
+// validateMarkovAutoInjectionBounds verifies the auto_injection target budget and minimum segment
+// length fit within the total number of actions (--num_logs). Called at flag-validation time and
+// before generation, mirroring validateMarkovInjectionBounds for the manual path.
+func validateMarkovAutoInjectionBounds(cfg *genpb.MarkovSamplingConfig, total int) error {
+	auto := cfg.GetAutoInjection()
+	if auto == nil {
+		return nil
+	}
+	budget := int64(math.Round(auto.GetAnomalousFraction() * float64(total)))
+	if budget > int64(total) {
+		return fmt.Errorf("markov_sampling: auto_injection anomalous budget %d exceeds num_logs=%d", budget, total)
+	}
+	if budget > 0 && auto.GetMinActions() > int64(total) {
+		return fmt.Errorf("markov_sampling: auto_injection min_actions %d exceeds num_logs=%d", auto.GetMinActions(), total)
+	}
+	return nil
+}
