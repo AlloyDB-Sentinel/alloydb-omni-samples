@@ -132,11 +132,15 @@ message ChiSquaredTrainingConfig {
 
 // Wrapper wrapping all specific anomaly detection models.
 message Model {
+  // Field 5 was NGramHistogramScenario ngram_histogram, which is out of scope
+  // for this branch. Reserved so chi_squared keeps the source field number (6)
+  // and the tag stays available for a future n-gram reintegration.
+  reserved 5;
   oneof scenario {
     TrafficDeviationScenario traffic_deviation = 1;
     VolumetricSpikeScenario volumetric_spike = 2;
     TemporalDeviationScenario temporal_deviation = 3;
-    ChiSquaredScenario chi_squared = 5;
+    ChiSquaredScenario chi_squared = 6;
   }
 
   optional ModelMetadata metadata = 4;
