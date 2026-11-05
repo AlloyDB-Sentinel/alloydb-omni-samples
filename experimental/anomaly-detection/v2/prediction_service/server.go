@@ -334,6 +334,9 @@ func modelFromProto(pb *modelpb.Model) (service.Model, error) {
 	case modelpb.Model_TemporalDeviation_case:
 		return service.NewTemporalDeviationModel(pb)
 
+	case modelpb.Model_ChiSquared_case:
+		return service.NewChiSquaredModel(pb)
+
 	default:
 		return nil, fmt.Errorf("unknown scenario case in proto: %v", pb.WhichScenario())
 	}
