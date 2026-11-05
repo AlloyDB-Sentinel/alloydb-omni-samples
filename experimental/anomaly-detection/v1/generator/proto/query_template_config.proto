@@ -27,9 +27,13 @@ message MarkovSamplingConfig {
   // reweight-profile injection model was replaced by full-graph injection.
   reserved 3;
   reserved "anomaly_profiles";
-  // Ordered, nonoverlapping ranges in the output action sequence. Each injection
-  // references a separate, complete markov_sampling graph by file path.
+  // Manual injection: ordered, nonoverlapping ranges in the output action sequence.
+  // Each injection references a separate, complete markov_sampling graph by file path.
+  // Mutually exclusive with auto_injection.
   repeated MarkovInjection injections = 4;
+  // Automatic injection: the generator auto-places non-overlapping anomaly segments
+  // to a target anomalous fraction. Mutually exclusive with injections.
+  MarkovAutoInjection auto_injection = 5;
 }
 
 message MarkovInjection {
@@ -41,6 +45,26 @@ message MarkovInjection {
   string anomaly_graph_path = 2;
   int64 start_action = 3; // Inclusive, zero-based.
   int64 num_actions = 4; // Positive; range must fit within --num_logs.
+}
+
+// Automatic anomaly-injection placement. The generator computes an anomalous budget
+// of round(anomalous_fraction * num_logs) actions and greedily places non-overlapping
+// segments (each length drawn uniformly from [min_actions, max_actions], clamped to the
+// remaining budget and stream) separated by random gaps, selecting a referenced anomaly
+// graph per segment by selection weights (uniform when unweighted). All placement draws
+// come from the single seeded rng, so output is deterministic.
+message MarkovAutoInjection {
+  double anomalous_fraction = 1; // Target anomalous proportion, in [0.0, 1.0].
+  repeated MarkovAutoAnomalyRef anomaly_refs = 2; // One or more; chosen per segment.
+  int64 min_actions = 3; // Minimum segment length; >= 1.
+  int64 max_actions = 4; // Maximum segment length; >= min_actions.
+}
+
+message MarkovAutoAnomalyRef {
+  // Relative path to a plain markov_sampling graph (resolved and no-chaining checked
+  // exactly like MarkovInjection.anomaly_graph_path).
+  string anomaly_graph_path = 1;
+  double selection_weight = 2; // Optional; finite, non-negative. Uniform when all unset.
 }
 
 // One vertex: a templated operation, a completion time, and its outgoing transitions.
