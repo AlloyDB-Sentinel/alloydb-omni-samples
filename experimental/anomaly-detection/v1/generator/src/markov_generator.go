@@ -154,7 +154,19 @@ func (w *markovWalker) emit(n *markovNode, out io.Writer) error {
 // All randomness (start selection, transitions, completion sampling, and placeholder
 // sampling inside buildQueryStatement) flows from the single seeded rng.
 func GenerateLogsMarkov(configs *genpb.QueryTemplateConfigs, numLogs int, startTimeMs int64, rng *rand.Rand, w io.Writer) error {
-	graph := newMarkovGraph(configs.GetMarkovSampling())
+	if cfg := configs.GetMarkovSampling(); len(cfg.GetInjections()) > 0 {
+		return generateLogsMarkovInjected(cfg, resolvedAnomalyGraphs, numLogs, startTimeMs, rng, w)
+	}
+	return generateLogsMarkovFromConfig(configs.GetMarkovSampling(), numLogs, startTimeMs, rng, w)
+}
+
+// generateLogsMarkovFromConfig is the single walker entry point: it runs the walk loop over an
+// already-resolved plain *MarkovSamplingConfig. The plain markov_sampling scenario passes
+// configs.GetMarkovSampling() directly; the markov_subtype / markov_individual scenarios derive a
+// plain config first (deriveSubtypeGraph / deriveIndividualGraph) and feed the result through here
+// unchanged, so all three scenarios share one walker and one set of emission guarantees.
+func generateLogsMarkovFromConfig(cfg *genpb.MarkovSamplingConfig, numLogs int, startTimeMs int64, rng *rand.Rand, w io.Writer) error {
+	graph := newMarkovGraph(cfg)
 	walker := &markovWalker{
 		graph:     graph,
 		generator: NewLogGenerator(rng),
