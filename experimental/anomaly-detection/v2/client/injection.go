@@ -13,6 +13,9 @@ import (
 )
 
 func validateExperimentInjections(config *clientpb.MarkovExperimentConfig) error {
+	if config.GetIndependentAnomalies() != nil {
+		return validateIndependentAnomalies(config)
+	}
 	profiles := map[string]bool{}
 	for _, profile := range config.GetAnomalyProfiles() {
 		if profile.GetProfileId() == "" || profile.GetProfileId() == "normal" || profiles[profile.GetProfileId()] {

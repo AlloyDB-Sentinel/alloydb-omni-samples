@@ -11,35 +11,13 @@ calibration_seed: 43
 validation_actions: 30000
 validation_seed: 44
 
-# Same maintenance actions; repeated index/vacuum cycles with fewer session ends.
-anomaly_profiles {
-  profile_id: "extended-maintenance"
-
-  transitions {
-    node_id: "create_index"
-    edges { destination_id: "alter_table" weight: 0.05 }
-    edges { destination_id: "vacuum_analyze" weight: 0.9 }
-    edges { destination_id: "session_done" weight: 0.05 }
-  }
-  transitions {
-    node_id: "alter_table"
-    edges { destination_id: "vacuum_analyze" weight: 0.9 }
-    edges { destination_id: "create_index" weight: 0.05 }
-    edges { destination_id: "session_done" weight: 0.05 }
-  }
-  transitions {
-    node_id: "vacuum_analyze"
-    edges { destination_id: "session_done" weight: 0.05 }
-    edges { destination_id: "create_index" weight: 0.95 }
-  }
-}
-
-
-# Variance-aware scoring: minimum sigma equivalent to one occurrence.
+# Independent standard-alphabet validation, exactly 1% anomalous records.
 scoring_config { standard_deviation_floor_count: 1 }
-injections { segment_id: "segment-1" profile_id: "extended-maintenance" start_action: 1500 num_actions: 900 }
-injections { segment_id: "segment-2" profile_id: "extended-maintenance" start_action: 6200 num_actions: 600 }
-injections { segment_id: "segment-3" profile_id: "extended-maintenance" start_action: 12450 num_actions: 900 }
-injections { segment_id: "segment-4" profile_id: "extended-maintenance" start_action: 18150 num_actions: 1200 }
-injections { segment_id: "segment-5" profile_id: "extended-maintenance" start_action: 24000 num_actions: 450 }
-injections { segment_id: "segment-6" profile_id: "extended-maintenance" start_action: 28550 num_actions: 300 }
+independent_anomalies {
+  alphabet_config_paths: "v1/client/markov_standard_user_config.textproto"
+  preferred_templates: "UPDATE documents SET body = %v WHERE doc_id = %v"
+  preferred_probability: 0.9
+  chunk_actions: 30
+  completion_min_ms: 1
+  completion_max_ms: 10
+}

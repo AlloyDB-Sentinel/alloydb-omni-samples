@@ -25,8 +25,10 @@ import (
 )
 
 type options struct {
+	sweepWorkers                                        int
 	experimentPath, generatorBin, outputDir, serverAddr string
 	predictionAddr, modelPath, validationLogPath        string
+	sweepWindowMin, sweepWindowMax                      int
 }
 
 func main() {
@@ -38,8 +40,22 @@ func main() {
 	flag.StringVar(&o.predictionAddr, "prediction_server_addr", "localhost:50052", "Prediction service for calibration and validation scoring.")
 	flag.StringVar(&o.modelPath, "model_path", "", "Validation-only mode: existing calibrated model; requires --validation_log_path.")
 	flag.StringVar(&o.validationLogPath, "validation_log_path", "", "Existing validation logs. Otherwise a separate normal validation stream is generated.")
+	flag.IntVar(&o.sweepWorkers, "sweep_workers", 1, "Concurrent sweep trials (1–8); does not change experiment conditions.")
+	sweep := flag.String("sweep", "", "Comma-separated parameters to sweep, or all; writes CSV and plots.")
+	points := flag.Int("sweep_points", 20, "Distinct settings per continuous parameter (at least 20).")
+	flag.IntVar(&o.sweepWindowMin, "sweep_window_min", 0, "Optional minimum window length; set with sweep_window_max for a linear grid.")
+	flag.IntVar(&o.sweepWindowMax, "sweep_window_max", 0, "Optional maximum window length for a linear grid.")
+	repeats := flag.Int("sweep_repeats", 3, "Independent seed triplets per setting.")
+	fprLimit := flag.Float64("sweep_fpr_limit", 0.05, "Maximum mean false-positive rate for recall-first ranking.")
+	timeout := flag.Duration("timeout", 30*time.Minute, "Timeout per experiment, including each sweep trial.")
 	flag.Parse()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	if *sweep != "" {
+		if err := runSweep(o, *sweep, *points, *repeats, *fprLimit, *timeout); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	if err := run(ctx, o); err != nil {
 		log.Fatal(err)

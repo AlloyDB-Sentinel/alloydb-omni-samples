@@ -39,6 +39,7 @@ type MarkovExperimentConfig struct {
 	xxx_hidden_AnomalyProfiles       *[]*proto1.MarkovAnomalyProfile     `protobuf:"bytes,11,rep,name=anomaly_profiles,json=anomalyProfiles,proto3"`
 	xxx_hidden_Injections            *[]*proto1.MarkovInjection          `protobuf:"bytes,12,rep,name=injections,proto3"`
 	xxx_hidden_ScoringConfig         *proto.NGramScoringConfig           `protobuf:"bytes,13,opt,name=scoring_config,json=scoringConfig,proto3"`
+	xxx_hidden_IndependentAnomalies  *IndependentAnomalyConfig           `protobuf:"bytes,14,opt,name=independent_anomalies,json=independentAnomalies,proto3"`
 	XXX_raceDetectHookData           protoimpl.RaceDetectHookData
 	XXX_presence                     [1]uint32
 	unknownFields                    protoimpl.UnknownFields
@@ -165,6 +166,13 @@ func (x *MarkovExperimentConfig) GetScoringConfig() *proto.NGramScoringConfig {
 	return nil
 }
 
+func (x *MarkovExperimentConfig) GetIndependentAnomalies() *IndependentAnomalyConfig {
+	if x != nil {
+		return x.xxx_hidden_IndependentAnomalies
+	}
+	return nil
+}
+
 func (x *MarkovExperimentConfig) SetGeneratorConfigPath(v string) {
 	x.xxx_hidden_GeneratorConfigPath = v
 }
@@ -191,22 +199,22 @@ func (x *MarkovExperimentConfig) SetCalibrationPercentile(v float64) {
 
 func (x *MarkovExperimentConfig) SetCalibrationActions(v int64) {
 	x.xxx_hidden_CalibrationActions = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 14)
 }
 
 func (x *MarkovExperimentConfig) SetCalibrationSeed(v int64) {
 	x.xxx_hidden_CalibrationSeed = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 7, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 7, 14)
 }
 
 func (x *MarkovExperimentConfig) SetValidationActions(v int64) {
 	x.xxx_hidden_ValidationActions = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 8, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 8, 14)
 }
 
 func (x *MarkovExperimentConfig) SetValidationSeed(v int64) {
 	x.xxx_hidden_ValidationSeed = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 9, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 9, 14)
 }
 
 func (x *MarkovExperimentConfig) SetAnomalyProfiles(v []*proto1.MarkovAnomalyProfile) {
@@ -219,6 +227,10 @@ func (x *MarkovExperimentConfig) SetInjections(v []*proto1.MarkovInjection) {
 
 func (x *MarkovExperimentConfig) SetScoringConfig(v *proto.NGramScoringConfig) {
 	x.xxx_hidden_ScoringConfig = v
+}
+
+func (x *MarkovExperimentConfig) SetIndependentAnomalies(v *IndependentAnomalyConfig) {
+	x.xxx_hidden_IndependentAnomalies = v
 }
 
 func (x *MarkovExperimentConfig) HasTrainingConfig() bool {
@@ -263,6 +275,13 @@ func (x *MarkovExperimentConfig) HasScoringConfig() bool {
 	return x.xxx_hidden_ScoringConfig != nil
 }
 
+func (x *MarkovExperimentConfig) HasIndependentAnomalies() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_IndependentAnomalies != nil
+}
+
 func (x *MarkovExperimentConfig) ClearTrainingConfig() {
 	x.xxx_hidden_TrainingConfig = nil
 }
@@ -291,6 +310,10 @@ func (x *MarkovExperimentConfig) ClearScoringConfig() {
 	x.xxx_hidden_ScoringConfig = nil
 }
 
+func (x *MarkovExperimentConfig) ClearIndependentAnomalies() {
+	x.xxx_hidden_IndependentAnomalies = nil
+}
+
 type MarkovExperimentConfig_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
@@ -306,9 +329,10 @@ type MarkovExperimentConfig_builder struct {
 	ValidationActions     *int64
 	ValidationSeed        *int64
 	// Used only for generated validation; training/calibration stay normal.
-	AnomalyProfiles []*proto1.MarkovAnomalyProfile
-	Injections      []*proto1.MarkovInjection
-	ScoringConfig   *proto.NGramScoringConfig
+	AnomalyProfiles      []*proto1.MarkovAnomalyProfile
+	Injections           []*proto1.MarkovInjection
+	ScoringConfig        *proto.NGramScoringConfig
+	IndependentAnomalies *IndependentAnomalyConfig
 }
 
 func (b0 MarkovExperimentConfig_builder) Build() *MarkovExperimentConfig {
@@ -322,24 +346,206 @@ func (b0 MarkovExperimentConfig_builder) Build() *MarkovExperimentConfig {
 	x.xxx_hidden_TrainingConfig = b.TrainingConfig
 	x.xxx_hidden_CalibrationPercentile = b.CalibrationPercentile
 	if b.CalibrationActions != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 14)
 		x.xxx_hidden_CalibrationActions = *b.CalibrationActions
 	}
 	if b.CalibrationSeed != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 7, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 7, 14)
 		x.xxx_hidden_CalibrationSeed = *b.CalibrationSeed
 	}
 	if b.ValidationActions != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 8, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 8, 14)
 		x.xxx_hidden_ValidationActions = *b.ValidationActions
 	}
 	if b.ValidationSeed != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 9, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 9, 14)
 		x.xxx_hidden_ValidationSeed = *b.ValidationSeed
 	}
 	x.xxx_hidden_AnomalyProfiles = &b.AnomalyProfiles
 	x.xxx_hidden_Injections = &b.Injections
 	x.xxx_hidden_ScoringConfig = b.ScoringConfig
+	x.xxx_hidden_IndependentAnomalies = b.IndependentAnomalies
+	return m0
+}
+
+// Validation-only independent generator; random chunk placement ignores windows.
+type IndependentAnomalyConfig struct {
+	state                           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_AlphabetConfigPaths  []string               `protobuf:"bytes,1,rep,name=alphabet_config_paths,json=alphabetConfigPaths,proto3"`
+	xxx_hidden_ChunkActions         int64                  `protobuf:"varint,2,opt,name=chunk_actions,json=chunkActions,proto3"`
+	xxx_hidden_CompletionMinMs      int64                  `protobuf:"varint,3,opt,name=completion_min_ms,json=completionMinMs,proto3,oneof"`
+	xxx_hidden_CompletionMaxMs      int64                  `protobuf:"varint,4,opt,name=completion_max_ms,json=completionMaxMs,proto3,oneof"`
+	xxx_hidden_PreferredTemplates   []string               `protobuf:"bytes,5,rep,name=preferred_templates,json=preferredTemplates,proto3"`
+	xxx_hidden_PreferredProbability float64                `protobuf:"fixed64,6,opt,name=preferred_probability,json=preferredProbability,proto3,oneof"`
+	XXX_raceDetectHookData          protoimpl.RaceDetectHookData
+	XXX_presence                    [1]uint32
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
+}
+
+func (x *IndependentAnomalyConfig) Reset() {
+	*x = IndependentAnomalyConfig{}
+	mi := &file_v2_client_proto_experiment_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IndependentAnomalyConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IndependentAnomalyConfig) ProtoMessage() {}
+
+func (x *IndependentAnomalyConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_client_proto_experiment_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *IndependentAnomalyConfig) GetAlphabetConfigPaths() []string {
+	if x != nil {
+		return x.xxx_hidden_AlphabetConfigPaths
+	}
+	return nil
+}
+
+func (x *IndependentAnomalyConfig) GetChunkActions() int64 {
+	if x != nil {
+		return x.xxx_hidden_ChunkActions
+	}
+	return 0
+}
+
+func (x *IndependentAnomalyConfig) GetCompletionMinMs() int64 {
+	if x != nil {
+		return x.xxx_hidden_CompletionMinMs
+	}
+	return 0
+}
+
+func (x *IndependentAnomalyConfig) GetCompletionMaxMs() int64 {
+	if x != nil {
+		return x.xxx_hidden_CompletionMaxMs
+	}
+	return 0
+}
+
+func (x *IndependentAnomalyConfig) GetPreferredTemplates() []string {
+	if x != nil {
+		return x.xxx_hidden_PreferredTemplates
+	}
+	return nil
+}
+
+func (x *IndependentAnomalyConfig) GetPreferredProbability() float64 {
+	if x != nil {
+		return x.xxx_hidden_PreferredProbability
+	}
+	return 0
+}
+
+func (x *IndependentAnomalyConfig) SetAlphabetConfigPaths(v []string) {
+	x.xxx_hidden_AlphabetConfigPaths = v
+}
+
+func (x *IndependentAnomalyConfig) SetChunkActions(v int64) {
+	x.xxx_hidden_ChunkActions = v
+}
+
+func (x *IndependentAnomalyConfig) SetCompletionMinMs(v int64) {
+	x.xxx_hidden_CompletionMinMs = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 6)
+}
+
+func (x *IndependentAnomalyConfig) SetCompletionMaxMs(v int64) {
+	x.xxx_hidden_CompletionMaxMs = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 6)
+}
+
+func (x *IndependentAnomalyConfig) SetPreferredTemplates(v []string) {
+	x.xxx_hidden_PreferredTemplates = v
+}
+
+func (x *IndependentAnomalyConfig) SetPreferredProbability(v float64) {
+	x.xxx_hidden_PreferredProbability = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 6)
+}
+
+func (x *IndependentAnomalyConfig) HasCompletionMinMs() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
+}
+
+func (x *IndependentAnomalyConfig) HasCompletionMaxMs() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
+}
+
+func (x *IndependentAnomalyConfig) HasPreferredProbability() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 5)
+}
+
+func (x *IndependentAnomalyConfig) ClearCompletionMinMs() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
+	x.xxx_hidden_CompletionMinMs = 0
+}
+
+func (x *IndependentAnomalyConfig) ClearCompletionMaxMs() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 3)
+	x.xxx_hidden_CompletionMaxMs = 0
+}
+
+func (x *IndependentAnomalyConfig) ClearPreferredProbability() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 5)
+	x.xxx_hidden_PreferredProbability = 0
+}
+
+type IndependentAnomalyConfig_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// If empty, use normal templates. Otherwise use only the union of these configs.
+	AlphabetConfigPaths []string
+	ChunkActions        int64
+	CompletionMinMs     *int64
+	CompletionMaxMs     *int64
+	// Optional explicit bias; without it, graph rows remain fully random.
+	PreferredTemplates []string
+	// Combined probability of preferred templates in every row and start draw.
+	PreferredProbability *float64
+}
+
+func (b0 IndependentAnomalyConfig_builder) Build() *IndependentAnomalyConfig {
+	m0 := &IndependentAnomalyConfig{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_AlphabetConfigPaths = b.AlphabetConfigPaths
+	x.xxx_hidden_ChunkActions = b.ChunkActions
+	if b.CompletionMinMs != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 6)
+		x.xxx_hidden_CompletionMinMs = *b.CompletionMinMs
+	}
+	if b.CompletionMaxMs != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 6)
+		x.xxx_hidden_CompletionMaxMs = *b.CompletionMaxMs
+	}
+	x.xxx_hidden_PreferredTemplates = b.PreferredTemplates
+	if b.PreferredProbability != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 6)
+		x.xxx_hidden_PreferredProbability = *b.PreferredProbability
+	}
 	return m0
 }
 
@@ -347,7 +553,7 @@ var File_v2_client_proto_experiment_proto protoreflect.FileDescriptor
 
 const file_v2_client_proto_experiment_proto_rawDesc = "" +
 	"\n" +
-	" v2/client/proto/experiment.proto\x12.experimental.anomaly_detection.v2.client.proto\x1a\x1bv2/common/proto/model.proto\x1a.v1/generator/proto/query_template_config.proto\"\xd1\a\n" +
+	" v2/client/proto/experiment.proto\x12.experimental.anomaly_detection.v2.client.proto\x1a\x1bv2/common/proto/model.proto\x1a.v1/generator/proto/query_template_config.proto\"\xd0\b\n" +
 	"\x16MarkovExperimentConfig\x122\n" +
 	"\x15generator_config_path\x18\x01 \x01(\tR\x13generatorConfigPath\x12)\n" +
 	"\x10training_actions\x18\x02 \x01(\x03R\x0ftrainingActions\x12#\n" +
@@ -364,30 +570,43 @@ const file_v2_client_proto_experiment_proto_rawDesc = "" +
 	"\n" +
 	"injections\x18\f \x03(\v2B.experimental.anomaly_detection.v1.generator.proto.MarkovInjectionR\n" +
 	"injections\x12i\n" +
-	"\x0escoring_config\x18\r \x01(\v2B.experimental.anomaly_detection.v2.common.proto.NGramScoringConfigR\rscoringConfigB\x16\n" +
+	"\x0escoring_config\x18\r \x01(\v2B.experimental.anomaly_detection.v2.common.proto.NGramScoringConfigR\rscoringConfig\x12}\n" +
+	"\x15independent_anomalies\x18\x0e \x01(\v2H.experimental.anomaly_detection.v2.client.proto.IndependentAnomalyConfigR\x14independentAnomaliesB\x16\n" +
 	"\x14_calibration_actionsB\x13\n" +
 	"\x11_calibration_seedB\x15\n" +
 	"\x13_validation_actionsB\x12\n" +
-	"\x10_validation_seedBmZkgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/client/proto;clientpbb\x06proto3"
+	"\x10_validation_seed\"\x86\x03\n" +
+	"\x18IndependentAnomalyConfig\x122\n" +
+	"\x15alphabet_config_paths\x18\x01 \x03(\tR\x13alphabetConfigPaths\x12#\n" +
+	"\rchunk_actions\x18\x02 \x01(\x03R\fchunkActions\x12/\n" +
+	"\x11completion_min_ms\x18\x03 \x01(\x03H\x00R\x0fcompletionMinMs\x88\x01\x01\x12/\n" +
+	"\x11completion_max_ms\x18\x04 \x01(\x03H\x01R\x0fcompletionMaxMs\x88\x01\x01\x12/\n" +
+	"\x13preferred_templates\x18\x05 \x03(\tR\x12preferredTemplates\x128\n" +
+	"\x15preferred_probability\x18\x06 \x01(\x01H\x02R\x14preferredProbability\x88\x01\x01B\x14\n" +
+	"\x12_completion_min_msB\x14\n" +
+	"\x12_completion_max_msB\x18\n" +
+	"\x16_preferred_probabilityBmZkgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/client/proto;clientpbb\x06proto3"
 
-var file_v2_client_proto_experiment_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_v2_client_proto_experiment_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_v2_client_proto_experiment_proto_goTypes = []any{
 	(*MarkovExperimentConfig)(nil),             // 0: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig
-	(*proto.NGramHistogramTrainingConfig)(nil), // 1: experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
-	(*proto1.MarkovAnomalyProfile)(nil),        // 2: experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfile
-	(*proto1.MarkovInjection)(nil),             // 3: experimental.anomaly_detection.v1.generator.proto.MarkovInjection
-	(*proto.NGramScoringConfig)(nil),           // 4: experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
+	(*IndependentAnomalyConfig)(nil),           // 1: experimental.anomaly_detection.v2.client.proto.IndependentAnomalyConfig
+	(*proto.NGramHistogramTrainingConfig)(nil), // 2: experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	(*proto1.MarkovAnomalyProfile)(nil),        // 3: experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfile
+	(*proto1.MarkovInjection)(nil),             // 4: experimental.anomaly_detection.v1.generator.proto.MarkovInjection
+	(*proto.NGramScoringConfig)(nil),           // 5: experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
 }
 var file_v2_client_proto_experiment_proto_depIdxs = []int32{
-	1, // 0: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.training_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
-	2, // 1: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.anomaly_profiles:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfile
-	3, // 2: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.injections:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovInjection
-	4, // 3: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.scoring_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 0: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.training_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramHistogramTrainingConfig
+	3, // 1: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.anomaly_profiles:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovAnomalyProfile
+	4, // 2: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.injections:type_name -> experimental.anomaly_detection.v1.generator.proto.MarkovInjection
+	5, // 3: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.scoring_config:type_name -> experimental.anomaly_detection.v2.common.proto.NGramScoringConfig
+	1, // 4: experimental.anomaly_detection.v2.client.proto.MarkovExperimentConfig.independent_anomalies:type_name -> experimental.anomaly_detection.v2.client.proto.IndependentAnomalyConfig
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_v2_client_proto_experiment_proto_init() }
@@ -396,13 +615,14 @@ func file_v2_client_proto_experiment_proto_init() {
 		return
 	}
 	file_v2_client_proto_experiment_proto_msgTypes[0].OneofWrappers = []any{}
+	file_v2_client_proto_experiment_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v2_client_proto_experiment_proto_rawDesc), len(file_v2_client_proto_experiment_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

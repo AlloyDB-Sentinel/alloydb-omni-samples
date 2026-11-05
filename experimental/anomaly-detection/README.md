@@ -3,8 +3,9 @@
 This module generates database actions, trains a normal n-gram baseline, calibrates
 its window-score threshold on separate normal data, and scores validation windows.
 Training, calibration and validation use independent streams. Scoring never updates
-the learned counts, means or variances. Validation can interleave labeled segments
-from profiles with different transition probabilities.
+the learned counts, means or variances. Validation now interleaves independently generated anomaly chunks (exactly 1% of
+records), with random gaps and no dependence on scoring windows. See
+[the validation generator](docs/validation-generator.md).
 
 ## Structure
 
@@ -128,7 +129,10 @@ This mode does not read the experiment, invoke generation, call the training
 service, or recalibrate. The input must contain length-delimited audit records.
 It also evaluates predictions against the supplied ground-truth labels afterward.
 
-## Labeled mixed validation
+## Legacy labeled mixed validation
+
+The current default configs use [independent anomaly generation](docs/validation-generator.md).
+The profile/override mechanism below remains available for legacy experiments.
 
 Use the same services and binaries with the mixed example:
 
@@ -422,3 +426,125 @@ protoc -I . --go_out=. --go_opt=paths=source_relative \
 Stop both foreground services with Ctrl-C. Remove chosen output directories and
 `/tmp/markov-scoring-bin` when no longer needed. Earlier experiment outputs are
 preserved. Generated results are not intended for source commits.
+
+## Recall-first parameter sweeps
+
+Build with `make build`, then run from this directory:
+
+```bash
+# Initial exploration: 103 settings, one seed triplet, standard-user workload.
+python3 scripts/run_sweeps.py \
+  --output-dir output/parameter-sweeps-initial --repeats 1
+
+# More reliable comparison: all three workloads and three seed triplets.
+python3 scripts/run_sweeps.py \
+  --output-dir output/parameter-sweeps-repeated \
+  --profiles standard_user maintenance_user service_usage --repeats 3
+
+# Just one parameter (still 20 settings).
+python3 scripts/run_sweeps.py \
+  --output-dir output/window-study --parameters window_length
+```
+
+The script starts its own local training/prediction services on available ports,
+logs their output, and stops them on exit. The client also supports `--sweep=all`
+(or comma-separated parameter names) against services you already run. Set
+`--timeout=30m` to change the per-trial deadline. Large window reports have a
+256 MiB client receive limit; reports beyond that still require a smaller dataset,
+less detail, or a future streamed API.
+
+Every sweep uses a baseline of **600,000 training + 200,000 calibration + 200,000
+validation actions**. This is one million synthetic records, not ten simulated
+weeks: duration depends on workload timings. Changing training/calibration size
+changes the total record count. Current configs generate exactly 1% anomalous
+validation actions in independently generated chunks with unrestricted random
+gaps. Explicit legacy injection schedules are scaled proportionally instead.
+Previous sweep results used legacy validation; use fresh output directories with
+the new configs. See [validation details](docs/validation-generator.md).
+
+| Isolated parameter | Range | Settings |
+|---|---|---:|
+| `window_length` | 30–3,000 actions, logarithmic spacing | 20 |
+| `training_actions` | 50,000–2,000,000, logarithmic spacing | 20 |
+| `calibration_actions` | 20,000–1,000,000, logarithmic spacing | 20 |
+| `calibration_percentile` | 0.9–0.9999, linear spacing | 20 |
+| `standard_deviation_floor_count` | 0.1–10, logarithmic spacing | 20 |
+| `max_n` | 1, 2, 3 (the only supported choices) | 3 |
+
+Use `--points` / `--sweep_points` for more settings (minimum 20 for continuous
+parameters). Each grid includes the baseline setting. Other parameters stay fixed.
+Within a repeat, settings use the same seeds so their generated datasets are
+comparable. Repeats use disjoint seed triplets (42/43/44, 1042/1043/1044, ...).
+Each trial retrains and recalibrates independently. Full repeated runs can create
+hundreds of millions of records and many GB of artifacts.
+
+Each workload output directory contains:
+
+- `results.csv`: per-trial precision, recall, accuracy, false-positive rate, F1,
+  recall-weighted F2, segment recall, confusion counts, threshold and window counts.
+  Undefined ratios are blank, not zero.
+- `summary.csv`: means, sample standard deviations, and defined-repeat counts.
+- `<parameter>.png` and `.svg`: precision, recall, accuracy, false-positive rate and
+  segment recall versus parameter; error bars show +/- one seed standard deviation,
+  **not confidence intervals**. A single repeat has no variability estimate.
+- `candidates.txt`: highest-recall setting per parameter with mean false-positive
+  rate <= 5% (configurable with `--fpr-limit` / `--sweep_fpr_limit`), ties favoring
+  fewer false alarms. This is an exploratory screen, not a statistical guarantee.
+- `sweep.json`: baseline and sweep settings. Each trial retains its experiment,
+  model, logs, score explanations, and window/segment evaluation JSON.
+
+Rerunning the same command resumes trials with complete reports and matching
+configuration. Changed settings require a fresh output directory. Rebuild after
+code changes and use a fresh directory if the implementation or generator inputs
+changed; cached results are not automatically invalidated by code changes.
+
+### Interpreting the study
+
+Recall alone can be maximized by flagging everything. Compare it with precision
+and false-positive rate; accuracy can hide misses when normal windows dominate.
+F2 weights recall more than precision. Segment recall asks whether any scored
+window detects each injected episode. A window is ground-truth positive when it
+contains any labeled anomaly; incomplete trailing actions are not classified.
+
+Window length changes the labels' granularity, anomaly dilution, and complete
+window count. Compare segment recall and trailing-action counts as well as window
+recall. With only six injected episodes, perfect segment recall is weak evidence.
+The workload families and anomaly profiles here are synthetic examples, not
+representative production traffic.
+
+One-at-a-time sweeps reveal sensitivity over these chosen ranges, not interactions
+or a universal optimum. Inspect the curves and compare recall changes relative to
+the baseline under the false-alarm budget. Next, test a small combination grid
+around promising settings, vary anomaly intensity/duration and placement, and
+freeze a candidate. Confirm it on new, untouched seed triplets and workloads;
+do not call the same validation data both a tuning set and final test evidence.
+
+For a linear window-size study with 20 evenly spaced integer settings from 20 to
+500 actions (one seed triplet):
+
+```bash
+python3 scripts/run_sweeps.py --parameters window_length \
+  --window-min 20 --window-max 500 --points 20 --repeats 1 \
+  --output-dir output/window-study-20-500
+```
+
+The equivalent client flags are `--sweep_window_min=20 --sweep_window_max=500`.
+Explicit ranges use a linear grid without inserting an extra baseline setting.
+The manifest records the exact grid. `window_length_detail.png` separates
+precision/recall/accuracy from false-positive rate; the standard graph additionally
+includes segment recall. Both graphs use a linear window-length axis.
+
+For 20 independent repeats per window size (400 trials), with four concurrent
+trials and the same paired seed triplets across window sizes:
+
+```bash
+python3 scripts/run_sweeps.py --parameters window_length \
+  --window-min 20 --window-max 500 --points 20 --repeats 20 --workers 4 \
+  --output-dir output/window-study-twenty-runs
+```
+
+`--workers` (`--sweep_workers` on the client) accepts 1–8 and defaults to 1. It
+changes scheduling only, not the dataset or model conditions. Trial directories
+are separate; one writer aggregates results. On failure, active trials are
+canceled and completed trials can be resumed. Both window graphs show means and
+±1 sample standard deviation across repeats; these are not confidence intervals.

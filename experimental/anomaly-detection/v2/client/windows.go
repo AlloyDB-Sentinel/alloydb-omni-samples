@@ -18,7 +18,14 @@ import (
 	predictionpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/prediction_service/proto"
 )
 
+// Detailed reports grow with the number of windows and n-gram categories.
+// Million-action sweeps exceed gRPC's default 4 MiB receive limit.
+const maxWindowReportBytes = 256 << 20
+
 func generateEvaluationStream(ctx context.Context, o options, experiment *clientpb.MarkovExperimentConfig, out, stage string, count, seed int64) (string, error) {
+	if stage == "validation" && experiment.GetIndependentAnomalies() != nil {
+		return generateIndependentValidation(ctx, o, experiment, out)
+	}
 	dir := filepath.Join(out, stage)
 	configPath := filepath.Join(out, "generator_config.textproto")
 	if stage == "validation" {
@@ -44,7 +51,7 @@ func calibrateAndValidate(ctx context.Context, o options, experiment *clientpb.M
 	if err != nil {
 		return err
 	}
-	conn, err := grpc.NewClient(o.predictionAddr, grpc.WithTransportCredentials(local.NewCredentials()))
+	conn, err := grpc.NewClient(o.predictionAddr, grpc.WithTransportCredentials(local.NewCredentials()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxWindowReportBytes)))
 	if err != nil {
 		return err
 	}
@@ -105,7 +112,7 @@ func validateWindows(ctx context.Context, o options, out, modelPath, validationP
 	if err != nil {
 		return err
 	}
-	conn, err := grpc.NewClient(o.predictionAddr, grpc.WithTransportCredentials(local.NewCredentials()))
+	conn, err := grpc.NewClient(o.predictionAddr, grpc.WithTransportCredentials(local.NewCredentials()), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxWindowReportBytes)))
 	if err != nil {
 		return err
 	}
