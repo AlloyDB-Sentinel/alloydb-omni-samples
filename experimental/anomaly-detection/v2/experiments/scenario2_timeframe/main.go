@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common"
@@ -306,6 +307,9 @@ func run(output string) error {
 	}
 	defer os.RemoveAll(temp)
 	generator := filepath.Join(temp, "generator")
+	if runtime.GOOS == "windows" {
+		generator += ".exe"
+	}
 	build := exec.Command("go", "build", "-o", generator, "./v1/generator/src")
 	if output, err := build.CombinedOutput(); err != nil {
 		return fmt.Errorf("build generator: %w\n%s", err, output)

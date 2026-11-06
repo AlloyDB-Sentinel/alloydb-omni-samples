@@ -159,9 +159,9 @@ func GenerateLogs(ctx context.Context, configs *genpb.QueryTemplateConfigs, numL
 	if connectionCfg := configs.GetConnectionSampling(); connectionCfg != nil {
 		return GenerateConnectionLogs(
 			connectionCfg,
-			time.UnixMilli(*startTimeMs),
-			time.UnixMilli(*trainEndTimeMs),
-			time.UnixMilli(*endTimeMs),
+			time.UnixMilli(*startTimeMs).UTC(),
+			time.UnixMilli(*trainEndTimeMs).UTC(),
+			time.UnixMilli(*endTimeMs).UTC(),
 			time.Duration(*bucketSizeMinutes)*time.Minute,
 			rng,
 			w,
@@ -191,9 +191,11 @@ func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.R
 	if err := validateConfigs(configs); err != nil {
 		return err
 	}
-	startTime := time.UnixMilli(*startTimeMs)
-	endTime := time.UnixMilli(*endTimeMs)
-	trainEndTime := time.UnixMilli(*trainEndTimeMs)
+	// Timestamps are UTC; use UTC explicitly so day/night peak windows do not
+	// depend on the host timezone (Windows ignores TZ=UTC).
+	startTime := time.UnixMilli(*startTimeMs).UTC()
+	endTime := time.UnixMilli(*endTimeMs).UTC()
+	trainEndTime := time.UnixMilli(*trainEndTimeMs).UTC()
 	bucketSize := time.Duration(*bucketSizeMinutes) * time.Minute
 	bucketSizeMs := bucketSize.Milliseconds()
 
