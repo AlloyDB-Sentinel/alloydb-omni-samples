@@ -547,7 +547,7 @@ func writeCSV(path string, rows [][]string) error {
 	return errors.Join(err, closeErr)
 }
 
-func writeReport(path string, frameResults []frameResult, subsets []subsetResult) error {
+func writeReport(path, config string, frameResults []frameResult, subsets []subsetResult) error {
 	sorted := sortedSubsets(subsets)
 	if len(sorted) == 0 {
 		return fmt.Errorf("no subset results")
@@ -596,7 +596,7 @@ func writeReport(path string, frameResults []frameResult, subsets []subsetResult
 	b.WriteString("- Reporting grid: fixed, non-overlapping **4-hour** buckets aligned to the simulation start. Each frame contributes the **maximum** rolling total observed among reads in the bucket; buckets with no reads contribute zero.\n")
 	b.WriteString("- Ground truth: a 4-hour bucket is anomalous if any observed trailing 4-hour window contains an attack read, including spillover after an episode.\n")
 	b.WriteString(fmt.Sprintf("- Training: %d warm-up week, then %d clean training weeks. Baselines learn one `mean + c × population stddev` threshold per weekly slot (%d slots), using the 20 training observations for that slot.\n", warmupWeeks, trainingWeeks, slotsPerWeek))
-	b.WriteString(fmt.Sprintf("- Split: %d validation weeks, then %d held-out test weeks. %d deterministic seeds (%d–%d) use `v2/experiments/scenario2_timeframe/config.textproto`.\n", validationWeeks, testWeeks, seedCount, firstSeed, firstSeed+seedCount-1))
+	b.WriteString(fmt.Sprintf("- Split: %d validation weeks, then %d held-out test weeks. %d deterministic seeds (%d–%d) use `%s`.\n", validationWeeks, testWeeks, seedCount, firstSeed, firstSeed+seedCount-1, filepath.ToSlash(config)))
 	b.WriteString("- Timezone: all timestamps and day/night peak windows are evaluated in UTC. The generator uses UTC explicitly because Windows ignores `TZ=UTC`.\n")
 	b.WriteString(fmt.Sprintf("- Candidate constants: `[%s]`. This is the earlier timeframe sweep's grid, which includes sub-1 values needed by long windows; the training-duration experiment's integer 1–8 grid was specific to the fixed 4-hour frame.\n", constantList()))
 	b.WriteString("- Selection: maximize pooled validation F1 across all subset/combiner candidates; ties prefer higher precision, then higher accuracy, then the earlier candidate (smaller subset, lexicographic member order, OR before AND).\n")
@@ -658,9 +658,102 @@ func writeReport(path string, frameResults []frameResult, subsets []subsetResult
 	b.WriteString("If another candidate ties the selected candidate on pooled validation F1, the earlier candidate in size-then-lexicographic order is retained; the test column is not used for that decision.\n\n")
 
 	b.WriteString("## Interpretation and limitations\n\n")
-	b.WriteString(fmt.Sprintf("OR admits a bucket when any member fires, so it raises recall; AND requires every member, so it raises precision but can suppress recall. In this run, %d OR candidates beat the best single frame on validation F1 and %d on test, while %d AND candidates beat it on validation and %d on test. The best multi-member AND is %s: it reaches %.2f%% validation precision and %.2f%% recall, so it is only attractive if a false positive is much more costly than a miss. Beyond the winning pair, 1h+4h and 15m+1h+4h tie 15m+4h on validation F1, so 15m+4h is retained by the size-then-lexicographic tie-break even though both have the higher held-out test F1 (97.61%% vs 97.41%%). Adding 1m or 5m to 15m+4h lowers validation F1. The best 4- and 5-member OR subsets are below 15m+4h, and including 1d or 7d in OR collapses precision: all seven under OR reaches 100%% validation recall at 22.14%% precision.\n\n", orValidationBeats, orTestBeats, andValidationBeats, andTestBeats, subsetName(bestMultiAND.members), 100*multiANDValidation.precision, 100*multiANDValidation.recall))
+	b.WriteString(fmt.Sprintf("OR admits a bucket when any member fires, so it raises recall; AND requires every member, so it raises precision but can suppress recall. In this run, %d OR candidates beat the best single frame on validation F1 and %d on test, while %d AND candidates beat it on validation and %d on test. The best multi-member AND is %s: it reaches %.2f%% validation precision and %.2f%% recall, so it is only attractive if a false positive is much more costly than a miss.\n\n", orValidationBeats, orTestBeats, andValidationBeats, andTestBeats, subsetName(bestMultiAND.members), 100*multiANDValidation.precision, 100*multiANDValidation.recall))
+
+	var outcome strings.Builder
+	if tied := tiedCandidates(sorted, best); len(tied) > 0 {
+		tiedTestF1 := tied[0].test.metrics().f1
+		for _, r := range tied[1:] {
+			tiedTestF1 = math.Max(tiedTestF1, r.test.metrics().f1)
+		}
+		outcome.WriteString(fmt.Sprintf("Other candidates reach the same pooled validation F1 (%.2f%%): %s. The size-then-lexicographic tie-break retains %s. ", 100*bestValidation.f1, candidateNames(tied), subsetName(best.members)))
+		if tiedTestF1 > bestTest.f1 {
+			outcome.WriteString(fmt.Sprintf("The tied candidates reach up to %.2f%% held-out test F1 against %.2f%% for the selected candidate, so the tie-break rather than the held-out evidence decided the selection. ", 100*tiedTestF1, 100*bestTest.f1))
+		}
+	}
+	if superset, ok := bestStrictSuperset(sorted, best); ok {
+		supersetValidation := superset.validation.metrics()
+		if supersetValidation.f1 > bestValidation.f1 {
+			outcome.WriteString(fmt.Sprintf("The best strict %s superset, %s, raises validation F1 to %.2f%%. ", best.combination, subsetName(superset.members), 100*supersetValidation.f1))
+		} else {
+			outcome.WriteString(fmt.Sprintf("No strict %s superset of %s improves on it; the best is %s at %.2f%% validation F1. ", best.combination, subsetName(best.members), subsetName(superset.members), 100*supersetValidation.f1))
+		}
+	}
+	for _, r := range sorted {
+		if r.combination == orCombination && len(r.members) == len(frames) {
+			v := r.validation.metrics()
+			outcome.WriteString(fmt.Sprintf("All %d frames under OR reach %.2f%% validation recall at %.2f%% validation precision. ", len(frames), 100*v.recall, 100*v.precision))
+			break
+		}
+	}
+	if outcome.Len() > 0 {
+		b.WriteString(strings.TrimSpace(outcome.String()))
+		b.WriteString("\n\n")
+	}
 	b.WriteString("Because every member uses the constant selected for that frame alone, neither combiner is jointly optimized. Long frames (1d and 7d) produce rolling totals that change slowly, so their 4-hour bucket signals are highly autocorrelated and their labels can remain positive for a long tail after an episode; their apparent performance should be read with that in mind. Constants and the candidate are both selected on the same four validation weeks, which makes the validation figures optimistic; the four test weeks are held out and are the better guide. The generator emits synthetic, deliberately injected anomalies with one database/user identity, and this runner does not exercise the RPC services. The next step would be to validate the selected candidate on a second independent period and to test a joint constant sweep for the winning subset.\n")
 	return os.WriteFile(path, []byte(b.String()), 0644)
+}
+
+// tiedCandidates returns the candidates other than best that the selection rule
+// treats as tied with it: equal pooled validation F1, precision, and accuracy.
+func tiedCandidates(sorted []subsetResult, best subsetResult) []subsetResult {
+	bestValidation := best.validation.metrics()
+	var tied []subsetResult
+	for _, r := range sorted {
+		if r.combination == best.combination && sameMembers(r.members, best.members) {
+			continue
+		}
+		v := r.validation.metrics()
+		if v.f1 == bestValidation.f1 && v.precision == bestValidation.precision && v.accuracy == bestValidation.accuracy {
+			tied = append(tied, r)
+		}
+	}
+	return tied
+}
+
+// bestStrictSuperset returns the best-scoring candidate that uses the same
+// combiner as best and contains all of its members plus at least one more.
+func bestStrictSuperset(sorted []subsetResult, best subsetResult) (subsetResult, bool) {
+	var found subsetResult
+	ok := false
+	for _, r := range sorted {
+		if r.combination != best.combination || len(r.members) <= len(best.members) || !containsAll(r.members, best.members) {
+			continue
+		}
+		if !ok || better(r.validation.metrics(), found.validation.metrics()) {
+			found, ok = r, true
+		}
+	}
+	return found, ok
+}
+
+func containsAll(members, required []int) bool {
+	for _, want := range required {
+		found := false
+		for _, member := range members {
+			if member == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+// candidateNames joins subset names for prose, truncating very long tie sets.
+func candidateNames(candidates []subsetResult) string {
+	const limit = 8
+	names := make([]string, 0, len(candidates))
+	for i, r := range candidates {
+		if i == limit {
+			return fmt.Sprintf("%s, and %d more", strings.Join(names, ", "), len(candidates)-limit)
+		}
+		names = append(names, subsetName(r.members))
+	}
+	return strings.Join(names, ", ")
 }
 
 func sameMembers(a, b []int) bool {
@@ -761,7 +854,7 @@ func run(config, output string) error {
 	if err := writeSubsetCSV(filepath.Join(output, "subset_results.csv"), subsets, frameResults); err != nil {
 		return err
 	}
-	return writeReport(filepath.Join(output, "experiment_report.md"), frameResults, subsets)
+	return writeReport(filepath.Join(output, "experiment_report.md"), config, frameResults, subsets)
 }
 
 func main() {
