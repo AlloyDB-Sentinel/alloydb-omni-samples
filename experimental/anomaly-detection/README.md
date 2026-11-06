@@ -422,3 +422,12 @@ protoc -I . --go_out=. --go_opt=paths=source_relative \
 Stop both foreground services with Ctrl-C. Remove chosen output directories and
 `/tmp/markov-scoring-bin` when no longer needed. Earlier experiment outputs are
 preserved. Generated results are not intended for source commits.
+
+## Chi-squared model benchmark
+
+The chi-squared model has a dedicated runner using its native rolling windows
+and file `Predict` RPC, without training or calibration. It can sweep recent
+window length N and the raw detection threshold, writing precision/recall CSVs
+and graphs. See [the benchmark guide](docs/chi-squared-benchmark.md) for commands,
+input/output paths, warm-up and ground-truth semantics. Build with
+`make build-chi-squared-benchmark`; the legacy client remains a separate path.

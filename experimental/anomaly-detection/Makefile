@@ -29,3 +29,13 @@ proto:
 	protoc -I . --go_out=. --go_opt=paths=source_relative \
 		--go_opt=default_api_level=API_OPAQUE \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative $(PROTO_FILES)
+
+# Dedicated chi-squared runner: does not depend on the legacy n-gram client.
+.PHONY: build-chi-squared-benchmark test-chi-squared-benchmark
+build-chi-squared-benchmark:
+	mkdir -p bin
+	go build -o bin/prediction-service ./v2/prediction_service
+	go build -o bin/chi-squared-benchmark ./v2/chi_squared_benchmark
+
+test-chi-squared-benchmark:
+	go test ./v2/chi_squared_benchmark ./v2/prediction_service/...
