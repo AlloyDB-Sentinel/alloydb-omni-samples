@@ -1,5 +1,5 @@
 // Command scenario2_tuple evaluates OR- and AND-combined subsets of rolling
-// timeframes at a fixed 20-week training duration.
+// timeframes at a configurable training duration.
 package main
 
 import (
@@ -24,21 +24,27 @@ import (
 )
 
 const (
-	week               = 7 * 24 * time.Hour
-	reporting          = 4 * time.Hour
-	slotsPerWeek       = int(week / reporting) // 42 four-hour slots per week
-	warmupWeeks        = 1
-	trainingWeeks      = 20
-	validationWeeks    = 4
-	testWeeks          = 4
-	totalWeeks         = warmupWeeks + trainingWeeks + validationWeeks + testWeeks
-	trainingStart      = warmupWeeks * slotsPerWeek
-	trainingEnd        = trainingStart + trainingWeeks*slotsPerWeek
-	validationEnd      = trainingEnd + validationWeeks*slotsPerWeek
-	totalBuckets       = totalWeeks * slotsPerWeek
-	firstSeed          = 42
-	seedCount          = 10
-	generatorBucketMin = 60
+	week                 = 7 * 24 * time.Hour
+	reporting            = 4 * time.Hour
+	slotsPerWeek         = int(week / reporting) // 42 four-hour slots per week
+	warmupWeeks          = 1
+	defaultTrainingWeeks = 20
+	validationWeeks      = 4
+	testWeeks            = 4
+	firstSeed            = 42
+	seedCount            = 10
+	generatorBucketMin   = 60
+)
+
+// The schedule depends on the -training-weeks flag, so run sets these before
+// generating any seed.
+var (
+	trainingWeeks = defaultTrainingWeeks
+	totalWeeks    = warmupWeeks + trainingWeeks + validationWeeks + testWeeks
+	trainingStart = warmupWeeks * slotsPerWeek
+	trainingEnd   = trainingStart + trainingWeeks*slotsPerWeek
+	validationEnd = trainingEnd + validationWeeks*slotsPerWeek
+	totalBuckets  = totalWeeks * slotsPerWeek
 )
 
 var frames = []frameSpec{
@@ -246,8 +252,8 @@ func aggregate(input io.Reader, start time.Time) (dataset, error) {
 			return dataset{}, fmt.Errorf("extract record %d: %w", record, err)
 		}
 		elapsedMs := feature.TimestampMs - start.UnixMilli()
-		if feature.TimestampMs < lastTimestampMs || elapsedMs < 0 || elapsedMs >= (totalWeeks*week).Milliseconds() {
-			return dataset{}, fmt.Errorf("record %d: timestamp %d precedes %d or is outside [%d, %d)", record, feature.TimestampMs, lastTimestampMs, start.UnixMilli(), start.Add(totalWeeks*week).UnixMilli())
+		if feature.TimestampMs < lastTimestampMs || elapsedMs < 0 || elapsedMs >= (time.Duration(totalWeeks) * week).Milliseconds() {
+			return dataset{}, fmt.Errorf("record %d: timestamp %d precedes %d or is outside [%d, %d)", record, feature.TimestampMs, lastTimestampMs, start.UnixMilli(), start.Add(time.Duration(totalWeeks)*week).UnixMilli())
 		}
 		key := [2]string{feature.DbName, feature.DbUser}
 		if seen && key != identity {
@@ -595,7 +601,7 @@ func writeReport(path, config string, frameResults []frameResult, subsets []subs
 	b.WriteString(fmt.Sprintf("- Signal: sum of `rows_returned` for the same database and database user over each frame's trailing window, using `common.SlidingRowWindow`: %s.\n", frameList()))
 	b.WriteString("- Reporting grid: fixed, non-overlapping **4-hour** buckets aligned to the simulation start. Each frame contributes the **maximum** rolling total observed among reads in the bucket; buckets with no reads contribute zero.\n")
 	b.WriteString("- Ground truth: a 4-hour bucket is anomalous if any observed trailing 4-hour window contains an attack read, including spillover after an episode.\n")
-	b.WriteString(fmt.Sprintf("- Training: %d warm-up week, then %d clean training weeks. Baselines learn one `mean + c × population stddev` threshold per weekly slot (%d slots), using the 20 training observations for that slot.\n", warmupWeeks, trainingWeeks, slotsPerWeek))
+	b.WriteString(fmt.Sprintf("- Training: %d warm-up week, then %d clean training weeks. Baselines learn one `mean + c × population stddev` threshold per weekly slot (%d slots), using the %d training observations for that slot.\n", warmupWeeks, trainingWeeks, slotsPerWeek, trainingWeeks))
 	b.WriteString(fmt.Sprintf("- Split: %d validation weeks, then %d held-out test weeks. %d deterministic seeds (%d–%d) use `%s`.\n", validationWeeks, testWeeks, seedCount, firstSeed, firstSeed+seedCount-1, filepath.ToSlash(config)))
 	b.WriteString("- Timezone: all timestamps and day/night peak windows are evaluated in UTC. The generator uses UTC explicitly because Windows ignores `TZ=UTC`.\n")
 	b.WriteString(fmt.Sprintf("- Candidate constants: `[%s]`. This is the earlier timeframe sweep's grid, which includes sub-1 values needed by long windows; the training-duration experiment's integer 1–8 grid was specific to the fixed 4-hour frame.\n", constantList()))
@@ -603,7 +609,7 @@ func writeReport(path, config string, frameResults []frameResult, subsets []subs
 	b.WriteString("- Combination: **OR** flags a bucket when at least one member exceeds its threshold; **AND** flags only when every member does. Singletons are identical under both combiners.\n\n")
 	b.WriteString(fmt.Sprintf("Each seed has %d training buckets, %d validation buckets, and %d test buckets. The full %d-row candidate table is in `subset_results.csv`.\n\n", trainingEnd-trainingStart, validationEnd-trainingEnd, totalBuckets-validationEnd, len(sorted)))
 
-	b.WriteString("## Individual timeframe constants at 20 weeks\n\n")
+	b.WriteString(fmt.Sprintf("## Individual timeframe constants at %d weeks\n\n", trainingWeeks))
 	b.WriteString("| Timeframe | Selected `c` | Validation accuracy | Validation precision | Validation recall | Validation F1 | Test accuracy | Test precision | Test recall | Test F1 |\n")
 	b.WriteString("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
 	for _, r := range frameResults {
@@ -797,8 +803,8 @@ func generate(generator, config, output string, seed int, start, trainEnd, end t
 func runSeed(generator, config, dir string, seed int) (dataset, error) {
 	anchor := time.Date(2026, time.January, 5, 0, 0, 0, 0, time.UTC)
 	start := anchor
-	trainEnd := anchor.Add((warmupWeeks + trainingWeeks) * week)
-	end := anchor.Add(totalWeeks * week)
+	trainEnd := anchor.Add(time.Duration(warmupWeeks+trainingWeeks) * week)
+	end := anchor.Add(time.Duration(totalWeeks) * week)
 	output := filepath.Join(dir, fmt.Sprint(seed))
 	if err := generate(generator, config, output, seed, start, trainEnd, end); err != nil {
 		return dataset{}, err
@@ -811,7 +817,16 @@ func runSeed(generator, config, dir string, seed int) (dataset, error) {
 	return aggregate(file, start)
 }
 
-func run(config, output string) error {
+func run(config, output string, weeks int) error {
+	if weeks < 1 {
+		return fmt.Errorf("training weeks must be positive, got %d", weeks)
+	}
+	trainingWeeks = weeks
+	totalWeeks = warmupWeeks + trainingWeeks + validationWeeks + testWeeks
+	trainingEnd = trainingStart + trainingWeeks*slotsPerWeek
+	validationEnd = trainingEnd + validationWeeks*slotsPerWeek
+	totalBuckets = totalWeeks * slotsPerWeek
+
 	if _, err := os.Stat(config); err != nil {
 		return fmt.Errorf("run from experimental/anomaly-detection and keep the config path: %w", err)
 	}
@@ -860,8 +875,9 @@ func run(config, output string) error {
 func main() {
 	config := flag.String("config", filepath.Join("v2", "experiments", "scenario2_timeframe", "config.textproto"), "Scenario 2 textproto path, relative to the anomaly-detection module root.")
 	output := flag.String("output", filepath.Join("v2", "experiments", "scenario2_tuple", "results"), "Directory for the frame CSV, subset CSV, and report.")
+	training := flag.Int("training-weeks", defaultTrainingWeeks, "Clean training weeks before the 4 validation and 4 test weeks.")
 	flag.Parse()
-	if err := run(*config, *output); err != nil {
+	if err := run(*config, *output, *training); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

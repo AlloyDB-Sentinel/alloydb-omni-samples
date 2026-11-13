@@ -18,27 +18,42 @@ func SampleQueryCount(cfg *cfgpb.BucketQueryTemplateConfig, isSpike bool, curren
 		return 0
 	}
 	rate := bCfg.GetQueriesPerBucketMean()
+	profile := bCfg.GetWeeklyTrafficProfile()
 
-	isWeekend := (currentWeekday == time.Saturday || currentWeekday == time.Sunday)
-	hasWeekendMult := bCfg.HasWeekendTrafficMultiplier()
-	weekendMult := bCfg.GetWeekendTrafficMultiplier()
-	isSilentWeekend := isWeekend && hasWeekendMult && weekendMult == 0.0
-
-	// isSpike = false and silent weekend -> always 0 traffic
-	if !isSpike && isSilentWeekend {
-		return 0
-	}
-
-	// Apply Peak Windows on weekdays or busy weekends
-	if !isSilentWeekend {
-		for _, pw := range bCfg.GetPeakWindows() {
-			rate = applyParabolicPeak(rate, int(pw.GetHourStart()), int(pw.GetHourEnd()), pw.GetMultiplier(), currentHour)
+	if profile != nil {
+		// The weekly profile carries the full day-of-week x hour-of-day shape,
+		// so it replaces the hour-only peaks and the weekend multiplier.
+		// validateConfigs guarantees a well-formed profile; a malformed one
+		// leaves the rate unshaped rather than failing mid-generation.
+		multiplier := weeklyTrafficMultiplier(profile, currentWeekday, currentHour)
+		// A silent slot stays silent for ordinary traffic, but an injected
+		// attack still produces reads, matching the legacy silent weekend.
+		if multiplier == 0.0 && isSpike {
+			multiplier = 1.0
 		}
-	}
+		rate *= multiplier
+	} else {
+		isWeekend := (currentWeekday == time.Saturday || currentWeekday == time.Sunday)
+		hasWeekendMult := bCfg.HasWeekendTrafficMultiplier()
+		weekendMult := bCfg.GetWeekendTrafficMultiplier()
+		isSilentWeekend := isWeekend && hasWeekendMult && weekendMult == 0.0
 
-	// Apply Weekend Traffic Multiplier when weekendMult > 0
-	if isWeekend && hasWeekendMult && weekendMult > 0.0 {
-		rate *= weekendMult
+		// isSpike = false and silent weekend -> always 0 traffic
+		if !isSpike && isSilentWeekend {
+			return 0
+		}
+
+		// Apply Peak Windows on weekdays or busy weekends
+		if !isSilentWeekend {
+			for _, pw := range bCfg.GetPeakWindows() {
+				rate = applyParabolicPeak(rate, int(pw.GetHourStart()), int(pw.GetHourEnd()), pw.GetMultiplier(), currentHour)
+			}
+		}
+
+		// Apply Weekend Traffic Multiplier when weekendMult > 0
+		if isWeekend && hasWeekendMult && weekendMult > 0.0 {
+			rate *= weekendMult
+		}
 	}
 
 	// Apply Anomalous Spike Multiplier for spike attacks
@@ -46,10 +61,60 @@ func SampleQueryCount(cfg *cfgpb.BucketQueryTemplateConfig, isSpike bool, curren
 		rate *= bCfg.GetAnomalousSpikeMultiplier()
 	}
 
-	if count := int(math.Round(rate + rng.NormFloat64()*bCfg.GetQueriesVariationStdDev())); count > 0 {
+	// A zero multiplier means no reads at all; do not let noise resurrect it.
+	if profile != nil && rate == 0.0 {
+		return 0
+	}
+
+	stdDev := bCfg.GetQueriesVariationStdDev()
+	if profile != nil {
+		// The profile changes the expected count, so the configured deviation
+		// is interpreted at the baseline and scaled with the rate instead of
+		// staying fixed in absolute reads.
+		stdDev = scaledVariationStdDev(rate, bCfg.GetQueriesPerBucketMean(), stdDev)
+	}
+
+	if count := int(math.Round(rate + rng.NormFloat64()*stdDev)); count > 0 {
 		return count
 	}
 	return 0
+}
+
+// scaledVariationStdDev returns the standard deviation for an expected count
+// of rate, calibrated so that it equals stdDev at baseMean. The variance is
+// Poisson at low counts plus the configured overdispersion, which grows with
+// the rate. A non-positive stdDev keeps the old noiseless behavior.
+func scaledVariationStdDev(rate, baseMean, stdDev float64) float64 {
+	if stdDev <= 0 {
+		return 0
+	}
+	if baseMean <= 0 {
+		return stdDev
+	}
+	// Var(rate) = rate + overdispersion * rate^2, with the coefficient chosen
+	// so Var(baseMean) = stdDev^2. If the configured deviation is below
+	// Poisson noise, keep the Poisson term alone.
+	overdispersion := (stdDev*stdDev - baseMean) / (baseMean * baseMean)
+	if overdispersion < 0 {
+		overdispersion = 0
+	}
+	return math.Sqrt(rate + overdispersion*rate*rate)
+}
+
+// weeklyTrafficMultiplier returns the profile multiplier for a UTC weekday and
+// hour. Days are Monday-first and hours are 0..23; validateConfigs rejects
+// profiles of the wrong shape, and out-of-range lookups leave the rate intact.
+func weeklyTrafficMultiplier(profile *cfgpb.WeeklyTrafficProfile, weekday time.Weekday, hour int) float64 {
+	dayIndex := (int(weekday) + 6) % 7 // time.Weekday starts at Sunday.
+	days := profile.GetDays()
+	if hour < 0 || hour > 23 || dayIndex >= len(days) {
+		return 1.0
+	}
+	multipliers := days[dayIndex].GetHourlyMultipliers()
+	if hour >= len(multipliers) {
+		return 1.0
+	}
+	return multipliers[hour]
 }
 
 func applyParabolicPeak(rate float64, start, end int, multiplier float64, hour int) float64 {

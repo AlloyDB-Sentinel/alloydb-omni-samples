@@ -723,6 +723,7 @@ type BucketSimulationConfig struct {
 	xxx_hidden_SpikyTimestampsDistribution bool                   `protobuf:"varint,6,opt,name=spiky_timestamps_distribution,json=spikyTimestampsDistribution,proto3"`
 	xxx_hidden_PeakWindows                 *[]*PeakWindow         `protobuf:"bytes,7,rep,name=peak_windows,json=peakWindows,proto3"`
 	xxx_hidden_WeekendTrafficMultiplier    float64                `protobuf:"fixed64,8,opt,name=weekend_traffic_multiplier,json=weekendTrafficMultiplier,proto3,oneof"`
+	xxx_hidden_WeeklyTrafficProfile        *WeeklyTrafficProfile  `protobuf:"bytes,15,opt,name=weekly_traffic_profile,json=weeklyTrafficProfile,proto3"`
 	XXX_raceDetectHookData                 protoimpl.RaceDetectHookData
 	XXX_presence                           [1]uint32
 	unknownFields                          protoimpl.UnknownFields
@@ -854,6 +855,13 @@ func (x *BucketSimulationConfig) GetWeekendTrafficMultiplier() float64 {
 	return 0
 }
 
+func (x *BucketSimulationConfig) GetWeeklyTrafficProfile() *WeeklyTrafficProfile {
+	if x != nil {
+		return x.xxx_hidden_WeeklyTrafficProfile
+	}
+	return nil
+}
+
 func (x *BucketSimulationConfig) SetDbUser(v string) {
 	x.xxx_hidden_DbUser = v
 }
@@ -908,7 +916,11 @@ func (x *BucketSimulationConfig) SetPeakWindows(v []*PeakWindow) {
 
 func (x *BucketSimulationConfig) SetWeekendTrafficMultiplier(v float64) {
 	x.xxx_hidden_WeekendTrafficMultiplier = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 13, 14)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 13, 15)
+}
+
+func (x *BucketSimulationConfig) SetWeeklyTrafficProfile(v *WeeklyTrafficProfile) {
+	x.xxx_hidden_WeeklyTrafficProfile = v
 }
 
 func (x *BucketSimulationConfig) HasWeekendTrafficMultiplier() bool {
@@ -918,9 +930,20 @@ func (x *BucketSimulationConfig) HasWeekendTrafficMultiplier() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 13)
 }
 
+func (x *BucketSimulationConfig) HasWeeklyTrafficProfile() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_WeeklyTrafficProfile != nil
+}
+
 func (x *BucketSimulationConfig) ClearWeekendTrafficMultiplier() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 13)
 	x.xxx_hidden_WeekendTrafficMultiplier = 0
+}
+
+func (x *BucketSimulationConfig) ClearWeeklyTrafficProfile() {
+	x.xxx_hidden_WeeklyTrafficProfile = nil
 }
 
 type BucketSimulationConfig_builder struct {
@@ -944,10 +967,16 @@ type BucketSimulationConfig_builder struct {
 	// true: Spiky/jittered distribution
 	SpikyTimestampsDistribution bool
 	// Regular peak to simulate traffic variations in a day.
+	// Ignored when weekly_traffic_profile is set.
 	PeakWindows []*PeakWindow
 	// 0.0 represents a silent weekend (e.g., offices/clinics).
 	// > 1.0 represents a busy weekend (e.g., restaurants/stores).
+	// Ignored when weekly_traffic_profile is set.
 	WeekendTrafficMultiplier *float64
+	// Human weekly seasonality: a different read rate for every weekday and
+	// hour, e.g. a quiet Sunday morning versus a busy Thursday afternoon.
+	// Replaces peak_windows and weekend_traffic_multiplier when set.
+	WeeklyTrafficProfile *WeeklyTrafficProfile
 }
 
 func (b0 BucketSimulationConfig_builder) Build() *BucketSimulationConfig {
@@ -968,9 +997,130 @@ func (b0 BucketSimulationConfig_builder) Build() *BucketSimulationConfig {
 	x.xxx_hidden_SpikyTimestampsDistribution = b.SpikyTimestampsDistribution
 	x.xxx_hidden_PeakWindows = &b.PeakWindows
 	if b.WeekendTrafficMultiplier != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 13, 14)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 13, 15)
 		x.xxx_hidden_WeekendTrafficMultiplier = *b.WeekendTrafficMultiplier
 	}
+	x.xxx_hidden_WeeklyTrafficProfile = b.WeeklyTrafficProfile
+	return m0
+}
+
+// Weekly read-rate shape, Monday first, at hourly UTC resolution.
+type WeeklyTrafficProfile struct {
+	state           protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_Days *[]*DailyTrafficProfile `protobuf:"bytes,1,rep,name=days,proto3"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *WeeklyTrafficProfile) Reset() {
+	*x = WeeklyTrafficProfile{}
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WeeklyTrafficProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WeeklyTrafficProfile) ProtoMessage() {}
+
+func (x *WeeklyTrafficProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *WeeklyTrafficProfile) GetDays() []*DailyTrafficProfile {
+	if x != nil {
+		if x.xxx_hidden_Days != nil {
+			return *x.xxx_hidden_Days
+		}
+	}
+	return nil
+}
+
+func (x *WeeklyTrafficProfile) SetDays(v []*DailyTrafficProfile) {
+	x.xxx_hidden_Days = &v
+}
+
+type WeeklyTrafficProfile_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Exactly seven entries, Monday through Sunday.
+	Days []*DailyTrafficProfile
+}
+
+func (b0 WeeklyTrafficProfile_builder) Build() *WeeklyTrafficProfile {
+	m0 := &WeeklyTrafficProfile{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Days = &b.Days
+	return m0
+}
+
+type DailyTrafficProfile struct {
+	state                        protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_HourlyMultipliers []float64              `protobuf:"fixed64,1,rep,packed,name=hourly_multipliers,json=hourlyMultipliers,proto3"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *DailyTrafficProfile) Reset() {
+	*x = DailyTrafficProfile{}
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DailyTrafficProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DailyTrafficProfile) ProtoMessage() {}
+
+func (x *DailyTrafficProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *DailyTrafficProfile) GetHourlyMultipliers() []float64 {
+	if x != nil {
+		return x.xxx_hidden_HourlyMultipliers
+	}
+	return nil
+}
+
+func (x *DailyTrafficProfile) SetHourlyMultipliers(v []float64) {
+	x.xxx_hidden_HourlyMultipliers = v
+}
+
+type DailyTrafficProfile_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Exactly 24 multipliers for hours 0..23 UTC. A multiplier of 0 silences
+	// that hour for ordinary traffic; injected attacks still produce reads.
+	HourlyMultipliers []float64
+}
+
+func (b0 DailyTrafficProfile_builder) Build() *DailyTrafficProfile {
+	m0 := &DailyTrafficProfile{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_HourlyMultipliers = b.HourlyMultipliers
 	return m0
 }
 
@@ -986,7 +1136,7 @@ type PeakWindow struct {
 
 func (x *PeakWindow) Reset() {
 	*x = PeakWindow{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[7]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -998,7 +1148,7 @@ func (x *PeakWindow) String() string {
 func (*PeakWindow) ProtoMessage() {}
 
 func (x *PeakWindow) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[7]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1086,7 +1236,7 @@ type ConnectionSamplingConfig struct {
 
 func (x *ConnectionSamplingConfig) Reset() {
 	*x = ConnectionSamplingConfig{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[8]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1098,7 +1248,7 @@ func (x *ConnectionSamplingConfig) String() string {
 func (*ConnectionSamplingConfig) ProtoMessage() {}
 
 func (x *ConnectionSamplingConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[8]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1181,7 +1331,7 @@ type ClientProfile struct {
 
 func (x *ClientProfile) Reset() {
 	*x = ClientProfile{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[9]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1193,7 +1343,7 @@ func (x *ClientProfile) String() string {
 func (*ClientProfile) ProtoMessage() {}
 
 func (x *ClientProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[9]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1503,7 +1653,7 @@ func (b0 ClientProfile_builder) Build() *ClientProfile {
 type case_ClientProfile_Schedule protoreflect.FieldNumber
 
 func (x case_ClientProfile_Schedule) String() string {
-	md := file_v1_generator_proto_query_template_config_proto_msgTypes[9].Descriptor()
+	md := file_v1_generator_proto_query_template_config_proto_msgTypes[11].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -1546,7 +1696,7 @@ type ClientAddressPool struct {
 
 func (x *ClientAddressPool) Reset() {
 	*x = ClientAddressPool{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[10]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1558,7 +1708,7 @@ func (x *ClientAddressPool) String() string {
 func (*ClientAddressPool) ProtoMessage() {}
 
 func (x *ClientAddressPool) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[10]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1619,7 +1769,7 @@ type OutcomeWeight struct {
 
 func (x *OutcomeWeight) Reset() {
 	*x = OutcomeWeight{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[11]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1631,7 +1781,7 @@ func (x *OutcomeWeight) String() string {
 func (*OutcomeWeight) ProtoMessage() {}
 
 func (x *OutcomeWeight) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[11]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1690,7 +1840,7 @@ type PeriodicSchedule struct {
 
 func (x *PeriodicSchedule) Reset() {
 	*x = PeriodicSchedule{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[12]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1702,7 +1852,7 @@ func (x *PeriodicSchedule) String() string {
 func (*PeriodicSchedule) ProtoMessage() {}
 
 func (x *PeriodicSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[12]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1787,7 +1937,7 @@ type BurstSchedule struct {
 
 func (x *BurstSchedule) Reset() {
 	*x = BurstSchedule{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[13]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1799,7 +1949,7 @@ func (x *BurstSchedule) String() string {
 func (*BurstSchedule) ProtoMessage() {}
 
 func (x *BurstSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[13]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1898,7 +2048,7 @@ type QueryTemplateConfig_PlaceholderValueSpec struct {
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec) Reset() {
 	*x = QueryTemplateConfig_PlaceholderValueSpec{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[14]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1910,7 +2060,7 @@ func (x *QueryTemplateConfig_PlaceholderValueSpec) String() string {
 func (*QueryTemplateConfig_PlaceholderValueSpec) ProtoMessage() {}
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[14]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2077,7 +2227,7 @@ func (b0 QueryTemplateConfig_PlaceholderValueSpec_builder) Build() *QueryTemplat
 type case_QueryTemplateConfig_PlaceholderValueSpec_Placeholder protoreflect.FieldNumber
 
 func (x case_QueryTemplateConfig_PlaceholderValueSpec_Placeholder) String() string {
-	md := file_v1_generator_proto_query_template_config_proto_msgTypes[14].Descriptor()
+	md := file_v1_generator_proto_query_template_config_proto_msgTypes[16].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -2119,7 +2269,7 @@ type QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder struct {
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder) Reset() {
 	*x = QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[15]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2131,7 +2281,7 @@ func (x *QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder) String() s
 func (*QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder) ProtoMessage() {}
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[15]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2190,7 +2340,7 @@ type QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder struct {
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder) Reset() {
 	*x = QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[16]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2202,7 +2352,7 @@ func (x *QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder) String() str
 func (*QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder) ProtoMessage() {}
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[16]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2260,7 +2410,7 @@ type QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder struct {
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder) Reset() {
 	*x = QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder{}
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[17]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2272,7 +2422,7 @@ func (x *QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder) String() st
 func (*QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder) ProtoMessage() {}
 
 func (x *QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[17]
+	mi := &file_v1_generator_proto_query_template_config_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2347,7 +2497,7 @@ const file_v1_generator_proto_query_template_config_proto_rawDesc = "" +
 	"\x11StringPlaceholder\x12%\n" +
 	"\x0eallowed_values\x18\x01 \x03(\tR\rallowedValuesB\r\n" +
 	"\vplaceholderB\x10\n" +
-	"\x0e_is_read_query\"\xdb\x06\n" +
+	"\x0e_is_read_query\"\xda\a\n" +
 	"\x16BucketSimulationConfig\x12\x17\n" +
 	"\adb_user\x18\x01 \x01(\tR\x06dbUser\x125\n" +
 	"\x17queries_per_bucket_mean\x18\x02 \x01(\x01R\x14queriesPerBucketMean\x129\n" +
@@ -2363,8 +2513,13 @@ const file_v1_generator_proto_query_template_config_proto_rawDesc = "" +
 	"\x10pgaudit_scenario\x18\x0e \x01(\bR\x0fpgauditScenario\x12B\n" +
 	"\x1dspiky_timestamps_distribution\x18\x06 \x01(\bR\x1bspikyTimestampsDistribution\x12`\n" +
 	"\fpeak_windows\x18\a \x03(\v2=.experimental.anomaly_detection.v1.generator.proto.PeakWindowR\vpeakWindows\x12A\n" +
-	"\x1aweekend_traffic_multiplier\x18\b \x01(\x01H\x00R\x18weekendTrafficMultiplier\x88\x01\x01B\x1d\n" +
-	"\x1b_weekend_traffic_multiplier\"\x87\x01\n" +
+	"\x1aweekend_traffic_multiplier\x18\b \x01(\x01H\x00R\x18weekendTrafficMultiplier\x88\x01\x01\x12}\n" +
+	"\x16weekly_traffic_profile\x18\x0f \x01(\v2G.experimental.anomaly_detection.v1.generator.proto.WeeklyTrafficProfileR\x14weeklyTrafficProfileB\x1d\n" +
+	"\x1b_weekend_traffic_multiplier\"r\n" +
+	"\x14WeeklyTrafficProfile\x12Z\n" +
+	"\x04days\x18\x01 \x03(\v2F.experimental.anomaly_detection.v1.generator.proto.DailyTrafficProfileR\x04days\"D\n" +
+	"\x13DailyTrafficProfile\x12-\n" +
+	"\x12hourly_multipliers\x18\x01 \x03(\x01R\x11hourlyMultipliers\"\x87\x01\n" +
 	"\n" +
 	"PeakWindow\x12\x1f\n" +
 	"\vwindow_name\x18\x01 \x01(\tR\n" +
@@ -2417,64 +2572,68 @@ const file_v1_generator_proto_query_template_config_proto_rawDesc = "" +
 	"\x1bACTIVE_WINDOW_TRAINING_ONLY\x10\x03BsZqgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/generator/proto;generatorpbb\x06proto3"
 
 var file_v1_generator_proto_query_template_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_v1_generator_proto_query_template_config_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_v1_generator_proto_query_template_config_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_v1_generator_proto_query_template_config_proto_goTypes = []any{
-	(ActiveWindow)(0),                                // 0: experimental.anomaly_detection.v1.generator.proto.ActiveWindow
-	(*QueryTemplateConfigs)(nil),                     // 1: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs
-	(*WeightedSamplingConfig)(nil),                   // 2: experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig
-	(*BucketSamplingConfig)(nil),                     // 3: experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig
-	(*WeightedQueryTemplateConfig)(nil),              // 4: experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig
-	(*BucketQueryTemplateConfig)(nil),                // 5: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig
-	(*QueryTemplateConfig)(nil),                      // 6: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
-	(*BucketSimulationConfig)(nil),                   // 7: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
-	(*PeakWindow)(nil),                               // 8: experimental.anomaly_detection.v1.generator.proto.PeakWindow
-	(*ConnectionSamplingConfig)(nil),                 // 9: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig
-	(*ClientProfile)(nil),                            // 10: experimental.anomaly_detection.v1.generator.proto.ClientProfile
-	(*ClientAddressPool)(nil),                        // 11: experimental.anomaly_detection.v1.generator.proto.ClientAddressPool
-	(*OutcomeWeight)(nil),                            // 12: experimental.anomaly_detection.v1.generator.proto.OutcomeWeight
-	(*PeriodicSchedule)(nil),                         // 13: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule
-	(*BurstSchedule)(nil),                            // 14: experimental.anomaly_detection.v1.generator.proto.BurstSchedule
-	(*QueryTemplateConfig_PlaceholderValueSpec)(nil), // 15: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec
-	(*QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder)(nil), // 16: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholder
-	(*QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder)(nil),   // 17: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholder
-	(*QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder)(nil),  // 18: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.StringPlaceholder
-	(*SourceInstance)(nil),      // 19: experimental.anomaly_detection.v1.generator.proto.SourceInstance
-	(AttackerProfile)(0),        // 20: experimental.anomaly_detection.v1.generator.proto.AttackerProfile
-	(ConnectionOutcome)(0),      // 21: experimental.anomaly_detection.v1.generator.proto.ConnectionOutcome
-	(*durationpb.Duration)(nil), // 22: google.protobuf.Duration
+	(ActiveWindow)(0),                                                   // 0: experimental.anomaly_detection.v1.generator.proto.ActiveWindow
+	(*QueryTemplateConfigs)(nil),                                        // 1: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs
+	(*WeightedSamplingConfig)(nil),                                      // 2: experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig
+	(*BucketSamplingConfig)(nil),                                        // 3: experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig
+	(*WeightedQueryTemplateConfig)(nil),                                 // 4: experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig
+	(*BucketQueryTemplateConfig)(nil),                                   // 5: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig
+	(*QueryTemplateConfig)(nil),                                         // 6: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
+	(*BucketSimulationConfig)(nil),                                      // 7: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
+	(*WeeklyTrafficProfile)(nil),                                        // 8: experimental.anomaly_detection.v1.generator.proto.WeeklyTrafficProfile
+	(*DailyTrafficProfile)(nil),                                         // 9: experimental.anomaly_detection.v1.generator.proto.DailyTrafficProfile
+	(*PeakWindow)(nil),                                                  // 10: experimental.anomaly_detection.v1.generator.proto.PeakWindow
+	(*ConnectionSamplingConfig)(nil),                                    // 11: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig
+	(*ClientProfile)(nil),                                               // 12: experimental.anomaly_detection.v1.generator.proto.ClientProfile
+	(*ClientAddressPool)(nil),                                           // 13: experimental.anomaly_detection.v1.generator.proto.ClientAddressPool
+	(*OutcomeWeight)(nil),                                               // 14: experimental.anomaly_detection.v1.generator.proto.OutcomeWeight
+	(*PeriodicSchedule)(nil),                                            // 15: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule
+	(*BurstSchedule)(nil),                                               // 16: experimental.anomaly_detection.v1.generator.proto.BurstSchedule
+	(*QueryTemplateConfig_PlaceholderValueSpec)(nil),                    // 17: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec
+	(*QueryTemplateConfig_PlaceholderValueSpec_IntegerPlaceholder)(nil), // 18: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholder
+	(*QueryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder)(nil),   // 19: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholder
+	(*QueryTemplateConfig_PlaceholderValueSpec_StringPlaceholder)(nil),  // 20: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.StringPlaceholder
+	(*SourceInstance)(nil),                                              // 21: experimental.anomaly_detection.v1.generator.proto.SourceInstance
+	(AttackerProfile)(0),                                                // 22: experimental.anomaly_detection.v1.generator.proto.AttackerProfile
+	(ConnectionOutcome)(0),                                              // 23: experimental.anomaly_detection.v1.generator.proto.ConnectionOutcome
+	(*durationpb.Duration)(nil),                                         // 24: google.protobuf.Duration
 }
 var file_v1_generator_proto_query_template_config_proto_depIdxs = []int32{
 	2,  // 0: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.weighted_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig
 	3,  // 1: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.bucket_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig
-	9,  // 2: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.connection_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig
+	11, // 2: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfigs.connection_sampling:type_name -> experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig
 	4,  // 3: experimental.anomaly_detection.v1.generator.proto.WeightedSamplingConfig.query_template_configs:type_name -> experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig
 	5,  // 4: experimental.anomaly_detection.v1.generator.proto.BucketSamplingConfig.query_template_configs:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig
 	6,  // 5: experimental.anomaly_detection.v1.generator.proto.WeightedQueryTemplateConfig.template:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
 	6,  // 6: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig.template:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig
 	7,  // 7: experimental.anomaly_detection.v1.generator.proto.BucketQueryTemplateConfig.bucket_config:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
-	15, // 8: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.placeholder_values:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec
-	8,  // 9: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig.peak_windows:type_name -> experimental.anomaly_detection.v1.generator.proto.PeakWindow
-	19, // 10: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig.source:type_name -> experimental.anomaly_detection.v1.generator.proto.SourceInstance
-	10, // 11: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig.client_profiles:type_name -> experimental.anomaly_detection.v1.generator.proto.ClientProfile
-	11, // 12: experimental.anomaly_detection.v1.generator.proto.ClientProfile.client_address_pool:type_name -> experimental.anomaly_detection.v1.generator.proto.ClientAddressPool
-	12, // 13: experimental.anomaly_detection.v1.generator.proto.ClientProfile.outcome_weights:type_name -> experimental.anomaly_detection.v1.generator.proto.OutcomeWeight
-	7,  // 14: experimental.anomaly_detection.v1.generator.proto.ClientProfile.bucket_traffic:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
-	13, // 15: experimental.anomaly_detection.v1.generator.proto.ClientProfile.periodic:type_name -> experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule
-	14, // 16: experimental.anomaly_detection.v1.generator.proto.ClientProfile.burst:type_name -> experimental.anomaly_detection.v1.generator.proto.BurstSchedule
-	0,  // 17: experimental.anomaly_detection.v1.generator.proto.ClientProfile.active_window:type_name -> experimental.anomaly_detection.v1.generator.proto.ActiveWindow
-	20, // 18: experimental.anomaly_detection.v1.generator.proto.ClientProfile.attacker_profile:type_name -> experimental.anomaly_detection.v1.generator.proto.AttackerProfile
-	21, // 19: experimental.anomaly_detection.v1.generator.proto.OutcomeWeight.outcome:type_name -> experimental.anomaly_detection.v1.generator.proto.ConnectionOutcome
-	22, // 20: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule.interval:type_name -> google.protobuf.Duration
-	22, // 21: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule.jitter:type_name -> google.protobuf.Duration
-	22, // 22: experimental.anomaly_detection.v1.generator.proto.BurstSchedule.burst_duration:type_name -> google.protobuf.Duration
-	16, // 23: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.int_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholder
-	17, // 24: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.float_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholder
-	18, // 25: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.string_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.StringPlaceholder
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	17, // 8: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.placeholder_values:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec
+	10, // 9: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig.peak_windows:type_name -> experimental.anomaly_detection.v1.generator.proto.PeakWindow
+	8,  // 10: experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig.weekly_traffic_profile:type_name -> experimental.anomaly_detection.v1.generator.proto.WeeklyTrafficProfile
+	9,  // 11: experimental.anomaly_detection.v1.generator.proto.WeeklyTrafficProfile.days:type_name -> experimental.anomaly_detection.v1.generator.proto.DailyTrafficProfile
+	21, // 12: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig.source:type_name -> experimental.anomaly_detection.v1.generator.proto.SourceInstance
+	12, // 13: experimental.anomaly_detection.v1.generator.proto.ConnectionSamplingConfig.client_profiles:type_name -> experimental.anomaly_detection.v1.generator.proto.ClientProfile
+	13, // 14: experimental.anomaly_detection.v1.generator.proto.ClientProfile.client_address_pool:type_name -> experimental.anomaly_detection.v1.generator.proto.ClientAddressPool
+	14, // 15: experimental.anomaly_detection.v1.generator.proto.ClientProfile.outcome_weights:type_name -> experimental.anomaly_detection.v1.generator.proto.OutcomeWeight
+	7,  // 16: experimental.anomaly_detection.v1.generator.proto.ClientProfile.bucket_traffic:type_name -> experimental.anomaly_detection.v1.generator.proto.BucketSimulationConfig
+	15, // 17: experimental.anomaly_detection.v1.generator.proto.ClientProfile.periodic:type_name -> experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule
+	16, // 18: experimental.anomaly_detection.v1.generator.proto.ClientProfile.burst:type_name -> experimental.anomaly_detection.v1.generator.proto.BurstSchedule
+	0,  // 19: experimental.anomaly_detection.v1.generator.proto.ClientProfile.active_window:type_name -> experimental.anomaly_detection.v1.generator.proto.ActiveWindow
+	22, // 20: experimental.anomaly_detection.v1.generator.proto.ClientProfile.attacker_profile:type_name -> experimental.anomaly_detection.v1.generator.proto.AttackerProfile
+	23, // 21: experimental.anomaly_detection.v1.generator.proto.OutcomeWeight.outcome:type_name -> experimental.anomaly_detection.v1.generator.proto.ConnectionOutcome
+	24, // 22: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule.interval:type_name -> google.protobuf.Duration
+	24, // 23: experimental.anomaly_detection.v1.generator.proto.PeriodicSchedule.jitter:type_name -> google.protobuf.Duration
+	24, // 24: experimental.anomaly_detection.v1.generator.proto.BurstSchedule.burst_duration:type_name -> google.protobuf.Duration
+	18, // 25: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.int_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.IntegerPlaceholder
+	19, // 26: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.float_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.FloatPlaceholder
+	20, // 27: experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.string_placeholder:type_name -> experimental.anomaly_detection.v1.generator.proto.QueryTemplateConfig.PlaceholderValueSpec.StringPlaceholder
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_v1_generator_proto_query_template_config_proto_init() }
@@ -2490,12 +2649,12 @@ func file_v1_generator_proto_query_template_config_proto_init() {
 	}
 	file_v1_generator_proto_query_template_config_proto_msgTypes[5].OneofWrappers = []any{}
 	file_v1_generator_proto_query_template_config_proto_msgTypes[6].OneofWrappers = []any{}
-	file_v1_generator_proto_query_template_config_proto_msgTypes[9].OneofWrappers = []any{
+	file_v1_generator_proto_query_template_config_proto_msgTypes[11].OneofWrappers = []any{
 		(*clientProfile_BucketTraffic)(nil),
 		(*clientProfile_Periodic)(nil),
 		(*clientProfile_Burst)(nil),
 	}
-	file_v1_generator_proto_query_template_config_proto_msgTypes[14].OneofWrappers = []any{
+	file_v1_generator_proto_query_template_config_proto_msgTypes[16].OneofWrappers = []any{
 		(*queryTemplateConfig_PlaceholderValueSpec_IntPlaceholder)(nil),
 		(*queryTemplateConfig_PlaceholderValueSpec_FloatPlaceholder_)(nil),
 		(*queryTemplateConfig_PlaceholderValueSpec_StringPlaceholder_)(nil),
@@ -2506,7 +2665,7 @@ func file_v1_generator_proto_query_template_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v1_generator_proto_query_template_config_proto_rawDesc), len(file_v1_generator_proto_query_template_config_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

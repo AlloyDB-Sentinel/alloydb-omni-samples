@@ -59,6 +59,69 @@ func TestValidatePGAuditBucketConfig(t *testing.T) {
 	}
 }
 
+func TestValidateWeeklyTrafficProfile(t *testing.T) {
+	buildDay := func(hours []float64) *cfgpb.DailyTrafficProfile {
+		return cfgpb.DailyTrafficProfile_builder{HourlyMultipliers: hours}.Build()
+	}
+	buildProfile := func(mutate func([]*cfgpb.DailyTrafficProfile) []*cfgpb.DailyTrafficProfile) *cfgpb.WeeklyTrafficProfile {
+		var days []*cfgpb.DailyTrafficProfile
+		for day := 0; day < 7; day++ {
+			hours := make([]float64, 24)
+			for hour := range hours {
+				hours[hour] = 1.0
+			}
+			days = append(days, buildDay(hours))
+		}
+		if mutate != nil {
+			days = mutate(days)
+		}
+		return cfgpb.WeeklyTrafficProfile_builder{Days: days}.Build()
+	}
+	buildConfigs := func(profile *cfgpb.WeeklyTrafficProfile, peaks []*cfgpb.PeakWindow) *cfgpb.QueryTemplateConfigs {
+		return cfgpb.QueryTemplateConfigs_builder{
+			BucketSampling: cfgpb.BucketSamplingConfig_builder{
+				QueryTemplateConfigs: []*cfgpb.BucketQueryTemplateConfig{
+					cfgpb.BucketQueryTemplateConfig_builder{
+						Template: cfgpb.QueryTemplateConfig_builder{NormalizedQueryTemplate: "SELECT 1"}.Build(),
+						BucketConfig: cfgpb.BucketSimulationConfig_builder{
+							DbUser:               "app_user",
+							QueriesPerBucketMean: 120,
+							WeeklyTrafficProfile: profile,
+							PeakWindows:          peaks,
+						}.Build(),
+					}.Build(),
+				},
+			}.Build(),
+		}.Build()
+	}
+
+	tests := []struct {
+		name    string
+		configs *cfgpb.QueryTemplateConfigs
+		wantErr bool
+	}{
+		{"seven_days_of_24", buildConfigs(buildProfile(nil), nil), false},
+		{"six_days", buildConfigs(buildProfile(func(days []*cfgpb.DailyTrafficProfile) []*cfgpb.DailyTrafficProfile { return days[:6] }), nil), true},
+		{"short_day", buildConfigs(buildProfile(func(days []*cfgpb.DailyTrafficProfile) []*cfgpb.DailyTrafficProfile {
+			days[2] = buildDay(days[2].GetHourlyMultipliers()[:23])
+			return days
+		}), nil), true},
+		{"negative_multiplier", buildConfigs(buildProfile(func(days []*cfgpb.DailyTrafficProfile) []*cfgpb.DailyTrafficProfile {
+			hours := days[0].GetHourlyMultipliers()
+			hours[0] = -1
+			return days
+		}), nil), true},
+		{"with_peak_windows", buildConfigs(buildProfile(nil), []*cfgpb.PeakWindow{cfgpb.PeakWindow_builder{HourStart: 9, HourEnd: 17, Multiplier: 1.5}.Build()}), true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateConfigs(test.configs); (err != nil) != test.wantErr {
+				t.Fatalf("validateConfigs() error = %v, wantErr %v", err, test.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateConfigs(t *testing.T) {
 	tests := []struct {
 		name    string

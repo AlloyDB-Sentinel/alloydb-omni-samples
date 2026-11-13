@@ -9,8 +9,8 @@ go run ./v2/experiments/scenario2_tuple
 go test ./v2/experiments/scenario2_tuple ./v2/common ./v1/generator/...
 ```
 
-The runner builds the existing generator, fixes clean training at **20 weeks**,
-and evaluates every non-empty subset of the seven rolling timeframes under both
+The runner builds the existing generator, defaults to **20 weeks** of clean
+training (`-training-weeks`), and evaluates every non-empty subset of the seven rolling timeframes under both
 **OR** and **AND**: 127 subsets × 2 combiners = **254 candidates**. A 4-hour
 reporting bucket is flagged by OR when any member is above its own
 `mean + c × population stddev` threshold, and by AND only when every member is.
@@ -28,10 +28,10 @@ database is required.
 
 ## Experiment
 
-- One warm-up week, 20 clean training weeks, 4 validation weeks, then 4 held-out test weeks.
+- One warm-up week, 20 clean training weeks by default, 4 validation weeks, then 4 held-out test weeks.
 - Ten deterministic seeds (42–51) using `v2/experiments/scenario2_timeframe/config.textproto`.
 - One database/user identity; 2% one-hour attack episodes with 3× reads and normal rows per read.
-- Baselines learn one threshold per 4-hour weekly slot (42 slots) from the 20 training observations.
+- Baselines learn one threshold per 4-hour weekly slot (42 slots) from the training observations for that slot.
 - Constants are selected per timeframe by pooled validation F1 across the ten seeds.
   Every subset uses those fixed per-frame constants; the subset/combiner candidate is
   selected by pooled validation F1. Ties prefer precision, then accuracy, then the
@@ -167,8 +167,8 @@ temporary usage stays at one seed's log because each is deleted after
 aggregation.
 
 The training-duration table is a different experiment, in `scenario2_timeframe`.
-There is no equivalent training-duration sweep for a tuple yet; this runner
-hard-codes `trainingWeeks = 20`.
+There is no equivalent training-duration sweep for a tuple yet; `-training-weeks`
+changes the training duration without touching the validation/test split.
 
 ## Caveats
 

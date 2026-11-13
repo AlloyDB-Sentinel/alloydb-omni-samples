@@ -25,17 +25,23 @@ bucket_sampling {
       anomalous_rows_probability: 0.02
       anomalous_rows_multiplier: 15.0
       rows_returned_max: 100000
-      peak_windows {
-        window_name: "day"
-        hour_start: 9
-        hour_end: 17
-        multiplier: 1.5
-      }
-      peak_windows {
-        window_name: "night"
-        hour_start: 19
-        hour_end: 22
-        multiplier: 1.2
+      # Human weekly seasonality: seven days, Monday first, 24 UTC hourly
+      # multipliers. Replaces peak_windows and weekend_traffic_multiplier.
+      weekly_traffic_profile {
+        # Monday
+        days { hourly_multipliers: [0.12, 0.10, 0.09, 0.09, 0.10, 0.14, 0.28, 0.55, 1.05, 1.55, 1.70, 1.65, 0.95, 1.50, 1.65, 1.60, 1.40, 1.00, 0.70, 0.50, 0.40, 0.32, 0.24, 0.17] }
+        # Tuesday
+        days { hourly_multipliers: [0.12, 0.10, 0.09, 0.09, 0.10, 0.14, 0.30, 0.58, 1.10, 1.60, 1.75, 1.70, 0.95, 1.55, 1.70, 1.65, 1.45, 1.05, 0.72, 0.52, 0.41, 0.33, 0.25, 0.18] }
+        # Wednesday
+        days { hourly_multipliers: [0.13, 0.11, 0.10, 0.10, 0.11, 0.15, 0.30, 0.58, 1.10, 1.65, 1.80, 1.75, 0.95, 1.60, 1.75, 1.70, 1.50, 1.10, 0.75, 0.54, 0.42, 0.34, 0.26, 0.19] }
+        # Thursday
+        days { hourly_multipliers: [0.13, 0.11, 0.10, 0.10, 0.11, 0.15, 0.30, 0.60, 1.12, 1.60, 1.75, 1.70, 0.95, 1.55, 1.70, 1.65, 1.45, 1.05, 0.72, 0.52, 0.41, 0.33, 0.25, 0.18] }
+        # Friday
+        days { hourly_multipliers: [0.12, 0.10, 0.09, 0.09, 0.10, 0.14, 0.28, 0.55, 1.05, 1.50, 1.60, 1.50, 0.90, 1.20, 1.10, 1.00, 0.90, 0.75, 0.60, 0.50, 0.40, 0.32, 0.24, 0.17] }
+        # Saturday
+        days { hourly_multipliers: [0.12, 0.10, 0.09, 0.08, 0.08, 0.10, 0.15, 0.25, 0.45, 0.70, 0.85, 0.90, 0.75, 0.80, 0.85, 0.80, 0.70, 0.55, 0.45, 0.35, 0.30, 0.25, 0.20, 0.15] }
+        # Sunday
+        days { hourly_multipliers: [0.10, 0.08, 0.07, 0.07, 0.07, 0.08, 0.12, 0.18, 0.22, 0.30, 0.38, 0.42, 0.35, 0.40, 0.45, 0.42, 0.38, 0.30, 0.25, 0.20, 0.16, 0.13, 0.11, 0.10] }
       }
     }
   }

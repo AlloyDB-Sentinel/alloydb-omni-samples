@@ -81,6 +81,9 @@ message BucketSimulationConfig {
 
   // Baseline traffic simulation.
   double queries_per_bucket_mean = 2;
+  // Standard deviation at queries_per_bucket_mean. With a weekly_traffic_profile
+  // the variance scales with the expected count, so quiet hours receive less
+  // absolute noise instead of the same baseline deviation.
   double queries_variation_std_dev = 3;
 
   // Anomalous spike affecting the query count per legacy time bucket.
@@ -100,11 +103,30 @@ message BucketSimulationConfig {
   bool spiky_timestamps_distribution = 6;
 
   // Regular peak to simulate traffic variations in a day.
+  // Ignored when weekly_traffic_profile is set.
   repeated PeakWindow peak_windows = 7;
 
   // 0.0 represents a silent weekend (e.g., offices/clinics).
   // > 1.0 represents a busy weekend (e.g., restaurants/stores).
+  // Ignored when weekly_traffic_profile is set.
   optional double weekend_traffic_multiplier = 8;
+
+  // Human weekly seasonality: a different read rate for every weekday and
+  // hour, e.g. a quiet Sunday morning versus a busy Thursday afternoon.
+  // Replaces peak_windows and weekend_traffic_multiplier when set.
+  WeeklyTrafficProfile weekly_traffic_profile = 15;
+}
+
+// Weekly read-rate shape, Monday first, at hourly UTC resolution.
+message WeeklyTrafficProfile {
+  // Exactly seven entries, Monday through Sunday.
+  repeated DailyTrafficProfile days = 1;
+}
+
+message DailyTrafficProfile {
+  // Exactly 24 multipliers for hours 0..23 UTC. A multiplier of 0 silences
+  // that hour for ordinary traffic; injected attacks still produce reads.
+  repeated double hourly_multipliers = 1;
 }
 
 message PeakWindow {

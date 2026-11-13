@@ -127,6 +127,14 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 // validateBucketSimulationConfig checks the traffic settings shared by bucket_sampling templates
 // and connection_sampling profiles that use bucket_traffic.
 func validateBucketSimulationConfig(i int, simCfg *cfgpb.BucketSimulationConfig) error {
+	if profile := simCfg.GetWeeklyTrafficProfile(); profile != nil {
+		if len(simCfg.GetPeakWindows()) > 0 || simCfg.HasWeekendTrafficMultiplier() {
+			return fmt.Errorf("config[%d]: weekly_traffic_profile replaces peak_windows and weekend_traffic_multiplier; set only one of them", i)
+		}
+		if err := validateWeeklyTrafficProfile(i, profile); err != nil {
+			return err
+		}
+	}
 	if !isFiniteNonNegative(simCfg.GetQueriesPerBucketMean()) {
 		return fmt.Errorf("config[%d]: queries_per_bucket_mean must be finite and non-negative", i)
 	}
@@ -293,6 +301,27 @@ func durationOrError(protoDuration *durationpb.Duration) (time.Duration, error) 
 		return 0, err
 	}
 	return protoDuration.AsDuration(), nil
+}
+
+// validateWeeklyTrafficProfile requires a Monday-first profile covering every
+// hour of the week, so no slot silently falls back to the baseline rate.
+func validateWeeklyTrafficProfile(i int, profile *cfgpb.WeeklyTrafficProfile) error {
+	days := profile.GetDays()
+	if len(days) != 7 {
+		return fmt.Errorf("config[%d].weekly_traffic_profile: want 7 days (Monday first), got %d", i, len(days))
+	}
+	for day, daily := range days {
+		multipliers := daily.GetHourlyMultipliers()
+		if len(multipliers) != 24 {
+			return fmt.Errorf("config[%d].weekly_traffic_profile.days[%d]: want 24 hourly multipliers, got %d", i, day, len(multipliers))
+		}
+		for hour, multiplier := range multipliers {
+			if !isFiniteNonNegative(multiplier) {
+				return fmt.Errorf("config[%d].weekly_traffic_profile.days[%d].hourly_multipliers[%d]: multiplier must be finite and non-negative", i, day, hour)
+			}
+		}
+	}
+	return nil
 }
 
 func validatePeakWindows(i int, windows []*cfgpb.PeakWindow) error {

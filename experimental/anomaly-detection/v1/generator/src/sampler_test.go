@@ -294,6 +294,102 @@ bucket_config: {
 	}
 }
 
+func TestSampleQueryCountWeeklyProfile(t *testing.T) {
+	buildDay := func(mutate func([]float64)) *cfgpb.DailyTrafficProfile {
+		hours := make([]float64, 24)
+		for hour := range hours {
+			hours[hour] = 1.0
+		}
+		if mutate != nil {
+			mutate(hours)
+		}
+		return cfgpb.DailyTrafficProfile_builder{HourlyMultipliers: hours}.Build()
+	}
+	var days []*cfgpb.DailyTrafficProfile
+	for day := 0; day < 7; day++ {
+		switch day {
+		case 3: // Thursday afternoon.
+			days = append(days, buildDay(func(hours []float64) { hours[15] = 1.65 }))
+		case 6: // Quiet Sunday morning, silent Sunday night.
+			days = append(days, buildDay(func(hours []float64) {
+				hours[9] = 0.2
+				hours[3] = 0.0
+			}))
+		default:
+			days = append(days, buildDay(nil))
+		}
+	}
+	profile := cfgpb.WeeklyTrafficProfile_builder{Days: days}.Build()
+
+	newConfig := func(stdDev float64) *cfgpb.BucketQueryTemplateConfig {
+		return cfgpb.BucketQueryTemplateConfig_builder{
+			BucketConfig: cfgpb.BucketSimulationConfig_builder{
+				QueriesPerBucketMean:     100,
+				QueriesVariationStdDev:   stdDev,
+				AnomalousSpikeMultiplier: 3,
+				WeeklyTrafficProfile:     profile,
+			}.Build(),
+		}.Build()
+	}
+
+	tests := []struct {
+		name    string
+		isSpike bool
+		hour    int
+		weekday time.Weekday
+		want    int
+	}{
+		{"sunday_morning_is_quiet", false, 9, time.Sunday, 20},
+		{"thursday_afternoon_is_busy", false, 15, time.Thursday, 165},
+		{"unshaped_slot_keeps_mean", false, 12, time.Tuesday, 100},
+		{"zero_multiplier_silences_slot", false, 3, time.Sunday, 0},
+		{"attack_fires_in_silent_slot", true, 3, time.Sunday, 300},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rng := rand.New(rand.NewSource(1))
+			if got := SampleQueryCount(newConfig(0), test.isSpike, test.hour, test.weekday, rng); got != test.want {
+				t.Errorf("SampleQueryCount() = %d, want %d", got, test.want)
+			}
+		})
+	}
+
+	// Noise must not resurrect a silenced slot.
+	rng := rand.New(rand.NewSource(1))
+	noisy := newConfig(50)
+	for i := 0; i < 50; i++ {
+		if got := SampleQueryCount(noisy, false, 3, time.Sunday, rng); got != 0 {
+			t.Fatalf("SampleQueryCount() in silenced slot = %d, want 0", got)
+		}
+	}
+}
+
+func TestScaledVariationStdDev(t *testing.T) {
+	tests := []struct {
+		name     string
+		rate     float64
+		baseMean float64
+		stdDev   float64
+		want     float64
+	}{
+		{"configured_deviation_at_baseline", 120, 120, 20, 20},
+		{"quiet_slot_shrinks_deviation", 8.4, 120, 20, 3.126024},
+		{"peak_slot_grows_deviation", 198, 120, 20, 30.988707},
+		{"attack_count_grows_deviation", 25.2, 120, 20, 6.127640},
+		{"zero_deviation_stays_deterministic", 120, 120, 0, 0},
+		{"missing_baseline_keeps_deviation", 120, 0, 20, 20},
+		{"underdispersed_uses_poisson_noise", 25, 100, 5, 5},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := scaledVariationStdDev(test.rate, test.baseMean, test.stdDev)
+			if math.Abs(got-test.want) > 1e-4 {
+				t.Errorf("scaledVariationStdDev(%v, %v, %v) = %v, want %v", test.rate, test.baseMean, test.stdDev, got, test.want)
+			}
+		})
+	}
+}
+
 func TestApplyParabolicPeak(t *testing.T) {
 	tests := []struct {
 		name       string
