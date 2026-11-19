@@ -96,6 +96,12 @@ These are synthetic logs: SQL is not executed and the process does not sleep.
 | `markov_standard_user_config.textproto` | Idle SELECT 1 actions with 20–40 second spacing, interrupted by read/write bursts with 10–14 second spacing |
 | `markov_maintenance_user_config.textproto` | CREATE INDEX, ALTER TABLE and VACUUM sessions, ending at session_done before a fresh session starts |
 | `markov_service_usage_config.textproto` | Fast point/range reads with rare writes, mostly 15–30 ms spacing for reads |
+| `markov_analytics_user_config.textproto` | Low-frequency aggregate reports with ≥30 second completions (≤2 ops/min), 100% read, looping continuously with no terminal node |
+| `markov_batch_etl_config.textproto` | High-throughput bulk loads with 1–3 second spacing (~30–60 ops/min), ~70% write, bounded sessions ending at session_done before a fresh session starts |
+| `markov_read_replica_config.textproto` | Steady point/range reads with 1–5 second spacing (~15–30 ops/min), 100% read, looping continuously with no terminal node |
+| `markov_bursty_api_config.textproto` | Idle baseline polling with 30–60 second spacing (~1–2 ops/min) interrupted by bursts with 2–5 second spacing (~12–30 ops/min, ≥5× baseline), ~80% read, looping continuously with no terminal node |
+| `markov_noisy_client_config.textproto` | Erratic sub-second spacing (~60–300 ops/min) with aggressive self-loops, ~80% read, looping continuously with no terminal node |
+| `markov_oltp_app_config.textproto` | Interactive reads and writes with ~12 second spacing (~5 ops/min), write-leaning ~55% write, looping continuously with no terminal node |
 
 Edge weights are conditional probabilities, not overall action proportions. For
 example, the standard user's idle node has an 85% chance to stay idle and a 15%
