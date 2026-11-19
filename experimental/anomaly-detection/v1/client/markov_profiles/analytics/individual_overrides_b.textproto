@@ -1,0 +1,41 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (analytics class) -- "individual B", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# Sibling of individual_overrides.textproto. Both individuals share the same
+# analytics base graph but pin different edges to different weights, so the two
+# derived individuals end up with differing edge weights -- exactly the two
+# analytics individuals with differing individual_edge_overrides that R4.3 asks
+# for.
+#
+# Every (source_id, destination_id) below names a real edge of the base graph.
+# Non-pinned edges keep their class weight; a single final renormalization makes
+# each node's outgoing weights sum to 1.0.
+#
+# Individual B leans toward the order rollup and sustains it: from the aggregate
+# scan it favors the order rollup, and once in the rollup it is more likely to
+# stay there than the class baseline.
+
+markov_individual {
+  base_graph_path: "../../markov_analytics_user_config.textproto"
+
+  # aggregate_scan: base weights are time_window_report=0.5, order_rollup=0.3,
+  # aggregate_scan=0.2. Pin the edge into the order rollup higher so this
+  # individual favors order rollups over windowed reports.
+  individual_edge_overrides {
+    source_id: "aggregate_scan"
+    destination_id: "order_rollup"
+    weight: 0.6
+  }
+
+  # order_rollup: base weights are aggregate_scan=0.5, time_window_report=0.3,
+  # order_rollup=0.2. Pin the rollup self-loop higher so this individual sustains
+  # longer rollup runs than the class.
+  individual_edge_overrides {
+    source_id: "order_rollup"
+    destination_id: "order_rollup"
+    weight: 0.45
+  }
+}
