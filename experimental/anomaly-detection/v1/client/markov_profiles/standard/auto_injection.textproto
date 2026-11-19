@@ -79,7 +79,7 @@ markov_sampling {
   # generator positions non-overlapping segments deterministically from the seeded rng;
   # no segment ranges are hand-specified.
   auto_injection {
-    anomalous_fraction: 0.08
+    anomalous_fraction: 0.01
     min_actions: 10
     max_actions: 40
     anomaly_refs {
