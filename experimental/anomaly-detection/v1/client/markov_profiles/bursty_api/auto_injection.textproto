@@ -1,0 +1,117 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Automatic anomaly injection example for the bursty API backend profile.
+# A bursty_api base stream (quiet baseline polling punctuated by fast API
+# bursts) with anomalous bursts auto-placed by the generator to a target
+# anomalous fraction, rather than hand-listing each injection segment. Anomalous
+# bursts run separate full anomaly graphs (the noisy-client and read-replica
+# sibling profiles) referenced by relative path; selection is weighted 3:1.
+# Never references its own base (no self-reference) and the referenced graphs
+# carry no injections of their own (no chaining).
+
+markov_sampling {
+  nodes {
+    id: "baseline_poll"
+    template {
+      normalized_query_template: "SELECT 1"
+    }
+    completion_time {
+      range {
+        min { seconds: 40 }
+        max { seconds: 60 }
+      }
+    }
+    edges { destination_id: "baseline_poll" weight: 0.5 }    # self-loop: idle keepalive
+    edges { destination_id: "baseline_status" weight: 0.25 }
+    edges { destination_id: "burst_read" weight: 0.25 }      # baseline -> burst
+  }
+  nodes {
+    id: "baseline_status"
+    template {
+      normalized_query_template: "SELECT status FROM orders WHERE customer_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 2000000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 30 }
+        max { seconds: 45 }
+      }
+    }
+    edges { destination_id: "baseline_poll" weight: 0.5 }
+    edges { destination_id: "burst_read" weight: 0.5 }       # baseline -> burst
+  }
+  nodes {
+    id: "burst_read"
+    template {
+      normalized_query_template: "SELECT * FROM sessions WHERE session_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 1000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 2 }
+        max { seconds: 4 }
+      }
+    }
+    edges { destination_id: "burst_read" weight: 0.4 }       # self-loop: fast API reads
+    edges { destination_id: "burst_write" weight: 0.5 }
+    edges { destination_id: "baseline_poll" weight: 0.1 }    # burst -> baseline
+  }
+  nodes {
+    id: "burst_write"
+    template {
+      normalized_query_template: "UPDATE sessions SET last_seen = %v WHERE session_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1600000000
+          max: 1700000000
+        }
+      }
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 1000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 2 }
+        max { seconds: 5 }
+      }
+    }
+    edges { destination_id: "burst_read" weight: 0.6 }
+    edges { destination_id: "baseline_poll" weight: 0.4 }    # burst -> baseline
+  }
+  start { node_id: "baseline_poll" }
+
+  # Automatic anomaly injection: auto-place anomalous bursts over ~5% of the stream,
+  # each burst 1-5 actions long, drawn from two separate full anomaly graphs (the
+  # noisy-client and read-replica sibling profiles) chosen 3:1 by selection weight.
+  # The generator positions non-overlapping segments deterministically from the
+  # seeded rng; no segment ranges are hand-specified. Neither ref is bursty_api's
+  # own base.
+  auto_injection {
+    anomalous_fraction: 0.05
+    min_actions: 1
+    max_actions: 5
+    anomaly_refs {
+      anomaly_graph_path: "../../markov_noisy_client_config.textproto"
+      selection_weight: 3
+    }
+    anomaly_refs {
+      anomaly_graph_path: "../../markov_read_replica_config.textproto"
+      selection_weight: 1
+    }
+  }
+}

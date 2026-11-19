@@ -1,0 +1,41 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (bursty_api class) -- "individual B", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# Sibling of individual_overrides.textproto. Both individuals share the same
+# bursty_api base graph but pin different edges to different weights, so the two
+# derived individuals end up with differing edge weights -- exactly the two
+# bursty_api individuals with differing individual_edge_overrides that R4.3 asks
+# for.
+#
+# Every (source_id, destination_id) below names a real edge of the base graph.
+# Non-pinned edges keep their class weight; a single final renormalization makes
+# each node's outgoing weights sum to 1.0.
+#
+# Individual B is baseline-leaning: it breaks into bursts harder from status
+# polling but then drains back to the quiet baseline sooner, spending less time
+# sustaining fast reads than the class.
+
+markov_individual {
+  base_graph_path: "../../markov_bursty_api_config.textproto"
+
+  # baseline_status: base weights are baseline_poll=0.6, burst_read=0.4. Pin the
+  # edge into the burst higher so this individual breaks into bursts from status
+  # polling more readily than the class.
+  individual_edge_overrides {
+    source_id: "baseline_status"
+    destination_id: "burst_read"
+    weight: 0.6
+  }
+
+  # burst_write: base weights are burst_read=0.6, baseline_poll=0.4. Pin the
+  # drain-to-baseline edge higher so this individual returns to the quiet
+  # baseline sooner after a write than the class.
+  individual_edge_overrides {
+    source_id: "burst_write"
+    destination_id: "baseline_poll"
+    weight: 0.6
+  }
+}

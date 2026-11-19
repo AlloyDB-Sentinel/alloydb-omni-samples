@@ -1,0 +1,34 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (bursty_api class) -- "individual A", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# One QueryTemplateConfigs holds exactly one markov_individual, so the two
+# bursty_api individuals asked for by R4.3 are shipped as two sibling files:
+# this one and individual_overrides_b.textproto. Both derive from the same
+# bursty_api base graph but pin different edges to different weights, so the two
+# derived individuals end up with differing edge weights.
+#
+# individual_edge_override is the highest-precedence per-edge mechanism: it pins
+# an edge's weight outright (no variance/jitter, no random draw for that edge).
+# Every (source_id, destination_id) below names a real edge of the base graph
+# (baseline_poll, baseline_status, burst_read, burst_write). Non-pinned edges
+# keep their class weight; a single final renormalization makes each node's
+# outgoing weights sum to 1.0.
+#
+# Individual A is write-leaning inside the burst: once reading fast it is much
+# more likely to issue a session write than the class baseline.
+
+markov_individual {
+  base_graph_path: "../../markov_bursty_api_config.textproto"
+
+  # burst_read: base weights are burst_read=0.45, burst_write=0.35,
+  # baseline_poll=0.2. Pin the edge into the burst write higher so this
+  # individual writes more often during bursts than the class.
+  individual_edge_overrides {
+    source_id: "burst_read"
+    destination_id: "burst_write"
+    weight: 0.6
+  }
+}
