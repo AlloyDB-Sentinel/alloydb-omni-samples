@@ -1,0 +1,34 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Subtype: Batch ETL / bulk loader, "insert-heavy" variant.
+# Layered on the batch_etl base graph. A loader whose extract step feeds almost
+# entirely into the bulk-insert path rather than fanning out to upserts or
+# validation, modeling an append-only ingest run. Only transition weights change;
+# nodes, templates, and completion times are inherited from the base graph and
+# the derived graph is renormalized once.
+#
+# Base edges overridden (all exist in markov_batch_etl_config.textproto):
+#   extract_read -> bulk_insert    0.6 -> 0.8  (skew toward inserts)
+#   extract_read -> bulk_update    0.3 -> 0.1  (fewer upsert passes)
+#   extract_read -> validate_read  0.1 -> 0.1  (unchanged; kept for legibility)
+
+markov_subtype {
+  base_graph_path: "../../markov_batch_etl_config.textproto"
+
+  edge_weight_overrides {
+    source_id: "extract_read"
+    destination_id: "bulk_insert"
+    weight: 0.8
+  }
+  edge_weight_overrides {
+    source_id: "extract_read"
+    destination_id: "bulk_update"
+    weight: 0.1
+  }
+  edge_weight_overrides {
+    source_id: "extract_read"
+    destination_id: "validate_read"
+    weight: 0.1
+  }
+}

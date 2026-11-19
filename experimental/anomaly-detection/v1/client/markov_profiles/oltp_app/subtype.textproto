@@ -1,0 +1,34 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Subtype: OLTP transactional app, "write-heavy tenant" variant.
+# Layered on the oltp_app base graph. A tenant that places orders far more
+# aggressively than the class: once it fetches an order it is much more likely
+# to insert a new order than to touch the session or re-read. Only transition
+# weights change; nodes, templates, and completion times are inherited from the
+# base graph and the derived graph is renormalized once.
+#
+# Base edges overridden (all exist in markov_oltp_app_config.textproto):
+#   fetch_order -> insert_order    0.45 -> 0.7  (skew toward placing orders)
+#   fetch_order -> touch_session   0.3  -> 0.2  (fewer session touches)
+#   fetch_order -> fetch_order     0.25 -> 0.1  (fewer immediate re-reads)
+
+markov_subtype {
+  base_graph_path: "../../markov_oltp_app_config.textproto"
+
+  edge_weight_overrides {
+    source_id: "fetch_order"
+    destination_id: "insert_order"
+    weight: 0.7
+  }
+  edge_weight_overrides {
+    source_id: "fetch_order"
+    destination_id: "touch_session"
+    weight: 0.2
+  }
+  edge_weight_overrides {
+    source_id: "fetch_order"
+    destination_id: "fetch_order"
+    weight: 0.1
+  }
+}

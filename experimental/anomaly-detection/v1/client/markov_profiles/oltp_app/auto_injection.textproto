@@ -1,0 +1,137 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Automatic anomaly injection example for the OLTP transactional app profile.
+# A balanced OLTP base stream (interleaved reads and writes across
+# orders/products/sessions) with anomalous bursts auto-placed by the generator
+# to a target anomalous fraction, rather than hand-listing each injection
+# segment. Anomalous bursts run separate full anomaly graphs (the noisy-client
+# and batch-ETL sibling profiles) referenced by relative path; selection is
+# weighted 2:1. Never references its own base (no self-reference) and the
+# referenced graphs carry no injections of their own (no chaining).
+
+markov_sampling {
+  nodes {
+    id: "fetch_order"
+    template {
+      normalized_query_template: "SELECT * FROM orders WHERE customer_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 2000000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 8 }
+        max { seconds: 14 }
+      }
+    }
+    edges { destination_id: "insert_order" weight: 0.45 }
+    edges { destination_id: "touch_session" weight: 0.3 }
+    edges { destination_id: "fetch_order" weight: 0.25 }
+  }
+  nodes {
+    id: "insert_order"
+    template {
+      normalized_query_template: "INSERT INTO orders (customer_id, status) VALUES (%v, %v)"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 2000000000
+        }
+      }
+      placeholder_values {
+        string_placeholder {
+          allowed_values: "pending"
+          allowed_values: "shipped"
+          allowed_values: "delivered"
+          allowed_values: "cancelled"
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 10 }
+        max { seconds: 16 }
+      }
+    }
+    edges { destination_id: "update_inventory" weight: 0.6 }
+    edges { destination_id: "fetch_order" weight: 0.4 }
+  }
+  nodes {
+    id: "update_inventory"
+    template {
+      normalized_query_template: "UPDATE products SET stock = %v WHERE category = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 0
+          max: 100000
+        }
+      }
+      placeholder_values {
+        string_placeholder {
+          allowed_values: "electronics"
+          allowed_values: "books"
+          allowed_values: "clothing"
+          allowed_values: "home"
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 10 }
+        max { seconds: 16 }
+      }
+    }
+    edges { destination_id: "touch_session" weight: 0.4 }
+    edges { destination_id: "fetch_order" weight: 0.5 }
+    edges { destination_id: "update_inventory" weight: 0.1 }
+  }
+  nodes {
+    id: "touch_session"
+    template {
+      normalized_query_template: "UPDATE sessions SET last_seen = %v WHERE session_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 2000000000
+        }
+      }
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 2000000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 8 }
+        max { seconds: 12 }
+      }
+    }
+    edges { destination_id: "fetch_order" weight: 0.7 }
+    edges { destination_id: "insert_order" weight: 0.3 }
+  }
+  start { node_id: "fetch_order" }
+
+  # Automatic anomaly injection: auto-place anomalous bursts over ~1% of the stream,
+  # each burst 10-40 actions long. The generator positions non-overlapping segments
+  # deterministically from the seeded rng; no segment ranges are hand-specified. Neither
+  # ref is analytics' own base.
+  auto_injection {
+    anomalous_fraction: 0.01
+    min_actions: 10
+    max_actions: 40
+    anomaly_refs {
+      anomaly_graph_path: "../../markov_noisy_client_config.textproto"
+      selection_weight: 1
+    }
+    anomaly_refs {
+      anomaly_graph_path: "../../markov_read_replica_config.textproto"
+      selection_weight: 2
+    }
+  }
+}

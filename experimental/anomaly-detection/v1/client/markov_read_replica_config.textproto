@@ -1,0 +1,89 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Profile: Read-replica reader.
+#
+# Behavioral_Intent:
+#   - Rate: moderate, ~15-30 operations per minute. Node completion times of
+#     1-5 s keep the sustained read loop in that band.
+#   - Mix: 100% read / 0% write. Every template is a read-only SELECT; the
+#     profile declares no write templates.
+#   - Termination: none. A read replica serves a continuous stream of queries,
+#     so the walk loops indefinitely (no terminal node).
+#
+# A client that only reads from a replica: a steady mix of point lookups, range
+# scans, and related lookup reads. The nodes self-loop and cross-link so the
+# walk keeps producing read queries forever; the short completion ranges model
+# fast replica reads and keep the action rate moderate.
+
+markov_sampling {
+  nodes {
+    id: "point_read"
+    template {
+      normalized_query_template: "SELECT * FROM documents WHERE doc_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 500000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 1 }
+        max { seconds: 3 }
+      }
+    }
+    edges { destination_id: "point_read" weight: 0.5 }
+    edges { destination_id: "range_read" weight: 0.35 }
+    edges { destination_id: "lookup_join_read" weight: 0.15 }
+  }
+  nodes {
+    id: "range_read"
+    template {
+      normalized_query_template: "SELECT * FROM events WHERE account_id = %v AND created_at > %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 100000
+        }
+      }
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 2000000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 2 }
+        max { seconds: 5 }
+      }
+    }
+    edges { destination_id: "point_read" weight: 0.5 }
+    edges { destination_id: "range_read" weight: 0.3 }
+    edges { destination_id: "lookup_join_read" weight: 0.2 }
+  }
+  nodes {
+    id: "lookup_join_read"
+    template {
+      normalized_query_template: "SELECT * FROM orders WHERE customer_id = %v"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 100000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 2 }
+        max { seconds: 4 }
+      }
+    }
+    edges { destination_id: "point_read" weight: 0.6 }
+    edges { destination_id: "range_read" weight: 0.4 }
+  }
+  start { node_id: "point_read" }
+}

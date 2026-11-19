@@ -1,0 +1,41 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (oltp_app class) -- "individual B", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# Sibling of individual_overrides.textproto. Both individuals share the same
+# oltp_app base graph but pin different edges to different weights, so the two
+# derived individuals end up with differing edge weights -- exactly the two
+# oltp_app individuals with differing individual_edge_overrides that R4.3 asks
+# for.
+#
+# Every (source_id, destination_id) below names a real edge of the base graph.
+# Non-pinned edges keep their class weight; a single final renormalization makes
+# each node's outgoing weights sum to 1.0.
+#
+# Individual B leans toward inventory churn and sustains it: after inserting an
+# order it almost always decrements inventory, and once updating inventory it is
+# more likely to keep updating than the class baseline.
+
+markov_individual {
+  base_graph_path: "../../markov_oltp_app_config.textproto"
+
+  # insert_order: base weights are update_inventory=0.6, fetch_order=0.4. Pin the
+  # edge into update_inventory higher so this individual decrements stock after
+  # nearly every order placed.
+  individual_edge_overrides {
+    source_id: "insert_order"
+    destination_id: "update_inventory"
+    weight: 0.85
+  }
+
+  # update_inventory: base weights are touch_session=0.4, fetch_order=0.5,
+  # update_inventory=0.1. Pin the self-loop higher so this individual sustains
+  # longer inventory-update runs than the class.
+  individual_edge_overrides {
+    source_id: "update_inventory"
+    destination_id: "update_inventory"
+    weight: 0.4
+  }
+}

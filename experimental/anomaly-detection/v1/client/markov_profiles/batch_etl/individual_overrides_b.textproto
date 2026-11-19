@@ -1,0 +1,41 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (batch_etl class) -- "individual B", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# Sibling of individual_overrides.textproto. Both individuals share the same
+# batch_etl base graph but pin different edges to different weights, so the two
+# derived individuals end up with differing edge weights -- exactly the two
+# batch_etl individuals with differing individual_edge_overrides that R4.3 asks
+# for. The (source, dest, weight) set here is not identical to individual A.
+#
+# Every (source_id, destination_id) below names a real edge of the base graph.
+# Non-pinned edges keep their class weight; a single final renormalization makes
+# each node's outgoing weights sum to 1.0.
+#
+# Individual B leans toward the upsert pass and validates aggressively: from the
+# extract it favors bulk_update, and from validation it almost always finishes
+# the batch rather than looping back into another insert pass.
+
+markov_individual {
+  base_graph_path: "../../markov_batch_etl_config.textproto"
+
+  # extract_read: base weights are bulk_insert=0.6, bulk_update=0.3,
+  # validate_read=0.1. Pin the edge into the upsert pass higher so this
+  # individual favors updates over inserts after each extract.
+  individual_edge_overrides {
+    source_id: "extract_read"
+    destination_id: "bulk_update"
+    weight: 0.6
+  }
+
+  # validate_read: base weights are bulk_insert=0.5, session_done=0.5. Pin the
+  # edge into session_done higher so this individual finishes the batch soon
+  # after a validation read rather than reopening the insert pass.
+  individual_edge_overrides {
+    source_id: "validate_read"
+    destination_id: "session_done"
+    weight: 0.8
+  }
+}

@@ -1,0 +1,47 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (batch_etl class) demonstrating Edge_Weight_Variance.
+#
+# Each edge_variances entry carries an asymmetric downward delta `down` and
+# upward delta `up` (down != up). For a non-pinned edge whose entry has a
+# positive down or up, the individual's weight is sampled uniformly over the
+# closed interval [w - down, w + up], where w is the class weight, drawn from
+# the single seeded rng, then clamped to be non-negative before renormalization.
+# Variance is mutually exclusive with jitter per edge, so no jitter is set here.
+#
+# Every (source_id, destination_id) below names a real edge of the batch_etl
+# base graph (extract_read, bulk_insert, bulk_update, validate_read,
+# session_done). The asymmetric ranges bias this individual toward sustaining
+# the insert pass and finishing batches a little sooner from validation.
+
+markov_individual {
+  base_graph_path: "../../markov_batch_etl_config.textproto"
+
+  # bulk_insert -> bulk_insert (class weight 0.55): more headroom upward than
+  # downward, so this individual tends to sustain longer insert runs.
+  edge_variances {
+    source_id: "bulk_insert"
+    destination_id: "bulk_insert"
+    down: 0.10
+    up: 0.25
+  }
+
+  # bulk_update -> bulk_update (class weight 0.4): wider downward than upward, so
+  # this individual lingers a little less on the upsert pass.
+  edge_variances {
+    source_id: "bulk_update"
+    destination_id: "bulk_update"
+    down: 0.20
+    up: 0.05
+  }
+
+  # validate_read -> session_done (class weight 0.5): modest asymmetric spread
+  # biased upward, so this individual finishes the batch slightly sooner.
+  edge_variances {
+    source_id: "validate_read"
+    destination_id: "session_done"
+    down: 0.05
+    up: 0.15
+  }
+}

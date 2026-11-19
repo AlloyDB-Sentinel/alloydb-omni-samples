@@ -1,0 +1,79 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Profile: Analytics / reporting user.
+#
+# Behavioral_Intent:
+#   - Rate: low-frequency, at most ~2 operations per minute. Every node's
+#     completion time is at least 30 s, so the reporting loop stays well under
+#     the 2 ops/min ceiling.
+#   - Mix: 100% read / 0% write. Every template is a read-only aggregate
+#     SELECT; the profile declares no write templates.
+#   - Termination: none. Analytics is a long-running session that cycles
+#     continuously through its aggregate reports (no terminal node).
+#
+# A BI / reporting account running heavy aggregate scans and windowed rollups.
+# The three nodes self-loop and cross-link so the walk keeps producing report
+# queries indefinitely; the long completion ranges model the real cost of
+# large aggregate scans and keep the action rate low.
+
+markov_sampling {
+  nodes {
+    id: "aggregate_scan"
+    template {
+      normalized_query_template: "SELECT category, COUNT(*) FROM products GROUP BY category"
+    }
+    completion_time {
+      range {
+        min { seconds: 30 }
+        max { seconds: 45 }
+      }
+    }
+    edges { destination_id: "time_window_report" weight: 0.5 }
+    edges { destination_id: "order_rollup" weight: 0.3 }
+    edges { destination_id: "aggregate_scan" weight: 0.2 }
+  }
+  nodes {
+    id: "time_window_report"
+    template {
+      normalized_query_template: "SELECT account_id, SUM(amount) FROM events WHERE created_at > %v GROUP BY account_id"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 2000000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 35 }
+        max { seconds: 60 }
+      }
+    }
+    edges { destination_id: "aggregate_scan" weight: 0.4 }
+    edges { destination_id: "order_rollup" weight: 0.4 }
+    edges { destination_id: "time_window_report" weight: 0.2 }
+  }
+  nodes {
+    id: "order_rollup"
+    template {
+      normalized_query_template: "SELECT customer_id, COUNT(*) FROM orders WHERE created_at > %v GROUP BY customer_id"
+      placeholder_values {
+        int_placeholder {
+          min: 1
+          max: 2000000000
+        }
+      }
+    }
+    completion_time {
+      range {
+        min { seconds: 30 }
+        max { seconds: 50 }
+      }
+    }
+    edges { destination_id: "aggregate_scan" weight: 0.5 }
+    edges { destination_id: "time_window_report" weight: 0.3 }
+    edges { destination_id: "order_rollup" weight: 0.2 }
+  }
+  start { node_id: "aggregate_scan" }
+}

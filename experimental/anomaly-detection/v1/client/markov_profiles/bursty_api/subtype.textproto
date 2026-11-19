@@ -1,0 +1,41 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Subtype: Bursty API backend, "burstier" variant.
+# Layered on the bursty_api base graph. An API backend whose bursts are both
+# more easily triggered and stickier: baseline polling is more likely to break
+# into a burst, and once in the burst regime the client sustains fast reads
+# longer before draining back to baseline. Only transition weights change;
+# nodes, templates, and completion times are inherited from the base graph and
+# the derived graph is renormalized once.
+#
+# Base edges overridden (all exist in markov_bursty_api_config.textproto):
+#   baseline_poll -> baseline_poll   0.6  -> 0.5  (idle a little less)
+#   baseline_poll -> burst_read      0.15 -> 0.25 (break into bursts sooner)
+#   burst_read    -> burst_read      0.45 -> 0.55 (sustain the burst longer)
+#   burst_read    -> baseline_poll   0.2  -> 0.1  (drain back to baseline slower)
+
+markov_subtype {
+  base_graph_path: "../../markov_bursty_api_config.textproto"
+
+  edge_weight_overrides {
+    source_id: "baseline_poll"
+    destination_id: "baseline_poll"
+    weight: 0.5
+  }
+  edge_weight_overrides {
+    source_id: "baseline_poll"
+    destination_id: "burst_read"
+    weight: 0.25
+  }
+  edge_weight_overrides {
+    source_id: "burst_read"
+    destination_id: "burst_read"
+    weight: 0.55
+  }
+  edge_weight_overrides {
+    source_id: "burst_read"
+    destination_id: "baseline_poll"
+    weight: 0.1
+  }
+}

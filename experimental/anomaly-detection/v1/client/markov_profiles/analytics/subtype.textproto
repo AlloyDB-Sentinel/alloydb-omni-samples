@@ -1,0 +1,34 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Subtype: Analytics / reporting user, "heavier aggregate" variant.
+# Layered on the analytics base graph. A reporting account that leans even
+# harder on the top-level aggregate scan: once it finishes an aggregate_scan it
+# almost always runs another windowed report before rolling up or repeating the
+# scan. Only transition weights change; nodes, templates, and completion times
+# are inherited from the base graph and the derived graph is renormalized once.
+#
+# Base edges overridden (all exist in markov_analytics_user_config.textproto):
+#   aggregate_scan -> time_window_report  0.5 -> 0.7  (skew toward windowed report)
+#   aggregate_scan -> order_rollup        0.3 -> 0.2  (fewer rollups)
+#   aggregate_scan -> aggregate_scan      0.2 -> 0.1  (fewer immediate repeats)
+
+markov_subtype {
+  base_graph_path: "../../markov_analytics_user_config.textproto"
+
+  edge_weight_overrides {
+    source_id: "aggregate_scan"
+    destination_id: "time_window_report"
+    weight: 0.7
+  }
+  edge_weight_overrides {
+    source_id: "aggregate_scan"
+    destination_id: "order_rollup"
+    weight: 0.2
+  }
+  edge_weight_overrides {
+    source_id: "aggregate_scan"
+    destination_id: "aggregate_scan"
+    weight: 0.1
+  }
+}
