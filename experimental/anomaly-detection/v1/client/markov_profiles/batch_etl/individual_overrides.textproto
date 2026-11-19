@@ -1,0 +1,34 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (batch_etl class) -- "individual A", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# One QueryTemplateConfigs holds exactly one markov_individual, so the two
+# batch_etl individuals asked for by R4.3 are shipped as two sibling files:
+# this one and individual_overrides_b.textproto. Both derive from the same
+# batch_etl base graph but pin different edges to different weights, so the two
+# derived individuals end up with differing edge weights.
+#
+# individual_edge_override is the highest-precedence per-edge mechanism: it pins
+# an edge's weight outright (no variance/jitter, no random draw for that edge).
+# Every (source_id, destination_id) below names a real edge of the base graph
+# (extract_read, bulk_insert, bulk_update, validate_read, session_done).
+# Non-pinned edges keep their class weight; a single final renormalization makes
+# each node's outgoing weights sum to 1.0.
+#
+# Individual A sustains the insert self-loop: once loading rows it is much more
+# likely to keep inserting than the class baseline, modeling a long ingest pass.
+
+markov_individual {
+  base_graph_path: "../../markov_batch_etl_config.textproto"
+
+  # bulk_insert: base weights are bulk_insert=0.55, bulk_update=0.25,
+  # validate_read=0.1, session_done=0.1. Pin the insert self-loop higher so this
+  # individual stays in the insert pass longer than the class.
+  individual_edge_overrides {
+    source_id: "bulk_insert"
+    destination_id: "bulk_insert"
+    weight: 0.75
+  }
+}
