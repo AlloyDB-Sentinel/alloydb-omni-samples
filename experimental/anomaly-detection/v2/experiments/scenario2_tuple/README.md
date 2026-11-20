@@ -2,10 +2,12 @@
 
 [ALDB-16](https://linear.app/aubree-lianto/issue/ALDB-16/scenario-2-experiment-specified-timeframe-optimal-constants)
 
+The final 20-week results and their reproduction command are in
+[Controlled duration comparison](#controlled-duration-comparison).
+
 From `experimental/anomaly-detection`, with Go 1.23 or later:
 
 ```sh
-go run ./v2/experiments/scenario2_tuple
 go test ./v2/experiments/scenario2_tuple ./v2/common ./v1/generator/...
 ```
 
@@ -14,8 +16,12 @@ training (`-training-weeks`), and evaluates every non-empty subset of the seven 
 **OR** and **AND**: 127 subsets × 2 combiners = **254 candidates**. A 4-hour
 reporting bucket is flagged by OR when any member is above its own
 `mean + c × population stddev` threshold, and by AND only when every member is.
+Each rolling window is measured continuously, but its threshold now comes from
+the matching **weekday and hour** (168 baseline slots). An hourly exceedance
+flags that frame in its enclosing 4-hour reporting bucket. AND members may
+exceed their thresholds at different times within that reporting bucket.
 
-It writes, under `results/`:
+The standalone CLI (`go run ./v2/experiments/scenario2_tuple`) writes, under `results/`:
 
 - `frame_results.csv`: the selected constant and validation/test confusion counts for each timeframe.
 - `frame_sweep.csv`: every timeframe/constant combination, for audit.
@@ -31,7 +37,7 @@ database is required.
 - One warm-up week, 20 clean training weeks by default, 4 validation weeks, then 4 held-out test weeks.
 - Ten deterministic seeds (42–51) using `v2/experiments/scenario2_timeframe/config.textproto`.
 - One database/user identity; 2% one-hour attack episodes with 3× reads and normal rows per read.
-- Baselines learn one threshold per 4-hour weekly slot (42 slots) from the training observations for that slot.
+- Baselines learn one threshold per weekday/hour (168 slots), using each training week's maximum rolling total within that hour. Reporting and trailing-4-hour ground-truth labels remain unchanged.
 - Constants are selected per timeframe by pooled validation F1 across the ten seeds.
   Every subset uses those fixed per-frame constants; the subset/combiner candidate is
   selected by pooled validation F1. Ties prefer precision, then accuracy, then the
@@ -41,10 +47,102 @@ database is required.
 - All timestamps and day/night peak windows are evaluated in UTC. The generator
   uses UTC explicitly because Windows ignores `TZ=UTC`.
 - Traffic rate comes from the config. The checked-in `config.textproto` is the
-  default; the higher-load run below differs in exactly two lines
+  default; the historical higher-load run below differs in exactly two lines
   (`queries_per_bucket_mean: 1824.0`, `queries_variation_std_dev: 304.0`).
 
-## Result
+## Controlled duration comparison
+
+Our final choice is **20 clean training weeks**, the weekly-pattern config at
+**50,000 normal reads/day averaged over a week**, hourly weekday baselines, and
+**15m+4h (OR)** with constants **6|4**. Metrics count 4-hour reporting buckets,
+including the existing attack spillover labels.
+
+| Training weeks | c (15m / 4h) | Validation F1 | Test precision | Test recall | Test F1 | Test FP | Test FN |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| **20** | **6 / 4** | **96.42%** | **97.75%** | **94.22%** | **95.96%** | **6** | **16** |
+| 24 | 5 / 4 | 96.83% | 97.73% | 93.14% | 95.38% | 6 | 19 |
+
+24 weeks wins on validation; 20 detects three more attack-labeled test buckets
+with the same false-positive count. We keep 20 as the project choice, not as a
+claim that it is the best duration in general. At 20 weeks, 1h+4h and
+15m+1h+4h tie the selected pair; the existing tie-break retains 15m+4h.
+
+[duration_experiment_test.go](duration_experiment_test.go) reuses the existing
+generator, aggregation, threshold fitting, selection, and CSV writers. It is
+skipped during ordinary tests. To reproduce the full duration sweep from the
+module root, run:
+
+```sh
+SCENARIO2_DURATION_OUTPUT="$(mktemp -d)" \
+  go test ./v2/experiments/scenario2_tuple \
+    -run '^TestControlledDurationSweep$' -count=1 -timeout=40m -v
+```
+
+`SCENARIO2_DURATION_OUTPUT` must be an absolute scratch-directory path. The
+run prints that path and writes `weeks-NN/{frame_results,frame_sweep,subset_results}.csv`
+for 1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 30, 40, and 50 weeks. It checks all
+three CSVs at 20 and 24 weeks against the checked-in references in
+[`results/controlled-duration/`](results/controlled-duration/). No previous
+local run, external script, or temporary config is needed. Allow several
+minutes and several GB of temporary disk space; raw logs are removed after
+each seed.
+
+The comparison holds evaluation data fixed:
+
+- Config: `v1/client/query_template_config_s2.textproto`; seeds 42–51.
+- Generate the original January 5–August 24, 2026 stream with clean training
+  ending June 29. Prepend 26 clean weeks, July 7, 2025–January 5, 2026, using
+  seeds 3042–3051. This preserves the original stream's random draws.
+- Each duration uses the latest N clean weeks ending June 29. The first week
+  of the combined history warms the longest rolling window.
+- Validation: June 29–July 27, 2026; test: July 27–August 24, 2026. End dates
+  are exclusive; all times are UTC. Each split has 1,680 reporting buckets
+  across ten seeds.
+- Constants are selected per frame on pooled validation F1; tuples use those
+  constants and the existing validation ranking. Test scores do not select
+  constants or tuples.
+
+These are reused synthetic development data. A fresh holdout is still needed
+for an independent estimate of performance.
+
+## Hourly baseline comparison
+
+With the weekly-pattern 50k/day config, 24 clean training weeks, and seeds
+42–51, the same **1m+4h (OR)** pair improves as follows on the same 1,680 test
+reporting buckets. The generator, windows, reporting grid, and labels are
+unchanged. Constants are selected on validation for each baseline: `4|3`
+before, `4|4` after.
+
+| Baseline slots | Test precision | Test recall | Test F1 | False positives | False negatives |
+|---|---:|---:|---:|---:|---:|
+| 4 hours | 95.20% | 78.70% | 86.17% | 11 | 59 |
+| 1 hour | 95.22% | 93.50% | 94.35% | 13 | 18 |
+
+A separate per-record audit found **143/144 attack episodes detected while
+active**, versus 115/144 before. Of the 18 missed reporting buckets, 17 contain
+only spillover from an earlier attack and one contains active attack reads.
+
+The full hourly-baseline sweep selects **15m+4h (OR)** on validation, with
+constants `5|4`: test precision 97.73%, recall 93.14%, and F1 95.38%. The table
+keeps the original pair fixed to make the baseline comparison clear.
+
+```sh
+go run ./v2/experiments/scenario2_tuple \
+  -config v1/client/query_template_config_s2.textproto \
+  -training-weeks 24 -output /tmp/scenario2-hourly-results
+```
+
+These are synthetic development comparisons. The same test cases informed
+the hourly-baseline change; a fresh holdout is needed for a final performance
+estimate. Ground truth still includes four-hour spillover after attacks.
+
+## Historical results
+
+The numerical results below and files directly in `results/` are historical runs
+with **4-hour baseline slots**. They have not been regenerated for the hourly
+baseline. Run the current experiment into a separate output directory; pass
+`-config v1/client/query_template_config_s2.textproto` to use the weekly-pattern
+50k/day configuration rather than the default daily-peak configuration.
 
 **15m+4h (OR)** is selected overall, with `c = 5` for 15m and `c = 3` for 4h:
 
@@ -162,13 +260,15 @@ go run ./v2/experiments/scenario2_tuple \
 
 Write to a scratch directory, not `results/`: that keeps the checked-in
 artifacts as the default config's. Cost is a 1.2 GB protobuf log per seed
-(10,197,049 records, ~46 s) and about 19 minutes for all ten seeds; peak
-temporary usage stays at one seed's log because each is deleted after
-aggregation.
+(10,197,049 records, ~46 s) and about 19 minutes for all ten seeds. The
+standalone CLI retains all ten raw logs until the run ends. The controlled
+duration runner above removes raw logs after each seed.
 
-The training-duration table is a different experiment, in `scenario2_timeframe`.
-There is no equivalent training-duration sweep for a tuple yet; `-training-weeks`
-changes the training duration without touching the validation/test split.
+The historical training-duration table is a different experiment, in
+`scenario2_timeframe`. For the current hourly tuple, use the controlled sweep
+above. The standalone CLI’s `-training-weeks` flag shifts the validation/test
+dates and generated samples; its scores cannot isolate the effect of training
+duration.
 
 ## Caveats
 
@@ -177,6 +277,5 @@ runner reuses the row window but does not exercise the RPC services. Constants
 are selected independently per frame, not jointly per subset, and both the
 constants and the candidate are selected on the same four validation weeks, so
 the validation figures are optimistic; the four test weeks are the better
-guide. The selected candidate and its tied alternatives differ by one held-out
-true positive, so validate the chosen candidate on a second independent period
-before relying on it.
+guide. The leading tuples are close or tied, so validate the chosen candidate
+on a second independent period before relying on it.

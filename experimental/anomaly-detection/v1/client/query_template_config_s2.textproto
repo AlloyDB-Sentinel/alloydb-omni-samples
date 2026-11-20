@@ -15,15 +15,20 @@ bucket_sampling {
     }
     bucket_config {
       db_user: "app_user"
-      queries_per_bucket_mean: 120.0
-      queries_variation_std_dev: 20.0
+      # With 60-minute buckets, the weekly profile sums to 104.35.
+      # 50000 * 7 / 104.35 gives 50,000 normal reads/day averaged over a week.
+      queries_per_bucket_mean: 3354.096789650216
+      # Preserve the original count-noise overdispersion: (20^2 - 120) / 120^2.
+      # stddev = sqrt(mean + overdispersion * mean^2).
+      queries_variation_std_dev: 471.278496823821
       anomalous_spike_probability: 0.02
       anomalous_spike_multiplier: 3.0
       pgaudit_scenario: true
       rows_returned_mean: 120.0
       rows_returned_std_dev: 40.0
-      anomalous_rows_probability: 0.02
-      anomalous_rows_multiplier: 15.0
+      # Attacks are hourly query-count bursts; rows per read stay normal.
+      anomalous_rows_probability: 0.0
+      anomalous_rows_multiplier: 1.0
       rows_returned_max: 100000
       # Human weekly seasonality: seven days, Monday first, 24 UTC hourly
       # multipliers. Replaces peak_windows and weekend_traffic_multiplier.

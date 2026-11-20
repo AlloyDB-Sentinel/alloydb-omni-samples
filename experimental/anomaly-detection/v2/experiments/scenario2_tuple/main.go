@@ -26,7 +26,10 @@ import (
 const (
 	week                 = 7 * 24 * time.Hour
 	reporting            = 4 * time.Hour
-	slotsPerWeek         = int(week / reporting) // 42 four-hour slots per week
+	bucketsPerWeek       = int(week / reporting) // 42 four-hour reporting buckets
+	baselineSlot         = time.Hour
+	slotsPerWeek         = int(week / baselineSlot) // 168 hourly baseline slots
+	slotsPerBucket       = int(reporting / baselineSlot)
 	warmupWeeks          = 1
 	defaultTrainingWeeks = 20
 	validationWeeks      = 4
@@ -41,10 +44,10 @@ const (
 var (
 	trainingWeeks = defaultTrainingWeeks
 	totalWeeks    = warmupWeeks + trainingWeeks + validationWeeks + testWeeks
-	trainingStart = warmupWeeks * slotsPerWeek
-	trainingEnd   = trainingStart + trainingWeeks*slotsPerWeek
-	validationEnd = trainingEnd + validationWeeks*slotsPerWeek
-	totalBuckets  = totalWeeks * slotsPerWeek
+	trainingStart = warmupWeeks * bucketsPerWeek
+	trainingEnd   = trainingStart + trainingWeeks*bucketsPerWeek
+	validationEnd = trainingEnd + validationWeeks*bucketsPerWeek
+	totalBuckets  = totalWeeks * bucketsPerWeek
 )
 
 var frames = []frameSpec{
@@ -82,7 +85,7 @@ func (c combiner) order() int {
 }
 
 type dataset struct {
-	peaks  [][]int64 // [frame][reporting bucket] maximum rolling total in the bucket
+	peaks  [][]int64 // [frame][hourly baseline slot] maximum rolling total in the hour
 	labels []bool    // [reporting bucket] shared trailing-4-hour attack label
 }
 
@@ -189,9 +192,21 @@ func limitsFor(training []int64, constant float64) [slotsPerWeek]float64 {
 func scoreFrame(peaks []int64, labels []bool, limits [slotsPerWeek]float64, start, end int) confusion {
 	var c confusion
 	for i := start; i < end; i++ {
-		c.add(float64(peaks[i]) > limits[i%slotsPerWeek], labels[i])
+		c.add(frameExceedsLimit(peaks, limits, i), labels[i])
 	}
 	return c
+}
+
+// Each hourly peak uses its own weekday/hour baseline. Reporting remains at
+// four hours: one hourly exceedance is enough to flag a frame in that bucket.
+func frameExceedsLimit(peaks []int64, limits [slotsPerWeek]float64, bucket int) bool {
+	start := bucket * slotsPerBucket
+	for slot := start; slot < start+slotsPerBucket; slot++ {
+		if float64(peaks[slot]) > limits[slot%slotsPerWeek] {
+			return true
+		}
+	}
+	return false
 }
 
 // scoreSubset evaluates one combiner for a non-empty subset of frames. OR
@@ -202,7 +217,7 @@ func scoreSubset(data dataset, members []int, limits [][slotsPerWeek]float64, co
 	for i := start; i < end; i++ {
 		predicted := combination == andCombination
 		for _, fi := range members {
-			hit := float64(data.peaks[fi][i]) > limits[fi][i%slotsPerWeek]
+			hit := frameExceedsLimit(data.peaks[fi], limits[fi], i)
 			if combination == orCombination {
 				if hit {
 					predicted = true
@@ -224,7 +239,7 @@ func aggregate(input io.Reader, start time.Time) (dataset, error) {
 		labels: make([]bool, totalBuckets),
 	}
 	for i := range data.peaks {
-		data.peaks[i] = make([]int64, totalBuckets)
+		data.peaks[i] = make([]int64, totalBuckets*slotsPerBucket)
 	}
 	windows := make([]*common.SlidingRowWindow, len(frames))
 	for i, frame := range frames {
@@ -252,7 +267,7 @@ func aggregate(input io.Reader, start time.Time) (dataset, error) {
 			return dataset{}, fmt.Errorf("extract record %d: %w", record, err)
 		}
 		elapsedMs := feature.TimestampMs - start.UnixMilli()
-		if feature.TimestampMs < lastTimestampMs || elapsedMs < 0 || elapsedMs >= (time.Duration(totalWeeks) * week).Milliseconds() {
+		if feature.TimestampMs < lastTimestampMs || elapsedMs < 0 || elapsedMs >= (time.Duration(totalWeeks)*week).Milliseconds() {
 			return dataset{}, fmt.Errorf("record %d: timestamp %d precedes %d or is outside [%d, %d)", record, feature.TimestampMs, lastTimestampMs, start.UnixMilli(), start.Add(time.Duration(totalWeeks)*week).UnixMilli())
 		}
 		key := [2]string{feature.DbName, feature.DbUser}
@@ -262,13 +277,14 @@ func aggregate(input io.Reader, start time.Time) (dataset, error) {
 		identity, seen, lastTimestampMs = key, true, feature.TimestampMs
 
 		bucketIndex := int(elapsedMs / reporting.Milliseconds())
+		slotIndex := int(elapsedMs / baselineSlot.Milliseconds())
 		for fi, window := range windows {
 			rows, err := window.Add(feature)
 			if err != nil {
 				return dataset{}, fmt.Errorf("rolling rows at record %d, frame %s: %w", record, frames[fi].name, err)
 			}
-			if rows > data.peaks[fi][bucketIndex] {
-				data.peaks[fi][bucketIndex] = rows
+			if rows > data.peaks[fi][slotIndex] {
+				data.peaks[fi][slotIndex] = rows
 			}
 		}
 		if entry.GetIsGroundTruthAnomalous() {
@@ -284,7 +300,7 @@ func aggregate(input io.Reader, start time.Time) (dataset, error) {
 }
 
 func trainingPeaks(data dataset, frame int) []int64 {
-	return data.peaks[frame][trainingStart:trainingEnd]
+	return data.peaks[frame][trainingStart*slotsPerBucket : trainingEnd*slotsPerBucket]
 }
 
 func validateDataset(data dataset) error {
@@ -599,7 +615,8 @@ func writeReport(path, config string, frameResults []frameResult, subsets []subs
 
 	b.WriteString("## Protocol\n\n")
 	b.WriteString(fmt.Sprintf("- Signal: sum of `rows_returned` for the same database and database user over each frame's trailing window, using `common.SlidingRowWindow`: %s.\n", frameList()))
-	b.WriteString("- Reporting grid: fixed, non-overlapping **4-hour** buckets aligned to the simulation start. Each frame contributes the **maximum** rolling total observed among reads in the bucket; buckets with no reads contribute zero.\n")
+	b.WriteString("- Baseline grid: **1-hour** weekday slots. Each frame contributes the maximum rolling total observed among reads in that hour; hours with no reads contribute zero.\n")
+	b.WriteString("- Reporting grid: fixed, non-overlapping **4-hour** buckets aligned to the simulation start. A frame flags a reporting bucket if any hourly peak exceeds its corresponding weekday/hour threshold.\n")
 	b.WriteString("- Ground truth: a 4-hour bucket is anomalous if any observed trailing 4-hour window contains an attack read, including spillover after an episode.\n")
 	b.WriteString(fmt.Sprintf("- Training: %d warm-up week, then %d clean training weeks. Baselines learn one `mean + c × population stddev` threshold per weekly slot (%d slots), using the %d training observations for that slot.\n", warmupWeeks, trainingWeeks, slotsPerWeek, trainingWeeks))
 	b.WriteString(fmt.Sprintf("- Split: %d validation weeks, then %d held-out test weeks. %d deterministic seeds (%d–%d) use `%s`.\n", validationWeeks, testWeeks, seedCount, firstSeed, firstSeed+seedCount-1, filepath.ToSlash(config)))
@@ -823,9 +840,9 @@ func run(config, output string, weeks int) error {
 	}
 	trainingWeeks = weeks
 	totalWeeks = warmupWeeks + trainingWeeks + validationWeeks + testWeeks
-	trainingEnd = trainingStart + trainingWeeks*slotsPerWeek
-	validationEnd = trainingEnd + validationWeeks*slotsPerWeek
-	totalBuckets = totalWeeks * slotsPerWeek
+	trainingEnd = trainingStart + trainingWeeks*bucketsPerWeek
+	validationEnd = trainingEnd + validationWeeks*bucketsPerWeek
+	totalBuckets = totalWeeks * bucketsPerWeek
 
 	if _, err := os.Stat(config); err != nil {
 		return fmt.Errorf("run from experimental/anomaly-detection and keep the config path: %w", err)

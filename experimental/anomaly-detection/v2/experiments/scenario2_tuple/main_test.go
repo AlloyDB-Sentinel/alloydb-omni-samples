@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"math"
 	"testing"
+	"time"
+
+	auditpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto"
+	"google.golang.org/protobuf/encoding/protodelim"
 )
 
 func TestLimitsForLearnsPerWeeklySlot(t *testing.T) {
@@ -19,8 +24,10 @@ func TestLimitsForLearnsPerWeeklySlot(t *testing.T) {
 
 func TestScoreSubsetUsesORAndAND(t *testing.T) {
 	labels := []bool{true, true, false, false}
-	a := []int64{10, 0, 0, 0}
-	b := []int64{0, 10, 0, 0}
+	a := make([]int64, len(labels)*slotsPerBucket)
+	b := make([]int64, len(labels)*slotsPerBucket)
+	a[0] = 10
+	b[slotsPerBucket] = 10
 	data := dataset{peaks: [][]int64{a, b}, labels: labels}
 	limits := make([][slotsPerWeek]float64, 2)
 	for i := range limits {
@@ -39,11 +46,101 @@ func TestScoreSubsetUsesORAndAND(t *testing.T) {
 		t.Fatalf("AND subset = %+v, want %+v", got, want)
 	}
 
-	// Both members must fire for AND to produce a true positive.
-	data.peaks = [][]int64{{10, 0}, {10, 0}}
+	// Both members must fire in the same reporting bucket for AND; their
+	// exceedances need not occur in the same hour, as in the original protocol.
+	b[slotsPerBucket] = 0
+	b[1] = 10
 	data.labels = []bool{true, false}
 	if got, want := scoreSubset(data, []int{0, 1}, limits, andCombination, 0, 2), (confusion{tp: 1, tn: 1}); got != want {
 		t.Fatalf("AND joint hit = %+v, want %+v", got, want)
+	}
+}
+
+func TestHourlyBaselineSeparatesQuietHourFromBusyHour(t *testing.T) {
+	training := make([]int64, 2*slotsPerWeek)
+	for i := range training {
+		training[i] = 100
+		switch i % slotsPerWeek {
+		case 5: // Monday 05:00
+			training[i] = 500
+		case 7: // Monday 07:00, in the same reporting bucket
+			training[i] = 2000
+		case 24 + 5: // Tuesday 05:00
+			training[i] = 5000
+		}
+	}
+	limits := limitsFor(training, 3)
+	for _, test := range []struct {
+		name string
+		hour int
+		want bool
+	}{
+		{"quiet Monday hour", 5, true},
+		{"busy Monday hour", 7, false},
+		{"same hour different weekday", 24 + 5, false},
+		{"following Monday", slotsPerWeek + 5, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			peaks := make([]int64, 2*slotsPerWeek)
+			peaks[test.hour] = 1750
+			if got := frameExceedsLimit(peaks, limits, test.hour/slotsPerBucket); got != test.want {
+				t.Fatalf("hour %d: got %v, want %v", test.hour, got, test.want)
+			}
+		})
+	}
+}
+
+func TestAggregateKeepsWindowsAcrossHourlyAndReportingBoundaries(t *testing.T) {
+	start := time.Date(2026, time.January, 5, 0, 0, 0, 0, time.UTC)
+	var input bytes.Buffer
+	for _, record := range []struct {
+		after  time.Duration
+		rows   int64
+		attack bool
+	}{
+		{59 * time.Minute, 10, true},
+		{time.Hour, 20, false},
+		{4 * time.Hour, 30, false},
+		{8 * time.Hour, 40, false},
+	} {
+		entry := &auditpb.AuditLogEntry{}
+		entry.SetDbName("db")
+		entry.SetDbUser("user")
+		entry.SetTimestampMs(start.Add(record.after).UnixMilli())
+		entry.SetRowsReturned(record.rows)
+		entry.SetIsGroundTruthAnomalous(record.attack)
+		if _, err := protodelim.MarshalTo(&input, entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := aggregate(&input, start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for fi, frame := range frames {
+		switch frame.name {
+		case "1m":
+			if data.peaks[fi][0] != 10 || data.peaks[fi][1] != 20 {
+				t.Fatalf("one-minute peaks cross the hourly boundary incorrectly: %v", data.peaks[fi][:2])
+			}
+		case "4h":
+			if data.peaks[fi][1] != 30 || data.peaks[fi][4] != 60 || data.peaks[fi][8] != 40 {
+				t.Fatalf("four-hour window reset or expired incorrectly: %v", data.peaks[fi][:9])
+			}
+		}
+	}
+	if !data.labels[0] || !data.labels[1] || data.labels[2] {
+		t.Fatalf("four-hour reporting/spillover labels changed: %v", data.labels[:3])
+	}
+}
+
+func TestTrainingPeaksExcludeWarmupAndValidation(t *testing.T) {
+	peaks := make([]int64, totalBuckets*slotsPerBucket)
+	first, end := trainingStart*slotsPerBucket, trainingEnd*slotsPerBucket
+	peaks[first-1], peaks[first], peaks[end-1], peaks[end] = 999, 11, 22, 888
+	got := trainingPeaks(dataset{peaks: [][]int64{peaks}}, 0)
+	if len(got) != trainingWeeks*slotsPerWeek || got[0] != 11 || got[len(got)-1] != 22 {
+		t.Fatalf("wrong training slice: length %d, first %d, last %d", len(got), got[0], got[len(got)-1])
 	}
 }
 
