@@ -26,6 +26,8 @@ var (
 	// Scenario 1 (weighted random sampling) flags.
 	numLogs = flag.Int("num_logs", 50000, "Total number of logs to generate.")
 
+	seedFlag = flag.Int64("seed", 0, "Random seed for reproducible output. Omit to pick a seed automatically.")
+
 	// Scenario 2 and 3 (bucket sampling) flags.
 	startTimeMs       = flag.Int64("start_time_ms", 0, "Start timestamp of the simulated logs (in milliseconds).")
 	trainEndTimeMs    = flag.Int64("train_end_time_ms", 0, "Training/test partition timestamp of the simulated logs (in milliseconds).")
@@ -59,7 +61,15 @@ func main() {
 		log.Printf("Configuration applied - Output Dir: %q, Start: %d, End: %d, Bucket Size: %d min", *outputDir, *startTimeMs, *endTimeMs, *bucketSizeMinutes)
 	}
 
-	if err := GenerateLogs(ctx, configs, *numLogs, rand.Int63(), *outputDir); err != nil {
+	seed := rand.Int63()
+	flag.Visit(func(option *flag.Flag) {
+		if option.Name == "seed" {
+			seed = *seedFlag
+		}
+	})
+	log.Printf("Using random seed: %d", seed)
+
+	if err := GenerateLogs(ctx, configs, *numLogs, seed, *outputDir); err != nil {
 		log.Fatalf("Failed to generate logs: %v", err)
 	}
 
