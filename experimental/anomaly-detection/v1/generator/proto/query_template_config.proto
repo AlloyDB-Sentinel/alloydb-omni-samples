@@ -66,6 +66,9 @@ message QueryTemplateConfig {
   // Ground truth label (true: anomalous, false: normal) used to evaluate
   // performance of unsupervised anomaly detection models.
   bool is_ground_truth_anomalous = 4;
+
+  // Required in pgAudit mode. Only templates marked true produce read logs.
+  optional bool is_read_query = 5;
 }
 
 message BucketSimulationConfig {
@@ -78,6 +81,14 @@ message BucketSimulationConfig {
   // Anomalous spike
   double anomalous_spike_probability = 4;
   double anomalous_spike_multiplier = 5;
+
+  // Rows returned per pgAudit read.
+  double rows_returned_mean = 9;
+  double rows_returned_std_dev = 10;
+  double anomalous_rows_probability = 11;
+  double anomalous_rows_multiplier = 12;
+  int64 rows_returned_max = 13;
+  bool pgaudit_scenario = 14;
 
   // false: Uniform distribution
   // true: Spiky/jittered distribution

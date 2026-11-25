@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 
 	"google.golang.org/protobuf/encoding/protodelim"
@@ -80,4 +81,20 @@ func (g *LogGenerator) buildQueryStatement(cfg *genpb.QueryTemplateConfig) strin
 		}
 	}
 	return fmt.Sprintf(cfg.GetNormalizedQueryTemplate(), vals...)
+}
+
+func samplePGAuditRows(config *genpb.BucketSimulationConfig, isAnomalous bool, rng *rand.Rand) int64 {
+	mean := config.GetRowsReturnedMean()
+	if isAnomalous {
+		mean *= config.GetAnomalousRowsMultiplier()
+	}
+	rows := math.Round(mean + rng.NormFloat64()*config.GetRowsReturnedStdDev())
+	maxRows := config.GetRowsReturnedMax()
+	if rows >= float64(maxRows) {
+		return maxRows
+	}
+	if rows <= 0 {
+		return 0
+	}
+	return int64(rows)
 }
