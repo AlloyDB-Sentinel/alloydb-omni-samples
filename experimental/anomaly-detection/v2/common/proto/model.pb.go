@@ -900,6 +900,418 @@ func (b0 VolumetricSpikeScenario_builder) Build() *VolumetricSpikeScenario {
 	return m0
 }
 
+// Scenario-2: Excessive Data Reads. Uses 15-minute and 4-hour rolling totals with OR.
+type ExcessiveDataReadsBaselineEntry struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_DbName      string                 `protobuf:"bytes,1,opt,name=db_name,json=dbName,proto3"`
+	xxx_hidden_DbUser      string                 `protobuf:"bytes,2,opt,name=db_user,json=dbUser,proto3"`
+	xxx_hidden_HourOfWeek  int32                  `protobuf:"varint,3,opt,name=hour_of_week,json=hourOfWeek,proto3"`
+	xxx_hidden_ShortWindow *VolumetricBaseline    `protobuf:"bytes,4,opt,name=short_window,json=shortWindow,proto3"`
+	xxx_hidden_LongWindow  *VolumetricBaseline    `protobuf:"bytes,5,opt,name=long_window,json=longWindow,proto3"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) Reset() {
+	*x = ExcessiveDataReadsBaselineEntry{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExcessiveDataReadsBaselineEntry) ProtoMessage() {}
+
+func (x *ExcessiveDataReadsBaselineEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) GetDbName() string {
+	if x != nil {
+		return x.xxx_hidden_DbName
+	}
+	return ""
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) GetDbUser() string {
+	if x != nil {
+		return x.xxx_hidden_DbUser
+	}
+	return ""
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) GetHourOfWeek() int32 {
+	if x != nil {
+		return x.xxx_hidden_HourOfWeek
+	}
+	return 0
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) GetShortWindow() *VolumetricBaseline {
+	if x != nil {
+		return x.xxx_hidden_ShortWindow
+	}
+	return nil
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) GetLongWindow() *VolumetricBaseline {
+	if x != nil {
+		return x.xxx_hidden_LongWindow
+	}
+	return nil
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) SetDbName(v string) {
+	x.xxx_hidden_DbName = v
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) SetDbUser(v string) {
+	x.xxx_hidden_DbUser = v
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) SetHourOfWeek(v int32) {
+	x.xxx_hidden_HourOfWeek = v
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) SetShortWindow(v *VolumetricBaseline) {
+	x.xxx_hidden_ShortWindow = v
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) SetLongWindow(v *VolumetricBaseline) {
+	x.xxx_hidden_LongWindow = v
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) HasShortWindow() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_ShortWindow != nil
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) HasLongWindow() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_LongWindow != nil
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) ClearShortWindow() {
+	x.xxx_hidden_ShortWindow = nil
+}
+
+func (x *ExcessiveDataReadsBaselineEntry) ClearLongWindow() {
+	x.xxx_hidden_LongWindow = nil
+}
+
+type ExcessiveDataReadsBaselineEntry_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	DbName string
+	DbUser string
+	// Monday 00:00 UTC is 0; Sunday 23:00 UTC is 167.
+	HourOfWeek  int32
+	ShortWindow *VolumetricBaseline
+	LongWindow  *VolumetricBaseline
+}
+
+func (b0 ExcessiveDataReadsBaselineEntry_builder) Build() *ExcessiveDataReadsBaselineEntry {
+	m0 := &ExcessiveDataReadsBaselineEntry{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_DbName = b.DbName
+	x.xxx_hidden_DbUser = b.DbUser
+	x.xxx_hidden_HourOfWeek = b.HourOfWeek
+	x.xxx_hidden_ShortWindow = b.ShortWindow
+	x.xxx_hidden_LongWindow = b.LongWindow
+	return m0
+}
+
+type ExcessiveDataReadsModel struct {
+	state              protoimpl.MessageState              `protogen:"opaque.v1"`
+	xxx_hidden_Entries *[]*ExcessiveDataReadsBaselineEntry `protobuf:"bytes,1,rep,name=entries,proto3"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ExcessiveDataReadsModel) Reset() {
+	*x = ExcessiveDataReadsModel{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExcessiveDataReadsModel) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExcessiveDataReadsModel) ProtoMessage() {}
+
+func (x *ExcessiveDataReadsModel) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ExcessiveDataReadsModel) GetEntries() []*ExcessiveDataReadsBaselineEntry {
+	if x != nil {
+		if x.xxx_hidden_Entries != nil {
+			return *x.xxx_hidden_Entries
+		}
+	}
+	return nil
+}
+
+func (x *ExcessiveDataReadsModel) SetEntries(v []*ExcessiveDataReadsBaselineEntry) {
+	x.xxx_hidden_Entries = &v
+}
+
+type ExcessiveDataReadsModel_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Entries []*ExcessiveDataReadsBaselineEntry
+}
+
+func (b0 ExcessiveDataReadsModel_builder) Build() *ExcessiveDataReadsModel {
+	m0 := &ExcessiveDataReadsModel{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Entries = &b.Entries
+	return m0
+}
+
+type ExcessiveDataReadsTrainingConfig struct {
+	state                                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_ShortWindowStdDevMultiplier float64                `protobuf:"fixed64,1,opt,name=short_window_std_dev_multiplier,json=shortWindowStdDevMultiplier,proto3"`
+	xxx_hidden_LongWindowStdDevMultiplier  float64                `protobuf:"fixed64,2,opt,name=long_window_std_dev_multiplier,json=longWindowStdDevMultiplier,proto3"`
+	xxx_hidden_TrainingStartTime           *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=training_start_time,json=trainingStartTime,proto3"`
+	xxx_hidden_TrainingEndTime             *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=training_end_time,json=trainingEndTime,proto3"`
+	unknownFields                          protoimpl.UnknownFields
+	sizeCache                              protoimpl.SizeCache
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) Reset() {
+	*x = ExcessiveDataReadsTrainingConfig{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExcessiveDataReadsTrainingConfig) ProtoMessage() {}
+
+func (x *ExcessiveDataReadsTrainingConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) GetShortWindowStdDevMultiplier() float64 {
+	if x != nil {
+		return x.xxx_hidden_ShortWindowStdDevMultiplier
+	}
+	return 0
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) GetLongWindowStdDevMultiplier() float64 {
+	if x != nil {
+		return x.xxx_hidden_LongWindowStdDevMultiplier
+	}
+	return 0
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) GetTrainingStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.xxx_hidden_TrainingStartTime
+	}
+	return nil
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) GetTrainingEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.xxx_hidden_TrainingEndTime
+	}
+	return nil
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) SetShortWindowStdDevMultiplier(v float64) {
+	x.xxx_hidden_ShortWindowStdDevMultiplier = v
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) SetLongWindowStdDevMultiplier(v float64) {
+	x.xxx_hidden_LongWindowStdDevMultiplier = v
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) SetTrainingStartTime(v *timestamppb.Timestamp) {
+	x.xxx_hidden_TrainingStartTime = v
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) SetTrainingEndTime(v *timestamppb.Timestamp) {
+	x.xxx_hidden_TrainingEndTime = v
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) HasTrainingStartTime() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_TrainingStartTime != nil
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) HasTrainingEndTime() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_TrainingEndTime != nil
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) ClearTrainingStartTime() {
+	x.xxx_hidden_TrainingStartTime = nil
+}
+
+func (x *ExcessiveDataReadsTrainingConfig) ClearTrainingEndTime() {
+	x.xxx_hidden_TrainingEndTime = nil
+}
+
+type ExcessiveDataReadsTrainingConfig_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Multipliers for population standard deviation; the selected pair is 6 and 4.
+	ShortWindowStdDevMultiplier float64
+	LongWindowStdDevMultiplier  float64
+	// Whole UTC hours in [start, end). Earlier input warms the rolling windows.
+	TrainingStartTime *timestamppb.Timestamp
+	TrainingEndTime   *timestamppb.Timestamp
+}
+
+func (b0 ExcessiveDataReadsTrainingConfig_builder) Build() *ExcessiveDataReadsTrainingConfig {
+	m0 := &ExcessiveDataReadsTrainingConfig{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_ShortWindowStdDevMultiplier = b.ShortWindowStdDevMultiplier
+	x.xxx_hidden_LongWindowStdDevMultiplier = b.LongWindowStdDevMultiplier
+	x.xxx_hidden_TrainingStartTime = b.TrainingStartTime
+	x.xxx_hidden_TrainingEndTime = b.TrainingEndTime
+	return m0
+}
+
+type ExcessiveDataReadsScenario struct {
+	state                protoimpl.MessageState            `protogen:"opaque.v1"`
+	xxx_hidden_ModelData *ExcessiveDataReadsModel          `protobuf:"bytes,1,opt,name=model_data,json=modelData,proto3"`
+	xxx_hidden_Config    *ExcessiveDataReadsTrainingConfig `protobuf:"bytes,2,opt,name=config,proto3"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ExcessiveDataReadsScenario) Reset() {
+	*x = ExcessiveDataReadsScenario{}
+	mi := &file_v2_common_proto_model_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExcessiveDataReadsScenario) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExcessiveDataReadsScenario) ProtoMessage() {}
+
+func (x *ExcessiveDataReadsScenario) ProtoReflect() protoreflect.Message {
+	mi := &file_v2_common_proto_model_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ExcessiveDataReadsScenario) GetModelData() *ExcessiveDataReadsModel {
+	if x != nil {
+		return x.xxx_hidden_ModelData
+	}
+	return nil
+}
+
+func (x *ExcessiveDataReadsScenario) GetConfig() *ExcessiveDataReadsTrainingConfig {
+	if x != nil {
+		return x.xxx_hidden_Config
+	}
+	return nil
+}
+
+func (x *ExcessiveDataReadsScenario) SetModelData(v *ExcessiveDataReadsModel) {
+	x.xxx_hidden_ModelData = v
+}
+
+func (x *ExcessiveDataReadsScenario) SetConfig(v *ExcessiveDataReadsTrainingConfig) {
+	x.xxx_hidden_Config = v
+}
+
+func (x *ExcessiveDataReadsScenario) HasModelData() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_ModelData != nil
+}
+
+func (x *ExcessiveDataReadsScenario) HasConfig() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Config != nil
+}
+
+func (x *ExcessiveDataReadsScenario) ClearModelData() {
+	x.xxx_hidden_ModelData = nil
+}
+
+func (x *ExcessiveDataReadsScenario) ClearConfig() {
+	x.xxx_hidden_Config = nil
+}
+
+type ExcessiveDataReadsScenario_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	ModelData *ExcessiveDataReadsModel
+	Config    *ExcessiveDataReadsTrainingConfig
+}
+
+func (b0 ExcessiveDataReadsScenario_builder) Build() *ExcessiveDataReadsScenario {
+	m0 := &ExcessiveDataReadsScenario{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_ModelData = b.ModelData
+	x.xxx_hidden_Config = b.Config
+	return m0
+}
+
 type TemporalSilentBucketEntry struct {
 	state                      protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Key             *CycleBucketKey        `protobuf:"bytes,1,opt,name=key,proto3"`
@@ -910,7 +1322,7 @@ type TemporalSilentBucketEntry struct {
 
 func (x *TemporalSilentBucketEntry) Reset() {
 	*x = TemporalSilentBucketEntry{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[10]
+	mi := &file_v2_common_proto_model_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -922,7 +1334,7 @@ func (x *TemporalSilentBucketEntry) String() string {
 func (*TemporalSilentBucketEntry) ProtoMessage() {}
 
 func (x *TemporalSilentBucketEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[10]
+	mi := &file_v2_common_proto_model_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +1405,7 @@ type TemporalDeviationModel struct {
 
 func (x *TemporalDeviationModel) Reset() {
 	*x = TemporalDeviationModel{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[11]
+	mi := &file_v2_common_proto_model_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1005,7 +1417,7 @@ func (x *TemporalDeviationModel) String() string {
 func (*TemporalDeviationModel) ProtoMessage() {}
 
 func (x *TemporalDeviationModel) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[11]
+	mi := &file_v2_common_proto_model_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1077,7 +1489,7 @@ type TemporalDeviationTrainingConfig struct {
 
 func (x *TemporalDeviationTrainingConfig) Reset() {
 	*x = TemporalDeviationTrainingConfig{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[12]
+	mi := &file_v2_common_proto_model_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1089,7 +1501,7 @@ func (x *TemporalDeviationTrainingConfig) String() string {
 func (*TemporalDeviationTrainingConfig) ProtoMessage() {}
 
 func (x *TemporalDeviationTrainingConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[12]
+	mi := &file_v2_common_proto_model_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1159,7 +1571,7 @@ type TemporalDeviationScenario struct {
 
 func (x *TemporalDeviationScenario) Reset() {
 	*x = TemporalDeviationScenario{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[13]
+	mi := &file_v2_common_proto_model_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1171,7 +1583,7 @@ func (x *TemporalDeviationScenario) String() string {
 func (*TemporalDeviationScenario) ProtoMessage() {}
 
 func (x *TemporalDeviationScenario) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[13]
+	mi := &file_v2_common_proto_model_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1256,7 +1668,7 @@ type ModelMetadata struct {
 
 func (x *ModelMetadata) Reset() {
 	*x = ModelMetadata{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[14]
+	mi := &file_v2_common_proto_model_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1268,7 +1680,7 @@ func (x *ModelMetadata) String() string {
 func (*ModelMetadata) ProtoMessage() {}
 
 func (x *ModelMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[14]
+	mi := &file_v2_common_proto_model_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1415,7 +1827,7 @@ type Model struct {
 
 func (x *Model) Reset() {
 	*x = Model{}
-	mi := &file_v2_common_proto_model_proto_msgTypes[15]
+	mi := &file_v2_common_proto_model_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1427,7 +1839,7 @@ func (x *Model) String() string {
 func (*Model) ProtoMessage() {}
 
 func (x *Model) ProtoReflect() protoreflect.Message {
-	mi := &file_v2_common_proto_model_proto_msgTypes[15]
+	mi := &file_v2_common_proto_model_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1465,6 +1877,15 @@ func (x *Model) GetTemporalDeviation() *TemporalDeviationScenario {
 	return nil
 }
 
+func (x *Model) GetExcessiveDataReads() *ExcessiveDataReadsScenario {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Scenario.(*model_ExcessiveDataReads); ok {
+			return x.ExcessiveDataReads
+		}
+	}
+	return nil
+}
+
 func (x *Model) GetMetadata() *ModelMetadata {
 	if x != nil {
 		return x.xxx_hidden_Metadata
@@ -1494,6 +1915,14 @@ func (x *Model) SetTemporalDeviation(v *TemporalDeviationScenario) {
 		return
 	}
 	x.xxx_hidden_Scenario = &model_TemporalDeviation{v}
+}
+
+func (x *Model) SetExcessiveDataReads(v *ExcessiveDataReadsScenario) {
+	if v == nil {
+		x.xxx_hidden_Scenario = nil
+		return
+	}
+	x.xxx_hidden_Scenario = &model_ExcessiveDataReads{v}
 }
 
 func (x *Model) SetMetadata(v *ModelMetadata) {
@@ -1531,6 +1960,14 @@ func (x *Model) HasTemporalDeviation() bool {
 	return ok
 }
 
+func (x *Model) HasExcessiveDataReads() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Scenario.(*model_ExcessiveDataReads)
+	return ok
+}
+
 func (x *Model) HasMetadata() bool {
 	if x == nil {
 		return false
@@ -1560,6 +1997,12 @@ func (x *Model) ClearTemporalDeviation() {
 	}
 }
 
+func (x *Model) ClearExcessiveDataReads() {
+	if _, ok := x.xxx_hidden_Scenario.(*model_ExcessiveDataReads); ok {
+		x.xxx_hidden_Scenario = nil
+	}
+}
+
 func (x *Model) ClearMetadata() {
 	x.xxx_hidden_Metadata = nil
 }
@@ -1568,6 +2011,7 @@ const Model_Scenario_not_set_case case_Model_Scenario = 0
 const Model_TrafficDeviation_case case_Model_Scenario = 1
 const Model_VolumetricSpike_case case_Model_Scenario = 2
 const Model_TemporalDeviation_case case_Model_Scenario = 3
+const Model_ExcessiveDataReads_case case_Model_Scenario = 5
 
 func (x *Model) WhichScenario() case_Model_Scenario {
 	if x == nil {
@@ -1580,6 +2024,8 @@ func (x *Model) WhichScenario() case_Model_Scenario {
 		return Model_VolumetricSpike_case
 	case *model_TemporalDeviation:
 		return Model_TemporalDeviation_case
+	case *model_ExcessiveDataReads:
+		return Model_ExcessiveDataReads_case
 	default:
 		return Model_Scenario_not_set_case
 	}
@@ -1589,9 +2035,10 @@ type Model_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	// Fields of oneof xxx_hidden_Scenario:
-	TrafficDeviation  *TrafficDeviationScenario
-	VolumetricSpike   *VolumetricSpikeScenario
-	TemporalDeviation *TemporalDeviationScenario
+	TrafficDeviation   *TrafficDeviationScenario
+	VolumetricSpike    *VolumetricSpikeScenario
+	TemporalDeviation  *TemporalDeviationScenario
+	ExcessiveDataReads *ExcessiveDataReadsScenario
 	// -- end of xxx_hidden_Scenario
 	Metadata *ModelMetadata
 }
@@ -1609,6 +2056,9 @@ func (b0 Model_builder) Build() *Model {
 	if b.TemporalDeviation != nil {
 		x.xxx_hidden_Scenario = &model_TemporalDeviation{b.TemporalDeviation}
 	}
+	if b.ExcessiveDataReads != nil {
+		x.xxx_hidden_Scenario = &model_ExcessiveDataReads{b.ExcessiveDataReads}
+	}
 	x.xxx_hidden_Metadata = b.Metadata
 	return m0
 }
@@ -1616,7 +2066,7 @@ func (b0 Model_builder) Build() *Model {
 type case_Model_Scenario protoreflect.FieldNumber
 
 func (x case_Model_Scenario) String() string {
-	md := file_v2_common_proto_model_proto_msgTypes[15].Descriptor()
+	md := file_v2_common_proto_model_proto_msgTypes[19].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -1639,11 +2089,17 @@ type model_TemporalDeviation struct {
 	TemporalDeviation *TemporalDeviationScenario `protobuf:"bytes,3,opt,name=temporal_deviation,json=temporalDeviation,proto3,oneof"`
 }
 
+type model_ExcessiveDataReads struct {
+	ExcessiveDataReads *ExcessiveDataReadsScenario `protobuf:"bytes,5,opt,name=excessive_data_reads,json=excessiveDataReads,proto3,oneof"`
+}
+
 func (*model_TrafficDeviation) isModel_Scenario() {}
 
 func (*model_VolumetricSpike) isModel_Scenario() {}
 
 func (*model_TemporalDeviation) isModel_Scenario() {}
+
+func (*model_ExcessiveDataReads) isModel_Scenario() {}
 
 var File_v2_common_proto_model_proto protoreflect.FileDescriptor
 
@@ -1687,7 +2143,26 @@ const file_v2_common_proto_model_proto_rawDesc = "" +
 	"\x17VolumetricSpikeScenario\x12c\n" +
 	"\n" +
 	"model_data\x18\x01 \x01(\v2D.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModelR\tmodelData\x12e\n" +
-	"\x06config\x18\x02 \x01(\v2M.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfigR\x06config\"\x98\x01\n" +
+	"\x06config\x18\x02 \x01(\v2M.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfigR\x06config\"\xc1\x02\n" +
+	"\x1fExcessiveDataReadsBaselineEntry\x12\x17\n" +
+	"\adb_name\x18\x01 \x01(\tR\x06dbName\x12\x17\n" +
+	"\adb_user\x18\x02 \x01(\tR\x06dbUser\x12 \n" +
+	"\fhour_of_week\x18\x03 \x01(\x05R\n" +
+	"hourOfWeek\x12e\n" +
+	"\fshort_window\x18\x04 \x01(\v2B.experimental.anomaly_detection.v2.common.proto.VolumetricBaselineR\vshortWindow\x12c\n" +
+	"\vlong_window\x18\x05 \x01(\v2B.experimental.anomaly_detection.v2.common.proto.VolumetricBaselineR\n" +
+	"longWindow\"\x84\x01\n" +
+	"\x17ExcessiveDataReadsModel\x12i\n" +
+	"\aentries\x18\x01 \x03(\v2O.experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsBaselineEntryR\aentries\"\xc0\x02\n" +
+	" ExcessiveDataReadsTrainingConfig\x12D\n" +
+	"\x1fshort_window_std_dev_multiplier\x18\x01 \x01(\x01R\x1bshortWindowStdDevMultiplier\x12B\n" +
+	"\x1elong_window_std_dev_multiplier\x18\x02 \x01(\x01R\x1alongWindowStdDevMultiplier\x12J\n" +
+	"\x13training_start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x11trainingStartTime\x12F\n" +
+	"\x11training_end_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0ftrainingEndTime\"\xee\x01\n" +
+	"\x1aExcessiveDataReadsScenario\x12f\n" +
+	"\n" +
+	"model_data\x18\x01 \x01(\v2G.experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsModelR\tmodelData\x12h\n" +
+	"\x06config\x18\x02 \x01(\v2P.experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfigR\x06config\"\x98\x01\n" +
 	"\x19TemporalSilentBucketEntry\x12P\n" +
 	"\x03key\x18\x01 \x01(\v2>.experimental.anomaly_detection.v2.common.proto.CycleBucketKeyR\x03key\x12)\n" +
 	"\x10confidence_score\x18\x02 \x01(\x01R\x0fconfidenceScore\"\xdd\x01\n" +
@@ -1707,69 +2182,82 @@ const file_v2_common_proto_model_proto_rawDesc = "" +
 	"\x0fdata_start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\rdataStartTime\x12>\n" +
 	"\rdata_end_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vdataEndTime\x12=\n" +
 	"\x1btotal_log_entries_processed\x18\x05 \x01(\x03R\x18totalLogEntriesProcessed\x122\n" +
-	"\x15filter_cel_expression\x18\x06 \x01(\tR\x13filterCelExpression\"\xeb\x03\n" +
+	"\x15filter_cel_expression\x18\x06 \x01(\tR\x13filterCelExpression\"\xeb\x04\n" +
 	"\x05Model\x12w\n" +
 	"\x11traffic_deviation\x18\x01 \x01(\v2H.experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenarioH\x00R\x10trafficDeviation\x12t\n" +
 	"\x10volumetric_spike\x18\x02 \x01(\v2G.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenarioH\x00R\x0fvolumetricSpike\x12z\n" +
-	"\x12temporal_deviation\x18\x03 \x01(\v2I.experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenarioH\x00R\x11temporalDeviation\x12^\n" +
+	"\x12temporal_deviation\x18\x03 \x01(\v2I.experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenarioH\x00R\x11temporalDeviation\x12~\n" +
+	"\x14excessive_data_reads\x18\x05 \x01(\v2J.experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsScenarioH\x00R\x12excessiveDataReads\x12^\n" +
 	"\bmetadata\x18\x04 \x01(\v2=.experimental.anomaly_detection.v2.common.proto.ModelMetadataH\x01R\bmetadata\x88\x01\x01B\n" +
 	"\n" +
 	"\bscenarioB\v\n" +
 	"\t_metadataBmZkgithub.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v2/common/proto;commonpbb\x06proto3"
 
-var file_v2_common_proto_model_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_v2_common_proto_model_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_v2_common_proto_model_proto_goTypes = []any{
-	(*TrafficDeviationModel)(nil),           // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel
-	(*TrafficDeviationTrainingConfig)(nil),  // 1: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
-	(*TrafficDeviationScenario)(nil),        // 2: experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario
-	(*CycleBucketKey)(nil),                  // 3: experimental.anomaly_detection.v2.common.proto.CycleBucketKey
-	(*VolumetricBaseline)(nil),              // 4: experimental.anomaly_detection.v2.common.proto.VolumetricBaseline
-	(*VolumetricBaselineEntry)(nil),         // 5: experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry
-	(*CycleConfig)(nil),                     // 6: experimental.anomaly_detection.v2.common.proto.CycleConfig
-	(*VolumetricSpikeModel)(nil),            // 7: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel
-	(*VolumetricSpikeTrainingConfig)(nil),   // 8: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
-	(*VolumetricSpikeScenario)(nil),         // 9: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario
-	(*TemporalSilentBucketEntry)(nil),       // 10: experimental.anomaly_detection.v2.common.proto.TemporalSilentBucketEntry
-	(*TemporalDeviationModel)(nil),          // 11: experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel
-	(*TemporalDeviationTrainingConfig)(nil), // 12: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	(*TemporalDeviationScenario)(nil),       // 13: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
-	(*ModelMetadata)(nil),                   // 14: experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	(*Model)(nil),                           // 15: experimental.anomaly_detection.v2.common.proto.Model
-	nil,                                     // 16: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
-	(*durationpb.Duration)(nil),             // 17: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),           // 18: google.protobuf.Timestamp
+	(*TrafficDeviationModel)(nil),            // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel
+	(*TrafficDeviationTrainingConfig)(nil),   // 1: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
+	(*TrafficDeviationScenario)(nil),         // 2: experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario
+	(*CycleBucketKey)(nil),                   // 3: experimental.anomaly_detection.v2.common.proto.CycleBucketKey
+	(*VolumetricBaseline)(nil),               // 4: experimental.anomaly_detection.v2.common.proto.VolumetricBaseline
+	(*VolumetricBaselineEntry)(nil),          // 5: experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry
+	(*CycleConfig)(nil),                      // 6: experimental.anomaly_detection.v2.common.proto.CycleConfig
+	(*VolumetricSpikeModel)(nil),             // 7: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel
+	(*VolumetricSpikeTrainingConfig)(nil),    // 8: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
+	(*VolumetricSpikeScenario)(nil),          // 9: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario
+	(*ExcessiveDataReadsBaselineEntry)(nil),  // 10: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsBaselineEntry
+	(*ExcessiveDataReadsModel)(nil),          // 11: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsModel
+	(*ExcessiveDataReadsTrainingConfig)(nil), // 12: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfig
+	(*ExcessiveDataReadsScenario)(nil),       // 13: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsScenario
+	(*TemporalSilentBucketEntry)(nil),        // 14: experimental.anomaly_detection.v2.common.proto.TemporalSilentBucketEntry
+	(*TemporalDeviationModel)(nil),           // 15: experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel
+	(*TemporalDeviationTrainingConfig)(nil),  // 16: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
+	(*TemporalDeviationScenario)(nil),        // 17: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
+	(*ModelMetadata)(nil),                    // 18: experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	(*Model)(nil),                            // 19: experimental.anomaly_detection.v2.common.proto.Model
+	nil,                                      // 20: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
+	(*durationpb.Duration)(nil),              // 21: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),            // 22: google.protobuf.Timestamp
 }
 var file_v2_common_proto_model_proto_depIdxs = []int32{
-	16, // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.anomaly_scores:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
+	20, // 0: experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.anomaly_scores:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel.AnomalyScoresEntry
 	0,  // 1: experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationModel
 	1,  // 2: experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
 	3,  // 3: experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry.key:type_name -> experimental.anomaly_detection.v2.common.proto.CycleBucketKey
 	4,  // 4: experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry.value:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricBaseline
-	17, // 5: experimental.anomaly_detection.v2.common.proto.CycleConfig.bucket_duration:type_name -> google.protobuf.Duration
-	17, // 6: experimental.anomaly_detection.v2.common.proto.CycleConfig.cycle_duration:type_name -> google.protobuf.Duration
+	21, // 5: experimental.anomaly_detection.v2.common.proto.CycleConfig.bucket_duration:type_name -> google.protobuf.Duration
+	21, // 6: experimental.anomaly_detection.v2.common.proto.CycleConfig.cycle_duration:type_name -> google.protobuf.Duration
 	5,  // 7: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel.entries:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricBaselineEntry
 	6,  // 8: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
 	6,  // 9: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
 	7,  // 10: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeModel
 	8,  // 11: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
-	3,  // 12: experimental.anomaly_detection.v2.common.proto.TemporalSilentBucketEntry.key:type_name -> experimental.anomaly_detection.v2.common.proto.CycleBucketKey
-	10, // 13: experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel.entries:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalSilentBucketEntry
-	6,  // 14: experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
-	6,  // 15: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
-	11, // 16: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel
-	12, // 17: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	18, // 18: experimental.anomaly_detection.v2.common.proto.ModelMetadata.training_time:type_name -> google.protobuf.Timestamp
-	18, // 19: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_start_time:type_name -> google.protobuf.Timestamp
-	18, // 20: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_end_time:type_name -> google.protobuf.Timestamp
-	2,  // 21: experimental.anomaly_detection.v2.common.proto.Model.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario
-	9,  // 22: experimental.anomaly_detection.v2.common.proto.Model.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario
-	13, // 23: experimental.anomaly_detection.v2.common.proto.Model.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
-	14, // 24: experimental.anomaly_detection.v2.common.proto.Model.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	4,  // 12: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsBaselineEntry.short_window:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricBaseline
+	4,  // 13: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsBaselineEntry.long_window:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricBaseline
+	10, // 14: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsModel.entries:type_name -> experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsBaselineEntry
+	22, // 15: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfig.training_start_time:type_name -> google.protobuf.Timestamp
+	22, // 16: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfig.training_end_time:type_name -> google.protobuf.Timestamp
+	11, // 17: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsModel
+	12, // 18: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfig
+	3,  // 19: experimental.anomaly_detection.v2.common.proto.TemporalSilentBucketEntry.key:type_name -> experimental.anomaly_detection.v2.common.proto.CycleBucketKey
+	14, // 20: experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel.entries:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalSilentBucketEntry
+	6,  // 21: experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
+	6,  // 22: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig.cycle_config:type_name -> experimental.anomaly_detection.v2.common.proto.CycleConfig
+	15, // 23: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario.model_data:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationModel
+	16, // 24: experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario.config:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
+	22, // 25: experimental.anomaly_detection.v2.common.proto.ModelMetadata.training_time:type_name -> google.protobuf.Timestamp
+	22, // 26: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_start_time:type_name -> google.protobuf.Timestamp
+	22, // 27: experimental.anomaly_detection.v2.common.proto.ModelMetadata.data_end_time:type_name -> google.protobuf.Timestamp
+	2,  // 28: experimental.anomaly_detection.v2.common.proto.Model.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationScenario
+	9,  // 29: experimental.anomaly_detection.v2.common.proto.Model.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeScenario
+	17, // 30: experimental.anomaly_detection.v2.common.proto.Model.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationScenario
+	13, // 31: experimental.anomaly_detection.v2.common.proto.Model.excessive_data_reads:type_name -> experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsScenario
+	18, // 32: experimental.anomaly_detection.v2.common.proto.Model.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_v2_common_proto_model_proto_init() }
@@ -1777,10 +2265,11 @@ func file_v2_common_proto_model_proto_init() {
 	if File_v2_common_proto_model_proto != nil {
 		return
 	}
-	file_v2_common_proto_model_proto_msgTypes[15].OneofWrappers = []any{
+	file_v2_common_proto_model_proto_msgTypes[19].OneofWrappers = []any{
 		(*model_TrafficDeviation)(nil),
 		(*model_VolumetricSpike)(nil),
 		(*model_TemporalDeviation)(nil),
+		(*model_ExcessiveDataReads)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1788,7 +2277,7 @@ func file_v2_common_proto_model_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v2_common_proto_model_proto_rawDesc), len(file_v2_common_proto_model_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

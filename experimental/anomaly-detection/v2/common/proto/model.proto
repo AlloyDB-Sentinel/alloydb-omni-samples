@@ -80,6 +80,34 @@ message VolumetricSpikeScenario {
   VolumetricSpikeTrainingConfig config = 2;
 }
 
+// Scenario-2: Excessive Data Reads. Uses 15-minute and 4-hour rolling totals with OR.
+message ExcessiveDataReadsBaselineEntry {
+  string db_name = 1;
+  string db_user = 2;
+  // Monday 00:00 UTC is 0; Sunday 23:00 UTC is 167.
+  int32 hour_of_week = 3;
+  VolumetricBaseline short_window = 4;
+  VolumetricBaseline long_window = 5;
+}
+
+message ExcessiveDataReadsModel {
+  repeated ExcessiveDataReadsBaselineEntry entries = 1;
+}
+
+message ExcessiveDataReadsTrainingConfig {
+  // Multipliers for population standard deviation; the selected pair is 6 and 4.
+  double short_window_std_dev_multiplier = 1;
+  double long_window_std_dev_multiplier = 2;
+  // Whole UTC hours in [start, end). Earlier input warms the rolling windows.
+  google.protobuf.Timestamp training_start_time = 3;
+  google.protobuf.Timestamp training_end_time = 4;
+}
+
+message ExcessiveDataReadsScenario {
+  ExcessiveDataReadsModel model_data = 1;
+  ExcessiveDataReadsTrainingConfig config = 2;
+}
+
 message TemporalSilentBucketEntry {
   CycleBucketKey key = 1;
   double confidence_score = 2;
@@ -120,6 +148,7 @@ message Model {
     TrafficDeviationScenario traffic_deviation = 1;
     VolumetricSpikeScenario volumetric_spike = 2;
     TemporalDeviationScenario temporal_deviation = 3;
+    ExcessiveDataReadsScenario excessive_data_reads = 5;
   }
 
   optional ModelMetadata metadata = 4;
