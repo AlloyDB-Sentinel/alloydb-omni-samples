@@ -15,24 +15,26 @@ func TestExtract(t *testing.T) {
 		wantErr  error
 	}{
 		{
-			// Happy path: Log entry contains a normalized query template, user, and timestamp.
 			name: "valid_query_template",
 			logEntry: func() *auditpb.AuditLogEntry {
 				entry := &auditpb.AuditLogEntry{}
 				entry.SetDbUser("db_user")
+				entry.SetDbName("db_name")
 				entry.SetNormalizedQueryTemplate("SELECT * FROM users WHERE id = %v")
 				entry.SetTimestampMs(1782000000000)
+				entry.SetRowsReturned(120)
 				return entry
 			}(),
 			want: ExtractedLogFeatures{
 				DbUser:        "db_user",
+				DbName:        "db_name",
 				QueryTemplate: "SELECT * FROM users WHERE id = %v",
 				TimestampMs:   1782000000000,
+				RowsReturned:  120,
 			},
 			wantErr: nil,
 		},
 		{
-			// Edge case: Log entry contains an empty normalized query template and zeroed values.
 			name: "empty_query_template",
 			logEntry: func() *auditpb.AuditLogEntry {
 				entry := &auditpb.AuditLogEntry{}
@@ -47,7 +49,6 @@ func TestExtract(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			// Edge case: The log entry pointer itself is nil.
 			name:     "nil_log_entry",
 			logEntry: nil,
 			wantErr:  ErrInvalidArgument,
@@ -71,7 +72,7 @@ func TestExtract(t *testing.T) {
 				t.Fatalf("Extract() got unexpected error: %v", err)
 			}
 
-			if got.DbUser != test.want.DbUser || got.QueryTemplate != test.want.QueryTemplate || got.TimestampMs != test.want.TimestampMs {
+			if got != test.want {
 				t.Errorf("Extract(%v) = %v, want %v", test.logEntry, got, test.want)
 			}
 		})
