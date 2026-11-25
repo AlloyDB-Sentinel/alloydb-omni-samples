@@ -146,6 +146,15 @@ func (x *ModelFilter) GetTemporalDeviation() *proto.TemporalDeviationTrainingCon
 	return nil
 }
 
+func (x *ModelFilter) GetExcessiveDataReads() *proto.ExcessiveDataReadsTrainingConfig {
+	if x != nil {
+		if x, ok := x.xxx_hidden_ScenarioConfigFilter.(*modelFilter_ExcessiveDataReads); ok {
+			return x.ExcessiveDataReads
+		}
+	}
+	return nil
+}
+
 func (x *ModelFilter) SetMetadataFilter(v *ModelMetadataFilter) {
 	x.xxx_hidden_MetadataFilter = v
 }
@@ -172,6 +181,14 @@ func (x *ModelFilter) SetTemporalDeviation(v *proto.TemporalDeviationTrainingCon
 		return
 	}
 	x.xxx_hidden_ScenarioConfigFilter = &modelFilter_TemporalDeviation{v}
+}
+
+func (x *ModelFilter) SetExcessiveDataReads(v *proto.ExcessiveDataReadsTrainingConfig) {
+	if v == nil {
+		x.xxx_hidden_ScenarioConfigFilter = nil
+		return
+	}
+	x.xxx_hidden_ScenarioConfigFilter = &modelFilter_ExcessiveDataReads{v}
 }
 
 func (x *ModelFilter) HasMetadataFilter() bool {
@@ -212,6 +229,14 @@ func (x *ModelFilter) HasTemporalDeviation() bool {
 	return ok
 }
 
+func (x *ModelFilter) HasExcessiveDataReads() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_ScenarioConfigFilter.(*modelFilter_ExcessiveDataReads)
+	return ok
+}
+
 func (x *ModelFilter) ClearMetadataFilter() {
 	x.xxx_hidden_MetadataFilter = nil
 }
@@ -238,10 +263,17 @@ func (x *ModelFilter) ClearTemporalDeviation() {
 	}
 }
 
+func (x *ModelFilter) ClearExcessiveDataReads() {
+	if _, ok := x.xxx_hidden_ScenarioConfigFilter.(*modelFilter_ExcessiveDataReads); ok {
+		x.xxx_hidden_ScenarioConfigFilter = nil
+	}
+}
+
 const ModelFilter_ScenarioConfigFilter_not_set_case case_ModelFilter_ScenarioConfigFilter = 0
 const ModelFilter_TrafficDeviation_case case_ModelFilter_ScenarioConfigFilter = 2
 const ModelFilter_VolumetricSpike_case case_ModelFilter_ScenarioConfigFilter = 3
 const ModelFilter_TemporalDeviation_case case_ModelFilter_ScenarioConfigFilter = 4
+const ModelFilter_ExcessiveDataReads_case case_ModelFilter_ScenarioConfigFilter = 5
 
 func (x *ModelFilter) WhichScenarioConfigFilter() case_ModelFilter_ScenarioConfigFilter {
 	if x == nil {
@@ -254,6 +286,8 @@ func (x *ModelFilter) WhichScenarioConfigFilter() case_ModelFilter_ScenarioConfi
 		return ModelFilter_VolumetricSpike_case
 	case *modelFilter_TemporalDeviation:
 		return ModelFilter_TemporalDeviation_case
+	case *modelFilter_ExcessiveDataReads:
+		return ModelFilter_ExcessiveDataReads_case
 	default:
 		return ModelFilter_ScenarioConfigFilter_not_set_case
 	}
@@ -265,9 +299,10 @@ type ModelFilter_builder struct {
 	// Optional. Filter by model metadata.
 	MetadataFilter *ModelMetadataFilter
 	// Fields of oneof xxx_hidden_ScenarioConfigFilter:
-	TrafficDeviation  *proto.TrafficDeviationTrainingConfig
-	VolumetricSpike   *proto.VolumetricSpikeTrainingConfig
-	TemporalDeviation *proto.TemporalDeviationTrainingConfig
+	TrafficDeviation   *proto.TrafficDeviationTrainingConfig
+	VolumetricSpike    *proto.VolumetricSpikeTrainingConfig
+	TemporalDeviation  *proto.TemporalDeviationTrainingConfig
+	ExcessiveDataReads *proto.ExcessiveDataReadsTrainingConfig
 	// -- end of xxx_hidden_ScenarioConfigFilter
 }
 
@@ -284,6 +319,9 @@ func (b0 ModelFilter_builder) Build() *ModelFilter {
 	}
 	if b.TemporalDeviation != nil {
 		x.xxx_hidden_ScenarioConfigFilter = &modelFilter_TemporalDeviation{b.TemporalDeviation}
+	}
+	if b.ExcessiveDataReads != nil {
+		x.xxx_hidden_ScenarioConfigFilter = &modelFilter_ExcessiveDataReads{b.ExcessiveDataReads}
 	}
 	return m0
 }
@@ -314,11 +352,17 @@ type modelFilter_TemporalDeviation struct {
 	TemporalDeviation *proto.TemporalDeviationTrainingConfig `protobuf:"bytes,4,opt,name=temporal_deviation,json=temporalDeviation,proto3,oneof"`
 }
 
+type modelFilter_ExcessiveDataReads struct {
+	ExcessiveDataReads *proto.ExcessiveDataReadsTrainingConfig `protobuf:"bytes,5,opt,name=excessive_data_reads,json=excessiveDataReads,proto3,oneof"`
+}
+
 func (*modelFilter_TrafficDeviation) isModelFilter_ScenarioConfigFilter() {}
 
 func (*modelFilter_VolumetricSpike) isModelFilter_ScenarioConfigFilter() {}
 
 func (*modelFilter_TemporalDeviation) isModelFilter_ScenarioConfigFilter() {}
+
+func (*modelFilter_ExcessiveDataReads) isModelFilter_ScenarioConfigFilter() {}
 
 type ListModelsRequest struct {
 	state                    protoimpl.MessageState `protogen:"opaque.v1"`
@@ -479,6 +523,15 @@ func (x *ModelEntry) GetTemporalDeviationConfig() *proto.TemporalDeviationTraini
 	return nil
 }
 
+func (x *ModelEntry) GetExcessiveDataReadsConfig() *proto.ExcessiveDataReadsTrainingConfig {
+	if x != nil {
+		if x, ok := x.xxx_hidden_TrainingConfig.(*modelEntry_ExcessiveDataReadsConfig); ok {
+			return x.ExcessiveDataReadsConfig
+		}
+	}
+	return nil
+}
+
 func (x *ModelEntry) SetModelLocation(v string) {
 	x.xxx_hidden_ModelLocation = v
 }
@@ -509,6 +562,14 @@ func (x *ModelEntry) SetTemporalDeviationConfig(v *proto.TemporalDeviationTraini
 		return
 	}
 	x.xxx_hidden_TrainingConfig = &modelEntry_TemporalDeviationConfig{v}
+}
+
+func (x *ModelEntry) SetExcessiveDataReadsConfig(v *proto.ExcessiveDataReadsTrainingConfig) {
+	if v == nil {
+		x.xxx_hidden_TrainingConfig = nil
+		return
+	}
+	x.xxx_hidden_TrainingConfig = &modelEntry_ExcessiveDataReadsConfig{v}
 }
 
 func (x *ModelEntry) HasMetadata() bool {
@@ -549,6 +610,14 @@ func (x *ModelEntry) HasTemporalDeviationConfig() bool {
 	return ok
 }
 
+func (x *ModelEntry) HasExcessiveDataReadsConfig() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_TrainingConfig.(*modelEntry_ExcessiveDataReadsConfig)
+	return ok
+}
+
 func (x *ModelEntry) ClearMetadata() {
 	x.xxx_hidden_Metadata = nil
 }
@@ -575,10 +644,17 @@ func (x *ModelEntry) ClearTemporalDeviationConfig() {
 	}
 }
 
+func (x *ModelEntry) ClearExcessiveDataReadsConfig() {
+	if _, ok := x.xxx_hidden_TrainingConfig.(*modelEntry_ExcessiveDataReadsConfig); ok {
+		x.xxx_hidden_TrainingConfig = nil
+	}
+}
+
 const ModelEntry_TrainingConfig_not_set_case case_ModelEntry_TrainingConfig = 0
 const ModelEntry_TrafficDeviationConfig_case case_ModelEntry_TrainingConfig = 4
 const ModelEntry_VolumetricSpikeConfig_case case_ModelEntry_TrainingConfig = 5
 const ModelEntry_TemporalDeviationConfig_case case_ModelEntry_TrainingConfig = 6
+const ModelEntry_ExcessiveDataReadsConfig_case case_ModelEntry_TrainingConfig = 7
 
 func (x *ModelEntry) WhichTrainingConfig() case_ModelEntry_TrainingConfig {
 	if x == nil {
@@ -591,6 +667,8 @@ func (x *ModelEntry) WhichTrainingConfig() case_ModelEntry_TrainingConfig {
 		return ModelEntry_VolumetricSpikeConfig_case
 	case *modelEntry_TemporalDeviationConfig:
 		return ModelEntry_TemporalDeviationConfig_case
+	case *modelEntry_ExcessiveDataReadsConfig:
+		return ModelEntry_ExcessiveDataReadsConfig_case
 	default:
 		return ModelEntry_TrainingConfig_not_set_case
 	}
@@ -602,9 +680,10 @@ type ModelEntry_builder struct {
 	ModelLocation string
 	Metadata      *proto.ModelMetadata
 	// Fields of oneof xxx_hidden_TrainingConfig:
-	TrafficDeviationConfig  *proto.TrafficDeviationTrainingConfig
-	VolumetricSpikeConfig   *proto.VolumetricSpikeTrainingConfig
-	TemporalDeviationConfig *proto.TemporalDeviationTrainingConfig
+	TrafficDeviationConfig   *proto.TrafficDeviationTrainingConfig
+	VolumetricSpikeConfig    *proto.VolumetricSpikeTrainingConfig
+	TemporalDeviationConfig  *proto.TemporalDeviationTrainingConfig
+	ExcessiveDataReadsConfig *proto.ExcessiveDataReadsTrainingConfig
 	// -- end of xxx_hidden_TrainingConfig
 }
 
@@ -622,6 +701,9 @@ func (b0 ModelEntry_builder) Build() *ModelEntry {
 	}
 	if b.TemporalDeviationConfig != nil {
 		x.xxx_hidden_TrainingConfig = &modelEntry_TemporalDeviationConfig{b.TemporalDeviationConfig}
+	}
+	if b.ExcessiveDataReadsConfig != nil {
+		x.xxx_hidden_TrainingConfig = &modelEntry_ExcessiveDataReadsConfig{b.ExcessiveDataReadsConfig}
 	}
 	return m0
 }
@@ -652,11 +734,17 @@ type modelEntry_TemporalDeviationConfig struct {
 	TemporalDeviationConfig *proto.TemporalDeviationTrainingConfig `protobuf:"bytes,6,opt,name=temporal_deviation_config,json=temporalDeviationConfig,proto3,oneof"`
 }
 
+type modelEntry_ExcessiveDataReadsConfig struct {
+	ExcessiveDataReadsConfig *proto.ExcessiveDataReadsTrainingConfig `protobuf:"bytes,7,opt,name=excessive_data_reads_config,json=excessiveDataReadsConfig,proto3,oneof"`
+}
+
 func (*modelEntry_TrafficDeviationConfig) isModelEntry_TrainingConfig() {}
 
 func (*modelEntry_VolumetricSpikeConfig) isModelEntry_TrainingConfig() {}
 
 func (*modelEntry_TemporalDeviationConfig) isModelEntry_TrainingConfig() {}
+
+func (*modelEntry_ExcessiveDataReadsConfig) isModelEntry_TrainingConfig() {}
 
 type ListModelsResponse struct {
 	state             protoimpl.MessageState `protogen:"opaque.v1"`
@@ -1432,23 +1520,25 @@ const file_v2_prediction_service_proto_prediction_service_proto_rawDesc = "" +
 	"\n" +
 	"4v2/prediction_service/proto/prediction_service.proto\x122experimental.anomaly_detection.v2.prediction.proto\x1a+v2/common/proto/anomaly_finding_entry.proto\x1a%v2/common/proto/audit_log_entry.proto\x1a\x1bv2/common/proto/model.proto\">\n" +
 	"\x13ModelMetadataFilter\x12'\n" +
-	"\x0ftrainer_version\x18\x01 \x01(\tR\x0etrainerVersion\"\x97\x04\n" +
+	"\x0ftrainer_version\x18\x01 \x01(\tR\x0etrainerVersion\"\x9e\x05\n" +
 	"\vModelFilter\x12p\n" +
 	"\x0fmetadata_filter\x18\x01 \x01(\v2G.experimental.anomaly_detection.v2.prediction.proto.ModelMetadataFilterR\x0emetadataFilter\x12}\n" +
 	"\x11traffic_deviation\x18\x02 \x01(\v2N.experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfigH\x00R\x10trafficDeviation\x12z\n" +
 	"\x10volumetric_spike\x18\x03 \x01(\v2M.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfigH\x00R\x0fvolumetricSpike\x12\x80\x01\n" +
-	"\x12temporal_deviation\x18\x04 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x11temporalDeviationB\x18\n" +
+	"\x12temporal_deviation\x18\x04 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x11temporalDeviation\x12\x84\x01\n" +
+	"\x14excessive_data_reads\x18\x05 \x01(\v2P.experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfigH\x00R\x12excessiveDataReadsB\x18\n" +
 	"\x16scenario_config_filter\"\x93\x01\n" +
 	"\x11ListModelsRequest\x12%\n" +
 	"\x0emodel_location\x18\x01 \x01(\tR\rmodelLocation\x12W\n" +
-	"\x06filter\x18\x02 \x01(\v2?.experimental.anomaly_detection.v2.prediction.proto.ModelFilterR\x06filter\"\xc8\x04\n" +
+	"\x06filter\x18\x02 \x01(\v2?.experimental.anomaly_detection.v2.prediction.proto.ModelFilterR\x06filter\"\xdc\x05\n" +
 	"\n" +
 	"ModelEntry\x12%\n" +
 	"\x0emodel_location\x18\x01 \x01(\tR\rmodelLocation\x12Y\n" +
 	"\bmetadata\x18\x03 \x01(\v2=.experimental.anomaly_detection.v2.common.proto.ModelMetadataR\bmetadata\x12\x8a\x01\n" +
 	"\x18traffic_deviation_config\x18\x04 \x01(\v2N.experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfigH\x00R\x16trafficDeviationConfig\x12\x87\x01\n" +
 	"\x17volumetric_spike_config\x18\x05 \x01(\v2M.experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfigH\x00R\x15volumetricSpikeConfig\x12\x8d\x01\n" +
-	"\x19temporal_deviation_config\x18\x06 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x17temporalDeviationConfigB\x11\n" +
+	"\x19temporal_deviation_config\x18\x06 \x01(\v2O.experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfigH\x00R\x17temporalDeviationConfig\x12\x91\x01\n" +
+	"\x1bexcessive_data_reads_config\x18\a \x01(\v2P.experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfigH\x00R\x18excessiveDataReadsConfigB\x11\n" +
 	"\x0ftraining_config\"l\n" +
 	"\x12ListModelsResponse\x12V\n" +
 	"\x06models\x18\x01 \x03(\v2>.experimental.anomaly_detection.v2.prediction.proto.ModelEntryR\x06models\"o\n" +
@@ -1483,55 +1573,58 @@ const file_v2_prediction_service_proto_prediction_service_proto_rawDesc = "" +
 
 var file_v2_prediction_service_proto_prediction_service_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_v2_prediction_service_proto_prediction_service_proto_goTypes = []any{
-	(*ModelMetadataFilter)(nil),                   // 0: experimental.anomaly_detection.v2.prediction.proto.ModelMetadataFilter
-	(*ModelFilter)(nil),                           // 1: experimental.anomaly_detection.v2.prediction.proto.ModelFilter
-	(*ListModelsRequest)(nil),                     // 2: experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest
-	(*ModelEntry)(nil),                            // 3: experimental.anomaly_detection.v2.prediction.proto.ModelEntry
-	(*ListModelsResponse)(nil),                    // 4: experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse
-	(*AuditLogBatch)(nil),                         // 5: experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch
-	(*PredictRequest)(nil),                        // 6: experimental.anomaly_detection.v2.prediction.proto.PredictRequest
-	(*AnomalyFindingBatch)(nil),                   // 7: experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch
-	(*PredictResponse)(nil),                       // 8: experimental.anomaly_detection.v2.prediction.proto.PredictResponse
-	(*PushModelRequest)(nil),                      // 9: experimental.anomaly_detection.v2.prediction.proto.PushModelRequest
-	(*PushModelResponse)(nil),                     // 10: experimental.anomaly_detection.v2.prediction.proto.PushModelResponse
-	(*proto.TrafficDeviationTrainingConfig)(nil),  // 11: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
-	(*proto.VolumetricSpikeTrainingConfig)(nil),   // 12: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
-	(*proto.TemporalDeviationTrainingConfig)(nil), // 13: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	(*proto.ModelMetadata)(nil),                   // 14: experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	(*proto.AuditLogEntry)(nil),                   // 15: experimental.anomaly_detection.v2.common.proto.AuditLogEntry
-	(*proto.AnomalyFinding)(nil),                  // 16: experimental.anomaly_detection.v2.common.proto.AnomalyFinding
-	(*proto.Model)(nil),                           // 17: experimental.anomaly_detection.v2.common.proto.Model
+	(*ModelMetadataFilter)(nil),                    // 0: experimental.anomaly_detection.v2.prediction.proto.ModelMetadataFilter
+	(*ModelFilter)(nil),                            // 1: experimental.anomaly_detection.v2.prediction.proto.ModelFilter
+	(*ListModelsRequest)(nil),                      // 2: experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest
+	(*ModelEntry)(nil),                             // 3: experimental.anomaly_detection.v2.prediction.proto.ModelEntry
+	(*ListModelsResponse)(nil),                     // 4: experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse
+	(*AuditLogBatch)(nil),                          // 5: experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch
+	(*PredictRequest)(nil),                         // 6: experimental.anomaly_detection.v2.prediction.proto.PredictRequest
+	(*AnomalyFindingBatch)(nil),                    // 7: experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch
+	(*PredictResponse)(nil),                        // 8: experimental.anomaly_detection.v2.prediction.proto.PredictResponse
+	(*PushModelRequest)(nil),                       // 9: experimental.anomaly_detection.v2.prediction.proto.PushModelRequest
+	(*PushModelResponse)(nil),                      // 10: experimental.anomaly_detection.v2.prediction.proto.PushModelResponse
+	(*proto.TrafficDeviationTrainingConfig)(nil),   // 11: experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
+	(*proto.VolumetricSpikeTrainingConfig)(nil),    // 12: experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
+	(*proto.TemporalDeviationTrainingConfig)(nil),  // 13: experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
+	(*proto.ExcessiveDataReadsTrainingConfig)(nil), // 14: experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfig
+	(*proto.ModelMetadata)(nil),                    // 15: experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	(*proto.AuditLogEntry)(nil),                    // 16: experimental.anomaly_detection.v2.common.proto.AuditLogEntry
+	(*proto.AnomalyFinding)(nil),                   // 17: experimental.anomaly_detection.v2.common.proto.AnomalyFinding
+	(*proto.Model)(nil),                            // 18: experimental.anomaly_detection.v2.common.proto.Model
 }
 var file_v2_prediction_service_proto_prediction_service_proto_depIdxs = []int32{
 	0,  // 0: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.metadata_filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelMetadataFilter
 	11, // 1: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.traffic_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
 	12, // 2: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.volumetric_spike:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
 	13, // 3: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.temporal_deviation:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	1,  // 4: experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest.filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelFilter
-	14, // 5: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
-	11, // 6: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.traffic_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
-	12, // 7: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.volumetric_spike_config:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
-	13, // 8: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.temporal_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
-	3,  // 9: experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse.models:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelEntry
-	15, // 10: experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch.log_entries:type_name -> experimental.anomaly_detection.v2.common.proto.AuditLogEntry
-	15, // 11: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.single_log:type_name -> experimental.anomaly_detection.v2.common.proto.AuditLogEntry
-	5,  // 12: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.batch_logs:type_name -> experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch
-	1,  // 13: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelFilter
-	16, // 14: experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch.findings:type_name -> experimental.anomaly_detection.v2.common.proto.AnomalyFinding
-	16, // 15: experimental.anomaly_detection.v2.prediction.proto.PredictResponse.single_finding:type_name -> experimental.anomaly_detection.v2.common.proto.AnomalyFinding
-	7,  // 16: experimental.anomaly_detection.v2.prediction.proto.PredictResponse.batch_findings:type_name -> experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch
-	17, // 17: experimental.anomaly_detection.v2.prediction.proto.PushModelRequest.model:type_name -> experimental.anomaly_detection.v2.common.proto.Model
-	2,  // 18: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ListModels:input_type -> experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest
-	6,  // 19: experimental.anomaly_detection.v2.prediction.proto.PredictionService.Predict:input_type -> experimental.anomaly_detection.v2.prediction.proto.PredictRequest
-	9,  // 20: experimental.anomaly_detection.v2.prediction.proto.PredictionService.PushModel:input_type -> experimental.anomaly_detection.v2.prediction.proto.PushModelRequest
-	4,  // 21: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ListModels:output_type -> experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse
-	8,  // 22: experimental.anomaly_detection.v2.prediction.proto.PredictionService.Predict:output_type -> experimental.anomaly_detection.v2.prediction.proto.PredictResponse
-	10, // 23: experimental.anomaly_detection.v2.prediction.proto.PredictionService.PushModel:output_type -> experimental.anomaly_detection.v2.prediction.proto.PushModelResponse
-	21, // [21:24] is the sub-list for method output_type
-	18, // [18:21] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	14, // 4: experimental.anomaly_detection.v2.prediction.proto.ModelFilter.excessive_data_reads:type_name -> experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfig
+	1,  // 5: experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest.filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelFilter
+	15, // 6: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.metadata:type_name -> experimental.anomaly_detection.v2.common.proto.ModelMetadata
+	11, // 7: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.traffic_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TrafficDeviationTrainingConfig
+	12, // 8: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.volumetric_spike_config:type_name -> experimental.anomaly_detection.v2.common.proto.VolumetricSpikeTrainingConfig
+	13, // 9: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.temporal_deviation_config:type_name -> experimental.anomaly_detection.v2.common.proto.TemporalDeviationTrainingConfig
+	14, // 10: experimental.anomaly_detection.v2.prediction.proto.ModelEntry.excessive_data_reads_config:type_name -> experimental.anomaly_detection.v2.common.proto.ExcessiveDataReadsTrainingConfig
+	3,  // 11: experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse.models:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelEntry
+	16, // 12: experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch.log_entries:type_name -> experimental.anomaly_detection.v2.common.proto.AuditLogEntry
+	16, // 13: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.single_log:type_name -> experimental.anomaly_detection.v2.common.proto.AuditLogEntry
+	5,  // 14: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.batch_logs:type_name -> experimental.anomaly_detection.v2.prediction.proto.AuditLogBatch
+	1,  // 15: experimental.anomaly_detection.v2.prediction.proto.PredictRequest.filter:type_name -> experimental.anomaly_detection.v2.prediction.proto.ModelFilter
+	17, // 16: experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch.findings:type_name -> experimental.anomaly_detection.v2.common.proto.AnomalyFinding
+	17, // 17: experimental.anomaly_detection.v2.prediction.proto.PredictResponse.single_finding:type_name -> experimental.anomaly_detection.v2.common.proto.AnomalyFinding
+	7,  // 18: experimental.anomaly_detection.v2.prediction.proto.PredictResponse.batch_findings:type_name -> experimental.anomaly_detection.v2.prediction.proto.AnomalyFindingBatch
+	18, // 19: experimental.anomaly_detection.v2.prediction.proto.PushModelRequest.model:type_name -> experimental.anomaly_detection.v2.common.proto.Model
+	2,  // 20: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ListModels:input_type -> experimental.anomaly_detection.v2.prediction.proto.ListModelsRequest
+	6,  // 21: experimental.anomaly_detection.v2.prediction.proto.PredictionService.Predict:input_type -> experimental.anomaly_detection.v2.prediction.proto.PredictRequest
+	9,  // 22: experimental.anomaly_detection.v2.prediction.proto.PredictionService.PushModel:input_type -> experimental.anomaly_detection.v2.prediction.proto.PushModelRequest
+	4,  // 23: experimental.anomaly_detection.v2.prediction.proto.PredictionService.ListModels:output_type -> experimental.anomaly_detection.v2.prediction.proto.ListModelsResponse
+	8,  // 24: experimental.anomaly_detection.v2.prediction.proto.PredictionService.Predict:output_type -> experimental.anomaly_detection.v2.prediction.proto.PredictResponse
+	10, // 25: experimental.anomaly_detection.v2.prediction.proto.PredictionService.PushModel:output_type -> experimental.anomaly_detection.v2.prediction.proto.PushModelResponse
+	23, // [23:26] is the sub-list for method output_type
+	20, // [20:23] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_v2_prediction_service_proto_prediction_service_proto_init() }
@@ -1543,11 +1636,13 @@ func file_v2_prediction_service_proto_prediction_service_proto_init() {
 		(*modelFilter_TrafficDeviation)(nil),
 		(*modelFilter_VolumetricSpike)(nil),
 		(*modelFilter_TemporalDeviation)(nil),
+		(*modelFilter_ExcessiveDataReads)(nil),
 	}
 	file_v2_prediction_service_proto_prediction_service_proto_msgTypes[3].OneofWrappers = []any{
 		(*modelEntry_TrafficDeviationConfig)(nil),
 		(*modelEntry_VolumetricSpikeConfig)(nil),
 		(*modelEntry_TemporalDeviationConfig)(nil),
+		(*modelEntry_ExcessiveDataReadsConfig)(nil),
 	}
 	file_v2_prediction_service_proto_prediction_service_proto_msgTypes[6].OneofWrappers = []any{
 		(*predictRequest_SingleLog)(nil),

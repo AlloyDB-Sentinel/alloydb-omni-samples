@@ -197,6 +197,13 @@ func matchesModelFilter(filter *predictionpb.ModelFilter, entry *predictionpb.Mo
 		if filter := filter.GetTemporalDeviation(); filter.GetSilentThresholdRatio() != 0 {
 			return cfg.GetSilentThresholdRatio() == filter.GetSilentThresholdRatio()
 		}
+	case predictionpb.ModelFilter_ExcessiveDataReads_case:
+		cfg, filter := entry.GetExcessiveDataReadsConfig(), filter.GetExcessiveDataReads()
+		return cfg != nil &&
+			(filter.GetShortWindowStdDevMultiplier() == 0 || filter.GetShortWindowStdDevMultiplier() == cfg.GetShortWindowStdDevMultiplier()) &&
+			(filter.GetLongWindowStdDevMultiplier() == 0 || filter.GetLongWindowStdDevMultiplier() == cfg.GetLongWindowStdDevMultiplier()) &&
+			(filter.GetTrainingStartTime() == nil || proto.Equal(filter.GetTrainingStartTime(), cfg.GetTrainingStartTime())) &&
+			(filter.GetTrainingEndTime() == nil || proto.Equal(filter.GetTrainingEndTime(), cfg.GetTrainingEndTime()))
 	}
 
 	return true
@@ -279,6 +286,8 @@ func buildModelEntry(path string, modelProto *modelpb.Model) *predictionpb.Model
 		entry.SetVolumetricSpikeConfig(modelProto.GetVolumetricSpike().GetConfig())
 	case modelpb.Model_TemporalDeviation_case:
 		entry.SetTemporalDeviationConfig(modelProto.GetTemporalDeviation().GetConfig())
+	case modelpb.Model_ExcessiveDataReads_case:
+		entry.SetExcessiveDataReadsConfig(modelProto.GetExcessiveDataReads().GetConfig())
 	}
 
 	return entry
@@ -320,6 +329,8 @@ func modelFromProto(pb *modelpb.Model) (service.Model, error) {
 
 	case modelpb.Model_TemporalDeviation_case:
 		return service.NewTemporalDeviationModel(pb)
+	case modelpb.Model_ExcessiveDataReads_case:
+		return service.NewExcessiveDataReadsModel(pb)
 
 	default:
 		return nil, fmt.Errorf("unknown scenario case in proto: %v", pb.WhichScenario())
@@ -349,12 +360,20 @@ func resetModels(models []service.Model) {
 func predictSingle(ctx context.Context, models []service.Model, singleLog *auditpb.AuditLogEntry) (*predictionpb.PredictResponse, error) {
 	resp := &predictionpb.PredictResponse{}
 	if len(models) == 1 {
-		resp.SetSingleFinding(models[0].Predict(singleLog))
+		finding, err := predictFinding(models[0], singleLog)
+		if err != nil {
+			return nil, err
+		}
+		resp.SetSingleFinding(finding)
 		return resp, nil
 	}
 	var findings []*findingpb.AnomalyFinding
 	for _, m := range models {
-		findings = append(findings, m.Predict(singleLog))
+		finding, err := predictFinding(m, singleLog)
+		if err != nil {
+			return nil, err
+		}
+		findings = append(findings, finding)
 	}
 	batchResp := &predictionpb.AnomalyFindingBatch{}
 	batchResp.SetFindings(findings)
@@ -368,7 +387,11 @@ func predictBatch(ctx context.Context, models []service.Model, batchLogs *predic
 	var findings []*findingpb.AnomalyFinding
 	for _, m := range models {
 		for _, entry := range batchLogs.GetLogEntries() {
-			findings = append(findings, m.Predict(entry))
+			finding, err := predictFinding(m, entry)
+			if err != nil {
+				return nil, err
+			}
+			findings = append(findings, finding)
 		}
 	}
 	batchResp := &predictionpb.AnomalyFindingBatch{}
@@ -395,7 +418,11 @@ func predictFile(ctx context.Context, models []service.Model, path string) (*pre
 
 	for _, m := range models {
 		err = common.IngestBinProtoStream(ctx, resolvedPath, func(entry *auditpb.AuditLogEntry) error {
-			data, err := prototext.Marshal(m.Predict(entry))
+			finding, err := predictFinding(m, entry)
+			if err != nil {
+				return err
+			}
+			data, err := prototext.Marshal(finding)
 			if err != nil {
 				return status.Errorf(codes.Internal, "failed to marshal finding to textproto: %v", err)
 			}
@@ -405,6 +432,9 @@ func predictFile(ctx context.Context, models []service.Model, path string) (*pre
 			return nil
 		})
 		if err != nil {
+			if status.Code(err) == codes.InvalidArgument {
+				return nil, err
+			}
 			if errors.Is(err, common.ErrInvalidArgument) {
 				return nil, status.Errorf(codes.InvalidArgument, "failed to ingest and predict logs: %v", err)
 			}
@@ -415,6 +445,14 @@ func predictFile(ctx context.Context, models []service.Model, path string) (*pre
 	resp := &predictionpb.PredictResponse{}
 	resp.SetFindingsPath(outPath)
 	return resp, nil
+}
+
+func predictFinding(model service.Model, entry *auditpb.AuditLogEntry) (*findingpb.AnomalyFinding, error) {
+	finding := model.Predict(entry)
+	if checked, ok := model.(interface{ Err() error }); ok && checked.Err() != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid prediction input: %v", checked.Err())
+	}
+	return finding, nil
 }
 
 func main() {

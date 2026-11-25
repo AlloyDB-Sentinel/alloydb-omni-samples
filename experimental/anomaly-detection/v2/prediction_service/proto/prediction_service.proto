@@ -37,6 +37,8 @@ message ModelFilter {
         .VolumetricSpikeTrainingConfig volumetric_spike = 3;
     experimental.anomaly_detection.v2.common.proto
         .TemporalDeviationTrainingConfig temporal_deviation = 4;
+    experimental.anomaly_detection.v2.common.proto
+        .ExcessiveDataReadsTrainingConfig excessive_data_reads = 5;
   }
 }
 
@@ -60,6 +62,8 @@ message ModelEntry {
         .VolumetricSpikeTrainingConfig volumetric_spike_config = 5;
     experimental.anomaly_detection.v2.common.proto
         .TemporalDeviationTrainingConfig temporal_deviation_config = 6;
+    experimental.anomaly_detection.v2.common.proto
+        .ExcessiveDataReadsTrainingConfig excessive_data_reads_config = 7;
   }
 }
 

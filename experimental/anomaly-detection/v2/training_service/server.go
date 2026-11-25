@@ -107,6 +107,8 @@ func initTrainer(config *trainingpb.ModelTrainingConfig) (service.Trainer, error
 			bucketDuration,
 			cycleDuration,
 		)
+	case trainingpb.ModelTrainingConfig_ExcessiveDataReadsConfig_case:
+		return service.NewExcessiveDataReadsTrainer(config.GetExcessiveDataReadsConfig())
 	default:
 		return nil, fmt.Errorf("unknown or unsupported training config")
 	}
@@ -145,6 +147,9 @@ func (s *trainingServer) TrainModels(ctx context.Context, req *trainingpb.TrainM
 		}
 		for _, t := range trainers {
 			t.Count(features)
+			if checked, ok := t.(interface{ Err() error }); ok && checked.Err() != nil {
+				return checked.Err()
+			}
 		}
 		return nil
 	})
@@ -161,7 +166,11 @@ func (s *trainingServer) TrainModels(ctx context.Context, req *trainingpb.TrainM
 	// Build, save, and push each model
 	var results []*trainingpb.TrainedModelResult
 	for i, t := range trainers {
-		res, err := s.saveAndPush(ctx, t.BuildModel(), i)
+		model := t.BuildModel()
+		if checked, ok := t.(interface{ Err() error }); ok && checked.Err() != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "failed to train model: %v", checked.Err())
+		}
+		res, err := s.saveAndPush(ctx, model, i)
 		if err != nil {
 			return nil, err
 		}
