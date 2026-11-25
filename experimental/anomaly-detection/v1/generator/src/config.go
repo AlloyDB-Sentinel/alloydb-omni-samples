@@ -163,6 +163,9 @@ func validatePGAuditRows(templateIndex int, config *cfgpb.BucketSimulationConfig
 	if !isFiniteNonNegative(multiplier) || math.IsInf(mean*multiplier, 0) {
 		return fmt.Errorf("config[%d]: anomalous_rows_multiplier must give a finite, non-negative row mean", templateIndex)
 	}
+	if probability > 0 && multiplier <= 1 {
+		return fmt.Errorf("config[%d]: anomalous_rows_multiplier must be greater than 1 when anomalous_rows_probability is positive", templateIndex)
+	}
 	maxRows := config.GetRowsReturnedMax()
 	if maxRows <= 0 || float64(maxRows) < mean {
 		return fmt.Errorf("config[%d]: rows_returned_max must be positive and at least rows_returned_mean", templateIndex)

@@ -182,37 +182,26 @@ func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.R
 	// Iterate through each bucket in the time window.
 	for current := startTime; current.Before(endTime); current = current.Add(bucketSize) {
 		isTrainingPhase := current.Before(trainEndTime)
+		pgauditBucketEnd := current.Add(bucketSize)
+		if endTime.Before(pgauditBucketEnd) {
+			pgauditBucketEnd = endTime
+		}
 
-		// Generate and buffer logs for all templates in the current bucket.
 		var logs []*genpb.AuditLogEntry
 		for _, template := range configs.GetBucketSampling().GetQueryTemplateConfigs() {
 			bucketConfig := template.GetBucketConfig()
-			generatePGAudit := pgauditEnabled(bucketConfig)
-			if generatePGAudit && !template.GetTemplate().GetIsReadQuery() {
+			if pgauditEnabled(bucketConfig) {
+				if template.GetTemplate().GetIsReadQuery() {
+					logs = generator.appendPGAuditReads(logs, template, current, pgauditBucketEnd, trainEndTime)
+				}
 				continue
 			}
 
 			isSpike := !isTrainingPhase && bucketConfig != nil && rng.Float64() < bucketConfig.GetAnomalousSpikeProbability()
 			count := SampleQueryCount(template, isSpike, current.Hour(), current.Weekday(), rng)
-
-			var sessionID string
-			timestampWindowMs := bucketSizeMs
-			if generatePGAudit {
-				sessionID = fmt.Sprintf("%016x", rng.Uint64())
-				timestampWindowMs = min(bucketSizeMs, endTime.Sub(current).Milliseconds())
-			}
 			for i := 0; i < count; i++ {
-				timestampMs := SampleTimestampMs(template, current, timestampWindowMs, rng)
-				isAnomalous := isSpike
-				if generatePGAudit && !isTrainingPhase {
-					isAnomalous = isSpike || rng.Float64() < bucketConfig.GetAnomalousRowsProbability()
-				}
-				entry := generator.BuildBucketLog(template, isAnomalous, timestampMs)
-				if generatePGAudit {
-					entry.DatabaseSessionId = sessionID
-					entry.RowsReturned = samplePGAuditRows(bucketConfig, isAnomalous, rng)
-				}
-				logs = append(logs, entry)
+				timestampMs := SampleTimestampMs(template, current, bucketSizeMs, rng)
+				logs = append(logs, generator.BuildBucketLog(template, isSpike, timestampMs))
 			}
 		}
 
