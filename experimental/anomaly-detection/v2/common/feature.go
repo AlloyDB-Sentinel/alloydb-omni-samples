@@ -13,21 +13,25 @@ var ErrInvalidArgument = errors.New("invalid argument")
 // ErrNotFound represents a resource not found error.
 var ErrNotFound = errors.New("not found")
 
-// ExtractedLogFeatures represents the features (e.g., query template) extracted from a log entry.
+// ExtractedLogFeatures contains the audit fields used by the trainers and models.
 type ExtractedLogFeatures struct {
 	DbUser        string
+	DbName        string
 	QueryTemplate string
 	TimestampMs   int64
+	RowsReturned  int64
 }
 
-// Extract selects and converts the raw protobuf log entry into strong-typed ExtractedLogFeatures.
+// Extract reads the model inputs from an audit log entry.
 func Extract(logEntry *auditpb.AuditLogEntry) (ExtractedLogFeatures, error) {
 	if logEntry == nil {
 		return ExtractedLogFeatures{}, ErrInvalidArgument
 	}
 	return ExtractedLogFeatures{
 		DbUser:        logEntry.GetDbUser(),
+		DbName:        logEntry.GetDbName(),
 		QueryTemplate: logEntry.GetNormalizedQueryTemplate(),
 		TimestampMs:   logEntry.GetTimestampMs(),
+		RowsReturned:  logEntry.GetRowsReturned(),
 	}, nil
 }
