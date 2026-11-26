@@ -114,12 +114,54 @@ message ModelMetadata {
   string filter_cel_expression = 6;
 }
 
+// Scenario-5: Divergence of Recent Query-Type Distribution from Baseline
+message ChiSquaredScenario {
+  ChiSquaredTrainingConfig config = 1;
+}
+
+message ChiSquaredTrainingConfig {
+  // Historical (baseline) rolling window size, in Actions.
+  int64 m = 1;
+
+  // Recent (sample under test) rolling window size, in Actions.
+  int64 n = 2;
+
+  // Threshold on the chi-squared test-of-homogeneity statistic.
+  double anomaly_threshold = 3;
+}
+
+// Scenario-6: Divergence of a Completed Non-Overlapping Block from a Tumbling Baseline
+message ConsecutiveWindowScenario {
+  ConsecutiveWindowTrainingConfig config = 1;
+}
+
+message ConsecutiveWindowTrainingConfig {
+  // Fixed Test_Window size, in Actions. Also the block size of the tumbling
+  // partition. Must be greater than zero.
+  int64 w = 1;
+
+  // Maximum Baseline_Window size, in Actions. Must be greater than W and an exact
+  // integer multiple of W.
+  int64 b = 2;
+
+  // Threshold on the chi-squared test-of-homogeneity statistic. Must be finite
+  // and greater than zero.
+  double anomaly_threshold = 3;
+}
+
 // Wrapper wrapping all specific anomaly detection models.
 message Model {
+  // Field 5 was NGramHistogramScenario ngram_histogram, which is out of scope
+  // for this branch. Reserved so chi_squared and consecutive_window keep the
+  // source field numbers (6, 7) and the tag stays free for a future n-gram
+  // reintegration.
+  reserved 5;
   oneof scenario {
     TrafficDeviationScenario traffic_deviation = 1;
     VolumetricSpikeScenario volumetric_spike = 2;
     TemporalDeviationScenario temporal_deviation = 3;
+    ChiSquaredScenario chi_squared = 6;
+    ConsecutiveWindowScenario consecutive_window = 7;
   }
 
   optional ModelMetadata metadata = 4;
