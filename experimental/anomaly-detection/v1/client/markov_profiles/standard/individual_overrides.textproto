@@ -1,0 +1,40 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (standard-user class) -- "individual A", pinned via
+# individual_edge_overrides (Requirement 17.3).
+#
+# One QueryTemplateConfigs holds exactly one markov_individual, so the "two
+# standard-user individuals with differing individual_edge_overrides" of R17.3
+# are shipped as two sibling files: this one and individual_overrides_b.textproto.
+# Both derive from the same standard-user base graph but pin different edges to
+# different weights, so the two derived individuals have differing edge weights.
+#
+# individual_edge_override is the highest-precedence per-edge mechanism: it pins
+# an edge's weight outright (no variance/jitter, no random draw for that edge).
+# Every (source_id, destination_id) below names a real edge of the base graph
+# (idle, active_read, active_write). Non-pinned edges keep their class weight;
+# a single final renormalization makes each node's outgoing weights sum to 1.0.
+#
+# Individual A leans quiet: from idle it is even more likely to stay idle, and
+# once active it returns to idle sooner.
+
+markov_individual {
+  base_graph_path: "../../markov_standard_user_config.textproto"
+
+  # idle: base weights are idle=0.85, active_read=0.15. Pin the self-loop higher
+  # so this individual spikes into activity less often than the class.
+  individual_edge_overrides {
+    source_id: "idle"
+    destination_id: "idle"
+    weight: 0.92
+  }
+
+  # active_read: base weights are active_read=0.5, active_write=0.35, idle=0.15.
+  # Pin the return-to-idle edge higher so bursts end sooner for this individual.
+  individual_edge_overrides {
+    source_id: "active_read"
+    destination_id: "idle"
+    weight: 0.30
+  }
+}

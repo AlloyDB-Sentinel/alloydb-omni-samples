@@ -28,6 +28,7 @@ func backupFlags(t *testing.T) {
 	origTrainEnd := *trainEndTimeMs
 	origEnd := *endTimeMs
 	origBucketSize := *bucketSizeMinutes
+	origPGAuditScenario := *pgauditScenario
 	t.Cleanup(func() {
 		*configFile = origConfigFile
 		*outputDir = origOutputDir
@@ -36,6 +37,7 @@ func backupFlags(t *testing.T) {
 		*trainEndTimeMs = origTrainEnd
 		*endTimeMs = origEnd
 		*bucketSizeMinutes = origBucketSize
+		*pgauditScenario = origPGAuditScenario
 	})
 }
 
@@ -129,6 +131,7 @@ func TestValidateScenarioFlags(t *testing.T) {
 		trainEndTime      int64
 		endTime           int64
 		bucketSizeMinutes int
+		pgaudit           bool
 		wantErr           bool
 	}{
 		{
@@ -151,6 +154,13 @@ func TestValidateScenarioFlags(t *testing.T) {
 			trainEndTime:      1500,
 			bucketSizeMinutes: 60,
 			wantErr:           false,
+		},
+		{
+			name:     "PGAuditFlagRequiresBucketSampling",
+			scenario: "weighted",
+			numLogs:  100,
+			pgaudit:  true,
+			wantErr:  true,
 		},
 		{
 			name:              "BucketSampling_TrainEndTimeZero_ReturnsError",
@@ -209,6 +219,7 @@ func TestValidateScenarioFlags(t *testing.T) {
 			*trainEndTimeMs = test.trainEndTime
 			*endTimeMs = test.endTime
 			*bucketSizeMinutes = test.bucketSizeMinutes
+			*pgauditScenario = test.pgaudit
 
 			var configs *genpb.QueryTemplateConfigs
 			if test.configs != nil {
@@ -251,6 +262,36 @@ weighted_sampling {
 	logPath := filepath.Join(tempDir, "logs.binproto")
 	if _, err := os.Stat(logPath); err != nil {
 		t.Errorf("logs.binproto file not created: %v", err)
+	}
+}
+
+func TestGenerateLogsSeedReproducesOutput(t *testing.T) {
+	configs := parseProto(t, `weighted_sampling {
+  query_template_configs: {
+    template: {
+      normalized_query_template: "SELECT * FROM users WHERE id = %v"
+      placeholder_values: { int_placeholder: { min: 1 max: 10000 } }
+    }
+    probability_weight: 1.0
+  }
+}`, &genpb.QueryTemplateConfigs{})
+
+	generate := func(dir string) []byte {
+		t.Helper()
+		if err := GenerateLogs(context.Background(), configs, 100, 123456, dir); err != nil {
+			t.Fatalf("GenerateLogs failed: %v", err)
+		}
+		data, err := os.ReadFile(filepath.Join(dir, "logs.binproto"))
+		if err != nil {
+			t.Fatalf("failed to read generated logs: %v", err)
+		}
+		return data
+	}
+
+	first := generate(t.TempDir())
+	second := generate(t.TempDir())
+	if !bytes.Equal(first, second) {
+		t.Fatal("identical seeds produced different log output")
 	}
 }
 
@@ -333,6 +374,7 @@ func TestGenerateLogsBucketSampling(t *testing.T) {
 		endTime           int64
 		trainEndTime      int64
 		bucketSizeMinutes int
+		pgaudit           bool
 		verify            func(t *testing.T, entries []*genpb.AuditLogEntry)
 		wantErr           bool
 	}{
@@ -370,10 +412,10 @@ bucket_sampling {
 			},
 			wantErr: false,
 		},
-		{
-			name: "multi_bucket_chronological_sorting",
+		{name: "multi_bucket_chronological_sorting",
 			configText: `
-bucket_sampling {
+ bucket_sampling {
+
 	query_template_configs: {
 		template: {
 			normalized_query_template: "SELECT 1"
@@ -401,6 +443,44 @@ bucket_sampling {
 			},
 			wantErr: false,
 		},
+		{name: "pgaudit_rows_and_session_fields",
+			configText: `
+bucket_sampling {
+	query_template_configs: {
+		template: { normalized_query_template: "SELECT * FROM accounts" is_read_query: true }
+		bucket_config: {
+			queries_per_bucket_mean: 2.0
+			rows_returned_mean: 25.0
+			rows_returned_std_dev: 0.0
+			anomalous_rows_probability: 0.0
+			anomalous_rows_multiplier: 10.0
+			rows_returned_max: 1000
+			pgaudit_scenario: true
+		}
+	}
+}
+`,
+			startTime:         1719878400000,
+			endTime:           1719882000000,
+			trainEndTime:      1719882000000,
+			bucketSizeMinutes: 60,
+			verify: func(t *testing.T, entries []*genpb.AuditLogEntry) {
+				if len(entries) != 2 {
+					t.Fatalf("got %d entries, want 2", len(entries))
+				}
+				if entries[0].GetDatabaseSessionId() == "" || entries[0].GetDatabaseSessionId() != entries[1].GetDatabaseSessionId() {
+					t.Errorf("expected a shared non-empty database session ID, got %q and %q", entries[0].GetDatabaseSessionId(), entries[1].GetDatabaseSessionId())
+				}
+				for _, entry := range entries {
+					if entry.GetRowsReturned() != 25 {
+						t.Errorf("rows_returned = %d, want 25", entry.GetRowsReturned())
+					}
+					if entry.GetIsGroundTruthAnomalous() {
+						t.Errorf("training events should not be anomalous")
+					}
+				}
+			},
+		},
 		{
 			name: "edge_case_empty_time_window_yields_zero_logs",
 			configText: `
@@ -426,6 +506,42 @@ bucket_sampling {
 				}
 			},
 			wantErr: false,
+		},
+		{
+			name: "pgaudit_query_row_anomalies_are_labeled_in_test_phase",
+			configText: `
+bucket_sampling {
+	query_template_configs: {
+		template: { normalized_query_template: "SELECT * FROM accounts" is_read_query: true }
+		bucket_config: {
+			queries_per_bucket_mean: 2.0
+			anomalous_rows_probability: 1.0
+			rows_returned_mean: 20.0
+			rows_returned_std_dev: 0.0
+			anomalous_rows_multiplier: 5.0
+			rows_returned_max: 1000
+			pgaudit_scenario: true
+		}
+	}
+}
+`,
+			startTime:         1719878400000,
+			endTime:           1719882000000,
+			trainEndTime:      1719878400000,
+			bucketSizeMinutes: 60,
+			verify: func(t *testing.T, entries []*genpb.AuditLogEntry) {
+				if len(entries) != 2 {
+					t.Fatalf("got %d entries, want 2", len(entries))
+				}
+				for _, entry := range entries {
+					if !entry.GetIsGroundTruthAnomalous() {
+						t.Errorf("expected anomalous read event")
+					}
+					if entry.GetRowsReturned() != 100 {
+						t.Errorf("rows_returned = %d, want 100", entry.GetRowsReturned())
+					}
+				}
+			},
 		},
 		{
 			name: "edge_case_testing_phase_spike_probability_one_forces_spikes",
@@ -513,6 +629,7 @@ bucket_sampling {
 			*endTimeMs = test.endTime
 			*trainEndTimeMs = test.trainEndTime
 			*bucketSizeMinutes = test.bucketSizeMinutes
+			*pgauditScenario = test.pgaudit
 
 			configs := &genpb.QueryTemplateConfigs{}
 			if err := prototext.Unmarshal([]byte(test.configText), configs); err != nil {
@@ -586,5 +703,230 @@ bucket_sampling {
 
 	if err := GenerateLogsBucketByBucket(configsBucket, rng, badWriter); err == nil {
 		t.Errorf("GenerateLogsBucketByBucket expected error on bad writer, got nil")
+	}
+}
+
+// TestGenerateLogsMarkovDispatch verifies that a config with markov_sampling set routes
+// through GenerateLogs to GenerateLogsMarkov and produces well-formed length-delimited
+// output readable with protodelim.UnmarshalFrom.
+// Validates: Requirements 1.3, 10.1, 10.4
+func TestGenerateLogsMarkovDispatch(t *testing.T) {
+	text := `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 1.0 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`
+	cfg := parseProto(t, text, &genpb.QueryTemplateConfigs{})
+
+	tmpDir := t.TempDir()
+	const numLogs = 10
+	if err := GenerateLogs(context.Background(), cfg, numLogs, 1, tmpDir); err != nil {
+		t.Fatalf("GenerateLogs failed: %v", err)
+	}
+
+	f, err := os.Open(filepath.Join(tmpDir, "logs.binproto"))
+	if err != nil {
+		t.Fatalf("failed to open logs.binproto: %v", err)
+	}
+	defer f.Close()
+
+	r := bufio.NewReader(f)
+	var count int
+	for {
+		entry := &genpb.AuditLogEntry{}
+		if err := protodelim.UnmarshalFrom(r, entry); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatalf("failed to decode log entry: %v", err)
+		}
+		if entry.GetNormalizedQueryTemplate() == "" {
+			t.Errorf("entry %d has empty normalized_query_template", count)
+		}
+		count++
+	}
+
+	if count != numLogs {
+		t.Errorf("decoded %d entries, want %d", count, numLogs)
+	}
+}
+
+// markovEndToEndBaseGraph is a small three-node base graph with a terminal node
+// ("end"), so a modest --num_logs (5-10) forces the walker to reach the terminal
+// node and restart at least once. It is written to disk as the base that a
+// markov_subtype / markov_individual variant references by relative path, so the
+// end-to-end tests exercise loadConfigs' resolve-and-inline step exactly as in
+// production.
+const markovEndToEndBaseGraph = `
+markov_sampling {
+	nodes: {
+		id: "a"
+		template: {
+			normalized_query_template: "SELECT * FROM t WHERE id = %v"
+			placeholder_values: { int_placeholder: { min: 1 max: 10 } }
+		}
+		completion_time: { fixed: { nanos: 2000000 } }
+		edges: { destination_id: "b" weight: 0.6 }
+		edges: { destination_id: "end" weight: 0.4 }
+	}
+	nodes: {
+		id: "b"
+		template: { normalized_query_template: "SELECT 2" }
+		completion_time: { range: { min: { nanos: 1000000 } max: { nanos: 5000000 } } }
+		edges: { destination_id: "end" weight: 1.0 }
+	}
+	nodes: {
+		id: "end"
+		template: { normalized_query_template: "SELECT 3" }
+		completion_time: { fixed: { nanos: 3000000 } }
+	}
+	start: { node_id: "a" }
+}`
+
+// readBinprotoEntries opens <outputDir>/logs.binproto and decodes every
+// length-delimited AuditLogEntry with protodelim.UnmarshalFrom until io.EOF,
+// matching how the other scenarios read their output back.
+func readBinprotoEntries(t *testing.T, outputDir string) []*genpb.AuditLogEntry {
+	t.Helper()
+	f, err := os.Open(filepath.Join(outputDir, "logs.binproto"))
+	if err != nil {
+		t.Fatalf("failed to open logs.binproto: %v", err)
+	}
+	defer f.Close()
+
+	var entries []*genpb.AuditLogEntry
+	r := bufio.NewReader(f)
+	for {
+		entry := &genpb.AuditLogEntry{}
+		if err := protodelim.UnmarshalFrom(r, entry); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatalf("failed to decode log entry: %v", err)
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+// TestGenerateLogs_MarkovSubtype_EndToEnd verifies that a markov_subtype variant
+// config routes through the production load/dispatch path: loadConfigs resolves
+// and inlines the referenced base graph, GenerateLogs derives the subtype graph
+// and runs the walker, and the resulting logs.binproto decodes back into exactly
+// --num_logs well-formed length-delimited AuditLogEntry records.
+//
+// Validates: Requirements 10.1, 10.4
+func TestGenerateLogs_MarkovSubtype_EndToEnd(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	// Base graph on disk; the variant references it by relative filename so that
+	// loadConfigs' resolveBaseGraphFile exercises relative-path resolution.
+	if err := os.WriteFile(filepath.Join(dir, "base.textpb"), []byte(markovEndToEndBaseGraph), 0o644); err != nil {
+		t.Fatalf("failed to write base graph: %v", err)
+	}
+	variantPath := filepath.Join(dir, "subtype.textpb")
+	// Override a->b / a->end, keeping node "a"'s outgoing sum at 1.0 so the derived
+	// graph is valid after renormalization.
+	variantText := `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.3 }
+	edge_weight_overrides: { source_id: "a" destination_id: "end" weight: 0.7 }
+}`
+	if err := os.WriteFile(variantPath, []byte(variantText), 0o644); err != nil {
+		t.Fatalf("failed to write variant config: %v", err)
+	}
+
+	// loadConfigs resolves and inlines the base graph (sets resolvedBaseGraph),
+	// then GenerateLogs derives and dispatches through the Markov walker.
+	configs, err := loadConfigs(ctx, variantPath)
+	if err != nil {
+		t.Fatalf("loadConfigs failed: %v", err)
+	}
+
+	const numLogs = 8
+	outputDir := t.TempDir()
+	if err := GenerateLogs(ctx, configs, numLogs, 42, outputDir); err != nil {
+		t.Fatalf("GenerateLogs failed: %v", err)
+	}
+
+	entries := readBinprotoEntries(t, outputDir)
+	if len(entries) != numLogs {
+		t.Fatalf("decoded %d entries, want %d", len(entries), numLogs)
+	}
+	for i, entry := range entries {
+		if entry.GetNormalizedQueryTemplate() == "" {
+			t.Errorf("entry %d has empty normalized_query_template", i)
+		}
+		if entry.GetQueryStatement() == "" {
+			t.Errorf("entry %d has empty query_statement", i)
+		}
+	}
+}
+
+// TestGenerateLogs_MarkovIndividual_EndToEnd verifies that a markov_individual
+// variant config routes through the production load/dispatch path: loadConfigs
+// resolves and inlines the referenced base graph, GenerateLogs derives the
+// per-individual graph (drawing from the seeded rng) and runs the walker, and the
+// resulting logs.binproto decodes back into exactly --num_logs well-formed
+// length-delimited AuditLogEntry records.
+//
+// Validates: Requirements 10.1, 10.4
+func TestGenerateLogs_MarkovIndividual_EndToEnd(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "base.textpb"), []byte(markovEndToEndBaseGraph), 0o644); err != nil {
+		t.Fatalf("failed to write base graph: %v", err)
+	}
+	variantPath := filepath.Join(dir, "individual.textpb")
+	// Exercise the per-edge precedence ladder: a pinned override on a->b, a
+	// variance entry on a->end, and a global jitter bound (applies only to edges
+	// with neither an override nor a positive-delta variance). Renormalization at
+	// derivation time keeps the derived graph valid.
+	variantText := `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: 0.5 }
+	edge_variances: { source_id: "a" destination_id: "end" down: 0.1 up: 0.2 }
+	weight_jitter: { bound: 0.05 }
+}`
+	if err := os.WriteFile(variantPath, []byte(variantText), 0o644); err != nil {
+		t.Fatalf("failed to write variant config: %v", err)
+	}
+
+	configs, err := loadConfigs(ctx, variantPath)
+	if err != nil {
+		t.Fatalf("loadConfigs failed: %v", err)
+	}
+
+	const numLogs = 8
+	outputDir := t.TempDir()
+	if err := GenerateLogs(ctx, configs, numLogs, 42, outputDir); err != nil {
+		t.Fatalf("GenerateLogs failed: %v", err)
+	}
+
+	entries := readBinprotoEntries(t, outputDir)
+	if len(entries) != numLogs {
+		t.Fatalf("decoded %d entries, want %d", len(entries), numLogs)
+	}
+	for i, entry := range entries {
+		if entry.GetNormalizedQueryTemplate() == "" {
+			t.Errorf("entry %d has empty normalized_query_template", i)
+		}
+		if entry.GetQueryStatement() == "" {
+			t.Errorf("entry %d has empty query_statement", i)
+		}
 	}
 }

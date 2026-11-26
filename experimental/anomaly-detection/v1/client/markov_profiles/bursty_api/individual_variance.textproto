@@ -1,0 +1,47 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (bursty_api class) demonstrating Edge_Weight_Variance.
+#
+# Each edge_variances entry carries an asymmetric downward delta `down` and
+# upward delta `up` (down != up). For a non-pinned edge whose entry has a
+# positive down or up, the individual's weight is sampled uniformly over the
+# closed interval [w - down, w + up], where w is the class weight, drawn from
+# the single seeded rng, then clamped to be non-negative before renormalization.
+# Variance is mutually exclusive with jitter per edge, so no jitter is set here.
+#
+# Every (source_id, destination_id) below names a real edge of the bursty_api
+# base graph (baseline_poll, baseline_status, burst_read, burst_write). The
+# asymmetric ranges bias this individual toward entering bursts a little more
+# readily and sustaining fast reads slightly longer.
+
+markov_individual {
+  base_graph_path: "../../markov_bursty_api_config.textproto"
+
+  # baseline_poll -> burst_read (class weight 0.15): more headroom upward than
+  # downward, so this individual breaks into bursts a little more readily.
+  edge_variances {
+    source_id: "baseline_poll"
+    destination_id: "burst_read"
+    down: 0.05
+    up: 0.15
+  }
+
+  # burst_read -> burst_read (class weight 0.45): wider upward than downward, so
+  # this individual sustains fast-read bursts a little longer.
+  edge_variances {
+    source_id: "burst_read"
+    destination_id: "burst_read"
+    down: 0.10
+    up: 0.20
+  }
+
+  # burst_read -> baseline_poll (class weight 0.2): wider downward than upward,
+  # so this individual drains back to baseline a little less often.
+  edge_variances {
+    source_id: "burst_read"
+    destination_id: "baseline_poll"
+    down: 0.15
+    up: 0.05
+  }
+}

@@ -1,0 +1,34 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (read-replica class) -- "individual A", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# One QueryTemplateConfigs holds exactly one markov_individual, so the two
+# read-replica individuals asked for by R4.3 are shipped as two sibling files:
+# this one and individual_overrides_b.textproto. Both derive from the same
+# read-replica base graph but pin different edges to different weights, so the
+# two derived individuals end up with differing edge weights.
+#
+# individual_edge_override is the highest-precedence per-edge mechanism: it pins
+# an edge's weight outright (no variance/jitter, no random draw for that edge).
+# Every (source_id, destination_id) below names a real edge of the base graph
+# (point_read, range_read, lookup_join_read). Non-pinned edges keep their class
+# weight; a single final renormalization makes each node's outgoing weights sum
+# to 1.0.
+#
+# Individual A sustains point reads: from a point read it is much more likely to
+# stay on point reads than the class baseline.
+
+markov_individual {
+  base_graph_path: "../../markov_read_replica_config.textproto"
+
+  # point_read: base weights are point_read=0.5, range_read=0.35,
+  # lookup_join_read=0.15. Pin the point-read self-loop higher so this
+  # individual produces longer runs of point lookups than the class.
+  individual_edge_overrides {
+    source_id: "point_read"
+    destination_id: "point_read"
+    weight: 0.7
+  }
+}

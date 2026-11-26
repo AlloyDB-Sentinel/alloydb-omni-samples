@@ -26,7 +26,11 @@ var (
 	// Scenario 1 (weighted random sampling) flags.
 	numLogs = flag.Int("num_logs", 50000, "Total number of logs to generate.")
 
+	// Optional seed for reproducing generated output.
+	randomSeed = flag.Int64("seed", 0, "Optional random seed for reproducible generation; omit to choose a random seed.")
+
 	// Scenario 2 and 3 (bucket sampling) flags.
+	pgauditScenario   = flag.Bool("pgaudit_scenario", false, "Generate PGAudit-shaped Scenario 2 read logs with row counts and session IDs.")
 	startTimeMs       = flag.Int64("start_time_ms", 0, "Start timestamp of the simulated logs (in milliseconds).")
 	trainEndTimeMs    = flag.Int64("train_end_time_ms", 0, "Training/test partition timestamp of the simulated logs (in milliseconds).")
 	endTimeMs         = flag.Int64("end_time_ms", 0, "End timestamp of the simulated logs (in milliseconds).")
@@ -57,9 +61,28 @@ func main() {
 	} else if bSampling := configs.GetBucketSampling(); bSampling != nil {
 		log.Printf("Successfully loaded and validated %d query templates (Bucket Sampling).", len(bSampling.GetQueryTemplateConfigs()))
 		log.Printf("Configuration applied - Output Dir: %q, Start: %d, End: %d, Bucket Size: %d min", *outputDir, *startTimeMs, *endTimeMs, *bucketSizeMinutes)
+	} else if cSampling := configs.GetConnectionSampling(); cSampling != nil {
+		log.Printf("Successfully loaded and validated %d client profiles (Connection Sampling).", len(cSampling.GetClientProfiles()))
+		log.Printf("Configuration applied - Output Dir: %q, Start: %d, End: %d, Bucket Size: %d min", *outputDir, *startTimeMs, *endTimeMs, *bucketSizeMinutes)
+	} else if mSampling := configs.GetMarkovSampling(); mSampling != nil {
+		log.Printf("Successfully loaded and validated %d Markov nodes (Markov Sampling).", len(mSampling.GetNodes()))
+		log.Printf("Configuration applied - Output Dir: %q, Num Logs: %d, Start: %d", *outputDir, *numLogs, *startTimeMs)
+	} else if configs.GetMarkovSubtype() != nil {
+		log.Printf("Successfully loaded and validated a Markov Subtype variant over a %d-node base graph.", len(resolvedBaseGraph.GetNodes()))
+		log.Printf("Configuration applied - Output Dir: %q, Num Logs: %d, Start: %d", *outputDir, *numLogs, *startTimeMs)
+	} else if configs.GetMarkovIndividual() != nil {
+		log.Printf("Successfully loaded and validated a Markov Individual variant over a %d-node base graph.", len(resolvedBaseGraph.GetNodes()))
+		log.Printf("Configuration applied - Output Dir: %q, Num Logs: %d, Start: %d", *outputDir, *numLogs, *startTimeMs)
 	}
 
-	if err := GenerateLogs(ctx, configs, *numLogs, rand.Int63(), *outputDir); err != nil {
+	seed := rand.Int63()
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "seed" {
+			seed = *randomSeed
+		}
+	})
+	log.Printf("Using random seed: %d", seed)
+	if err := GenerateLogs(ctx, configs, *numLogs, seed, *outputDir); err != nil {
 		log.Fatalf("Failed to generate logs: %v", err)
 	}
 
@@ -84,8 +107,8 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 		return fmt.Errorf("configs must be loaded before validating scenario flags")
 	}
 
-	// Scenario 2: Bucket sampling.
-	if configs.GetBucketSampling() != nil {
+	// Scenario 2 and connection sampling: time-range based generation.
+	if configs.GetBucketSampling() != nil || configs.GetConnectionSampling() != nil {
 		if *bucketSizeMinutes <= 0 {
 			return fmt.Errorf("--bucket_size_minutes must be positive, got %d", *bucketSizeMinutes)
 		}
@@ -99,16 +122,32 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 			return fmt.Errorf("--train_end_time_ms must be between start_time_ms and end_time_ms, got %d", *trainEndTimeMs)
 		}
 	} else {
-		// Scenario 1: Weighted sampling.
+		// Count-based generation: weighted sampling plus every Markov scenario
+		// (markov_sampling, markov_subtype, and markov_individual). None of these are
+		// time-range based, so they all validate --num_logs >= 1 here; the shared
+		// --config_file/--output_dir flags are enforced by validateSharedFlags.
 		if *numLogs <= 0 {
 			return fmt.Errorf("--num_logs must be a positive integer, got %d", *numLogs)
 		}
+		if cfg := configs.GetMarkovSampling(); cfg != nil {
+			if err := validateMarkovInjectionBounds(cfg, *numLogs); err != nil {
+				return err
+			}
+			return validateMarkovAutoInjectionBounds(cfg, *numLogs)
+		}
+	}
+	if *pgauditScenario && configs.GetBucketSampling() == nil {
+		return fmt.Errorf("--pgaudit_scenario requires a bucket_sampling configuration")
 	}
 	return nil
 }
 
 // GenerateLogs samples and writes synthetic database audit logs to a single logs.binproto file.
 func GenerateLogs(ctx context.Context, configs *genpb.QueryTemplateConfigs, numLogs int, seed int64, outputDir string) error {
+	// Reject invalid settings before creating or truncating the output file.
+	if err := validateConfigs(configs); err != nil {
+		return err
+	}
 	if !filepath.IsAbs(outputDir) {
 		if workspaceDir := os.Getenv("BUILD_WORKSPACE_DIRECTORY"); workspaceDir != "" {
 			outputDir = filepath.Join(workspaceDir, outputDir)
@@ -134,6 +173,45 @@ func GenerateLogs(ctx context.Context, configs *genpb.QueryTemplateConfigs, numL
 		return GenerateLogsBucketByBucket(configs, rng, w)
 	}
 
+	// Connection sampling.
+	if connectionCfg := configs.GetConnectionSampling(); connectionCfg != nil {
+		return GenerateConnectionLogs(
+			connectionCfg,
+			time.UnixMilli(*startTimeMs),
+			time.UnixMilli(*trainEndTimeMs),
+			time.UnixMilli(*endTimeMs),
+			time.Duration(*bucketSizeMinutes)*time.Minute,
+			rng,
+			w,
+		)
+	}
+
+	// Markov sampling.
+	if markovCfg := configs.GetMarkovSampling(); markovCfg != nil {
+		return GenerateLogsMarkov(configs, numLogs, *startTimeMs, rng, w)
+	}
+
+	// Markov subtype: derive a plain MarkovSamplingConfig from the resolved base graph by
+	// applying edge-weight overrides and renormalizing, then feed it through the same walker.
+	if subtypeCfg := configs.GetMarkovSubtype(); subtypeCfg != nil {
+		derived, err := deriveSubtypeGraph(subtypeCfg, resolvedBaseGraph)
+		if err != nil {
+			return err
+		}
+		return generateLogsMarkovFromConfig(derived, numLogs, *startTimeMs, rng, w)
+	}
+
+	// Markov individual: derive a plain MarkovSamplingConfig by applying the per-edge precedence
+	// ladder (override / variance / jitter) off the resolved base. Derivation draws from the same
+	// seeded rng before the walk begins, which is intended and deterministic.
+	if individualCfg := configs.GetMarkovIndividual(); individualCfg != nil {
+		derived, err := deriveIndividualGraph(individualCfg, resolvedBaseGraph, rng)
+		if err != nil {
+			return err
+		}
+		return generateLogsMarkovFromConfig(derived, numLogs, *startTimeMs, rng, w)
+	}
+
 	// Scenario 1: Weighted random sampling.
 	return GenerateLogsWeighted(configs, numLogs, rng, w)
 }
@@ -154,6 +232,9 @@ func GenerateLogsWeighted(configs *genpb.QueryTemplateConfigs, numLogs int, rng 
 
 // GenerateLogsBucketByBucket generates bucket-based audit logs bucket-by-bucket and writes them to the writer.
 func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.Rand, w io.Writer) error {
+	if err := validateConfigs(configs); err != nil {
+		return err
+	}
 	startTime := time.UnixMilli(*startTimeMs)
 	endTime := time.UnixMilli(*endTimeMs)
 	trainEndTime := time.UnixMilli(*trainEndTimeMs)
@@ -175,9 +256,34 @@ func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.R
 			}
 
 			count := SampleQueryCount(cfg, isSpike, current.Hour(), current.Weekday(), rng)
+			pgauditEnabled := isPGAuditScenario(cfg.GetBucketConfig())
+			sessionID := ""
+			if pgauditEnabled {
+				sessionID = fmt.Sprintf("%016x", rng.Uint64())
+			}
 
 			for i := 0; i < count; i++ {
 				timestampMs := SampleTimestampMs(cfg, current, bucketSizeMs, rng)
+				if pgauditEnabled {
+					if !cfg.GetTemplate().GetIsReadQuery() {
+						continue
+					}
+					statement := generator.buildQueryStatement(cfg.GetTemplate())
+					isHighRowsAnomaly := !isTrainingPhase && rng.Float64() < cfg.GetBucketConfig().GetAnomalousRowsProbability()
+					isReadBurst := isSpike
+					if isReadBurst {
+						rowsReturned := SampleRowsReturned(cfg.GetBucketConfig(), true, rng)
+						entry := generator.BuildPGAuditBucketLog(cfg, true, timestampMs, sessionID, rowsReturned)
+						entry.SetQueryStatement(statement)
+						logs = append(logs, entry)
+						continue
+					}
+					rowsReturned := SampleRowsReturned(cfg.GetBucketConfig(), isHighRowsAnomaly, rng)
+					entry := generator.BuildPGAuditBucketLog(cfg, isHighRowsAnomaly, timestampMs, sessionID, rowsReturned)
+					entry.SetQueryStatement(statement)
+					logs = append(logs, entry)
+					continue
+				}
 				entry := generator.BuildBucketLog(cfg, isSpike, timestampMs)
 				logs = append(logs, entry)
 			}

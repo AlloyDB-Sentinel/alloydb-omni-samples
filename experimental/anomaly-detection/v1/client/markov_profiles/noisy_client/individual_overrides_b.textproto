@@ -1,0 +1,41 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (noisy_client class) -- "individual B", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# Sibling of individual_overrides.textproto. Both individuals share the same
+# noisy_client base graph but pin different edges to different weights, so the two
+# derived individuals end up with differing edge weights -- exactly the two
+# noisy_client individuals with differing individual_edge_overrides that R4.3 asks
+# for.
+#
+# Every (source_id, destination_id) below names a real edge of the base graph.
+# Non-pinned edges keep their class weight; a single final renormalization makes
+# each node's outgoing weights sum to 1.0.
+#
+# Individual B leans toward the retry loop and the churn write: once retrying it
+# is more likely to keep retrying than the class, and once churning it sustains
+# longer churn-write runs.
+
+markov_individual {
+  base_graph_path: "../../markov_noisy_client_config.textproto"
+
+  # retry_select: base weights are retry_select=0.5, hot_select=0.4,
+  # churn_update=0.1. Pin the retry self-loop higher so this individual sustains
+  # longer rapid-retry runs than the class.
+  individual_edge_overrides {
+    source_id: "retry_select"
+    destination_id: "retry_select"
+    weight: 0.7
+  }
+
+  # churn_update: base weights are hot_select=0.5, churn_update=0.3,
+  # retry_select=0.2. Pin the churn self-loop higher so this individual produces
+  # longer bursts of churn writes than the class.
+  individual_edge_overrides {
+    source_id: "churn_update"
+    destination_id: "churn_update"
+    weight: 0.5
+  }
+}

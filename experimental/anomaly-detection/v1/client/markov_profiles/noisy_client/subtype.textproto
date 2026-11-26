@@ -1,0 +1,34 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Subtype: Misbehaving / noisy client, "hot-loop hammerer" variant.
+# Layered on the noisy_client base graph. A client that leans even harder on the
+# hammered read: once it finishes a hot_select it almost always runs another
+# hot_select before retrying or churning a write. Only transition weights change;
+# nodes, templates, and completion times are inherited from the base graph and the
+# derived graph is renormalized once.
+#
+# Base edges overridden (all exist in markov_noisy_client_config.textproto):
+#   hot_select -> hot_select    0.6  -> 0.8   (tighter hot-read self-loop)
+#   hot_select -> retry_select  0.25 -> 0.15  (fewer retries)
+#   hot_select -> churn_update  0.15 -> 0.05  (fewer churn writes)
+
+markov_subtype {
+  base_graph_path: "../../markov_noisy_client_config.textproto"
+
+  edge_weight_overrides {
+    source_id: "hot_select"
+    destination_id: "hot_select"
+    weight: 0.8
+  }
+  edge_weight_overrides {
+    source_id: "hot_select"
+    destination_id: "retry_select"
+    weight: 0.15
+  }
+  edge_weight_overrides {
+    source_id: "hot_select"
+    destination_id: "churn_update"
+    weight: 0.05
+  }
+}

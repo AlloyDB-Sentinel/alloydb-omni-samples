@@ -1,0 +1,42 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (read-replica class) -- "individual B", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# Sibling of individual_overrides.textproto. Both individuals share the same
+# read-replica base graph but pin different edges to different weights, so the
+# two derived individuals end up with differing edge weights -- exactly the two
+# read-replica individuals with differing individual_edge_overrides that R4.3
+# asks for.
+#
+# Every (source_id, destination_id) below names a real edge of the base graph.
+# Non-pinned edges keep their class weight; a single final renormalization makes
+# each node's outgoing weights sum to 1.0.
+#
+# Individual B leans toward the related lookup-join read and sustains range
+# scans: from a range read it favors the lookup-join read, and once in the
+# lookup-join read it is more likely to go back through range reads than the
+# class baseline.
+
+markov_individual {
+  base_graph_path: "../../markov_read_replica_config.textproto"
+
+  # range_read: base weights are point_read=0.5, range_read=0.3,
+  # lookup_join_read=0.2. Pin the edge into the lookup-join read higher so this
+  # individual favors related reads over bouncing back to point reads.
+  individual_edge_overrides {
+    source_id: "range_read"
+    destination_id: "lookup_join_read"
+    weight: 0.5
+  }
+
+  # lookup_join_read: base weights are point_read=0.6, range_read=0.4. Pin the
+  # edge into the range read higher so this individual sustains more range
+  # scanning after a related read than the class.
+  individual_edge_overrides {
+    source_id: "lookup_join_read"
+    destination_id: "range_read"
+    weight: 0.6
+  }
+}

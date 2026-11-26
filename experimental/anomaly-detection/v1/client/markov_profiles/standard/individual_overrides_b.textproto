@@ -1,0 +1,38 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (standard-user class) -- "individual B", pinned via
+# individual_edge_overrides (Requirement 17.3).
+#
+# Sibling of individual_overrides.textproto. Both individuals share the same
+# standard-user base graph but pin different edges to different weights, so the
+# two derived individuals end up with differing edge weights -- exactly the
+# "two standard-user individuals with differing individual_edge_overrides" that
+# R17.3 asks for.
+#
+# Every (source_id, destination_id) below names a real edge of the base graph.
+# Non-pinned edges keep their class weight; a single final renormalization makes
+# each node's outgoing weights sum to 1.0.
+#
+# Individual B leans busy: from idle it spikes into activity more often, and once
+# reading it is more likely to keep reading.
+
+markov_individual {
+  base_graph_path: "../../markov_standard_user_config.textproto"
+
+  # idle: base weights are idle=0.85, active_read=0.15. Pin the spike-into-activity
+  # edge higher so this individual becomes active more often than the class.
+  individual_edge_overrides {
+    source_id: "idle"
+    destination_id: "active_read"
+    weight: 0.30
+  }
+
+  # active_read: base weights are active_read=0.5, active_write=0.35, idle=0.15.
+  # Pin the read self-loop higher so this individual sustains longer read bursts.
+  individual_edge_overrides {
+    source_id: "active_read"
+    destination_id: "active_read"
+    weight: 0.65
+  }
+}

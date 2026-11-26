@@ -1,0 +1,34 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+#
+# Example individual (analytics class) -- "individual A", pinned via
+# individual_edge_overrides (Requirement 4.3).
+#
+# One QueryTemplateConfigs holds exactly one markov_individual, so the two
+# analytics individuals asked for by R4.3 are shipped as two sibling files:
+# this one and individual_overrides_b.textproto. Both derive from the same
+# analytics base graph but pin different edges to different weights, so the two
+# derived individuals end up with differing edge weights.
+#
+# individual_edge_override is the highest-precedence per-edge mechanism: it pins
+# an edge's weight outright (no variance/jitter, no random draw for that edge).
+# Every (source_id, destination_id) below names a real edge of the base graph
+# (aggregate_scan, time_window_report, order_rollup). Non-pinned edges keep
+# their class weight; a single final renormalization makes each node's outgoing
+# weights sum to 1.0.
+#
+# Individual A leans toward the windowed report: from the aggregate scan it is
+# much more likely to move into the time-window report than the class baseline.
+
+markov_individual {
+  base_graph_path: "../../markov_analytics_user_config.textproto"
+
+  # aggregate_scan: base weights are time_window_report=0.5, order_rollup=0.3,
+  # aggregate_scan=0.2. Pin the edge into the windowed report higher so this
+  # individual produces windowed reports more often than the class.
+  individual_edge_overrides {
+    source_id: "aggregate_scan"
+    destination_id: "time_window_report"
+    weight: 0.7
+  }
+}

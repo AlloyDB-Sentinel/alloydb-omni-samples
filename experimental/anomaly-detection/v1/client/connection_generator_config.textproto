@@ -1,0 +1,116 @@
+# proto-file: experimental/anomaly-detection/v1/generator/proto/query_template_config.proto
+# proto-message: QueryTemplateConfigs
+
+connection_sampling {
+  source {
+    project: "out-of-the-box-db-security"
+    cluster_id: "anomaly-detection"
+    instance_id: "primary"
+    node_id: "v350"
+  }
+
+  # Normal: AlloyDB's own health agent, connecting locally around the clock.
+  client_profiles {
+    profile_name: "alloydb-health-agent"
+    client_address_pool {
+      addresses: "127.0.0.1"
+    }
+    db_user: "alloydbadmin"
+    db_name: "alloydbadmin"
+    application_name: "alloydbagent-health_agent-main"
+    auth_method: "trust"
+    bucket_traffic {
+      queries_per_bucket_mean: 60.0
+      queries_variation_std_dev: 2.0
+    }
+    active_window: ACTIVE_WINDOW_ALL
+  }
+
+  # Normal: application servers, busiest during business hours.
+  client_profiles {
+    profile_name: "billing-api"
+    client_address_pool {
+      addresses: "10.0.0.12"
+      addresses: "10.0.0.13"
+    }
+    db_user: "billing_app"
+    db_name: "billing"
+    application_name: "billing-api"
+    auth_method: "scram-sha-256"
+    outcome_weights {
+      outcome: CONNECTION_OUTCOME_AUTHORIZED
+      weight: 0.99
+    }
+    outcome_weights {
+      outcome: CONNECTION_OUTCOME_AUTH_FAILED
+      weight: 0.01
+    }
+    bucket_traffic {
+      queries_per_bucket_mean: 40.0
+      queries_variation_std_dev: 8.0
+      weekend_traffic_multiplier: 0.3
+      peak_windows {
+        window_name: "business_hours"
+        hour_start: 9
+        hour_end: 17
+        multiplier: 3.0
+      }
+    }
+    active_window: ACTIVE_WINDOW_ALL
+  }
+
+  # Attacker: internet scanner probing about every 10 minutes from a rotating range.
+  client_profiles {
+    profile_name: "internet-scanner"
+    client_address_pool {
+      cidr_ranges: "203.0.113.0/24"
+    }
+    outcome_weights {
+      outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH
+      weight: 0.7
+    }
+    outcome_weights {
+      outcome: CONNECTION_OUTCOME_AUTH_FAILED
+      weight: 0.3
+    }
+    periodic {
+      interval {
+        seconds: 600
+      }
+      jitter {
+        seconds: 60
+      }
+    }
+    active_window: ACTIVE_WINDOW_TEST_ONLY
+    attacker_profile: ATTACKER_PROFILE_INTERNET_SCANNER
+  }
+
+  # Attacker: password guessing in short high-volume bursts.
+  client_profiles {
+    profile_name: "burst-attacker"
+    client_address_pool {
+      addresses: "198.51.100.23"
+    }
+    db_user: "postgres"
+    db_name: "postgres"
+    auth_method: "scram-sha-256"
+    outcome_weights {
+      outcome: CONNECTION_OUTCOME_AUTH_FAILED
+      weight: 0.98
+    }
+    outcome_weights {
+      outcome: CONNECTION_OUTCOME_AUTHORIZED
+      weight: 0.02
+    }
+    burst {
+      bursts_per_day: 0.5
+      connections_per_burst_mean: 500.0
+      connections_per_burst_std_dev: 100.0
+      burst_duration {
+        seconds: 300
+      }
+    }
+    active_window: ACTIVE_WINDOW_TEST_ONLY
+    attacker_profile: ATTACKER_PROFILE_BURST_ATTACKER
+  }
+}

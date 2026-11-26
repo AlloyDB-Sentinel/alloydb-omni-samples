@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -22,6 +23,41 @@ func parseProto[T proto.Message](t *testing.T, text string, msg T) T {
 		t.Fatalf("Failed to parse textproto: %v", err)
 	}
 	return msg
+}
+
+func TestValidatePGAuditBucketConfig(t *testing.T) {
+	valid := parseProto(t, `bucket_sampling {
+  query_template_configs: {
+    template: { normalized_query_template: "SELECT * FROM accounts" is_read_query: true }
+    bucket_config: {
+      queries_per_bucket_mean: 10
+      rows_returned_mean: 100
+      rows_returned_std_dev: 10
+      anomalous_rows_probability: 0.01
+      anomalous_rows_multiplier: 5
+      rows_returned_max: 10000
+      pgaudit_scenario: true
+    }
+  }
+}`, &cfgpb.QueryTemplateConfigs{})
+	if err := validateConfigs(valid); err != nil {
+		t.Fatalf("valid PGAudit config failed validation: %v", err)
+	}
+
+	invalid := parseProto(t, `bucket_sampling {
+  query_template_configs: {
+    template: { normalized_query_template: "SELECT * FROM accounts" is_read_query: true }
+    bucket_config: {
+      queries_per_bucket_mean: 10
+      rows_returned_mean: 100
+      rows_returned_max: 50
+      pgaudit_scenario: true
+    }
+  }
+}`, &cfgpb.QueryTemplateConfigs{})
+	if err := validateConfigs(invalid); err == nil {
+		t.Fatal("invalid PGAudit row-count bounds passed validation")
+	}
 }
 
 func TestValidateConfigs(t *testing.T) {
@@ -516,9 +552,742 @@ bucket_sampling {
 }`, &cfgpb.QueryTemplateConfigs{}),
 			wantErr: false,
 		},
+
+		// Connection Sampling Checks.
+		{
+			name: "connection_no_client_profiles",
+			input: parseProto(t, `
+connection_sampling {
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_empty_address_pool",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_invalid_address",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.256" }
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_invalid_cidr_range",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/33" }
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_unspecified_outcome",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		outcome_weights: { weight: 1.0 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_negative_outcome_weight",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTHORIZED weight: -1.0 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_all_outcome_weights_zero",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 0.0 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_default_authorized_without_db_user",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_authorized_weight_without_db_user",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTHORIZED weight: 0.1 }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 0.9 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_no_schedule",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_bucket_traffic_invalid_spike_probability",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		bucket_traffic: { queries_per_bucket_mean: 10.0 anomalous_spike_probability: 1.5 }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_bucket_traffic_overlapping_peak_windows",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		bucket_traffic: {
+			queries_per_bucket_mean: 10.0
+			peak_windows: { window_name: "w1" hour_start: 9 hour_end: 14 multiplier: 1.5 }
+			peak_windows: { window_name: "w2" hour_start: 12 hour_end: 17 multiplier: 1.5 }
+		}
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_periodic_missing_interval",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 1.0 }
+		periodic: { }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_periodic_negative_jitter",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 1.0 }
+		periodic: { interval: { seconds: 600 } jitter: { seconds: -60 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_periodic_jitter_not_less_than_interval",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 1.0 }
+		periodic: { interval: { seconds: 600 } jitter: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_burst_zero_bursts_per_day",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "198.51.100.23" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 1.0 }
+		burst: { connections_per_burst_mean: 500.0 burst_duration: { seconds: 300 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_burst_zero_connections_per_burst",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "198.51.100.23" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 1.0 }
+		burst: { bursts_per_day: 0.5 burst_duration: { seconds: 300 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_burst_nan_std_dev",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "198.51.100.23" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 1.0 }
+		burst: {
+			bursts_per_day: 0.5
+			connections_per_burst_mean: 500.0
+			connections_per_burst_std_dev: nan
+			burst_duration: { seconds: 300 }
+		}
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_burst_missing_duration",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "198.51.100.23" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 1.0 }
+		burst: { bursts_per_day: 0.5 connections_per_burst_mean: 500.0 }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "connection_second_profile_invalid",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { addresses: "10.0.0.12" }
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+	client_profiles: {
+		client_address_pool: { addresses: "not-an-ip" }
+		db_user: "app"
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "valid_connection_sampling",
+			input: parseProto(t, `
+connection_sampling {
+	source: { project: "test-project" cluster_id: "test-cluster" instance_id: "primary" node_id: "v1" }
+	client_profiles: {
+		profile_name: "app-server"
+		client_address_pool: { addresses: "10.0.0.12" addresses: "::1" }
+		db_user: "app"
+		bucket_traffic: {
+			queries_per_bucket_mean: 40.0
+			queries_variation_std_dev: 8.0
+			peak_windows: { window_name: "day" hour_start: 9 hour_end: 17 multiplier: 3.0 }
+		}
+		active_window: ACTIVE_WINDOW_ALL
+	}
+	client_profiles: {
+		profile_name: "internet-scanner"
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 0.7 }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 0.3 }
+		periodic: { interval: { seconds: 600 } jitter: { seconds: 60 } }
+		active_window: ACTIVE_WINDOW_TEST_ONLY
+		attacker_profile: ATTACKER_PROFILE_INTERNET_SCANNER
+	}
+	client_profiles: {
+		profile_name: "burst-attacker"
+		client_address_pool: { addresses: "198.51.100.23" }
+		db_user: "postgres"
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTH_FAILED weight: 0.98 }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_AUTHORIZED weight: 0.02 }
+		burst: {
+			bursts_per_day: 0.5
+			connections_per_burst_mean: 500.0
+			connections_per_burst_std_dev: 100.0
+			burst_duration: { seconds: 300 }
+		}
+		active_window: ACTIVE_WINDOW_TEST_ONLY
+		attacker_profile: ATTACKER_PROFILE_BURST_ATTACKER
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+		{
+			name: "valid_connection_periodic_without_jitter",
+			input: parseProto(t, `
+connection_sampling {
+	client_profiles: {
+		client_address_pool: { cidr_ranges: "203.0.113.0/24" }
+		outcome_weights: { outcome: CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH weight: 1.0 }
+		periodic: { interval: { seconds: 600 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			err := validateConfigs(test.input)
+			if (err != nil) != test.wantErr {
+				t.Errorf("validateConfigs() error = %v, wantErr %v", err, test.wantErr)
+			}
+		})
+	}
+}
+
+// TestValidateMarkovSampling exercises validateConfigs for the markov_sampling scenario.
+// Every case is built via parseProto into a QueryTemplateConfigs and dispatched through
+// validateConfigs (the exported entry point), which routes markov_sampling configs to
+// validateMarkovSampling. This covers both the validation rules and the dispatch wiring.
+func TestValidateMarkovSampling(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   *cfgpb.QueryTemplateConfigs
+		wantErr bool
+	}{
+		// --- ids: empty id, duplicate id. Property 12, Validates R2.3, R4.3 ---
+		{
+			name: "empty_node_id",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: ""
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "duplicate_node_id",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- edges: undefined destination, NaN/Inf/negative weight. Property 13, Validates R4.5, R4.6 ---
+		{
+			name: "edge_undefined_destination",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "ghost" weight: 1.0 }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "edge_nan_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: nan }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "edge_inf_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: inf }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "edge_negative_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: -1.0 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- weight sum: inside/outside FloatTolerance boundary. Property 14, Validates R4.8, R4.9, R4.12 ---
+		{
+			name: "weight_sum_exactly_one",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.5 }
+		edges { destination_id: "b" weight: 0.5 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+		{
+			name: "weight_sum_within_tolerance",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.999999999 }
+		edges { destination_id: "b" weight: 0.0000000001 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+		{
+			name: "weight_sum_outside_tolerance",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.5 }
+		edges { destination_id: "b" weight: 0.4 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- completion time: missing, negative duration, range min > max. Property 15, Validates R2.8, R2.9, R2.10 ---
+		{
+			name: "completion_time_missing",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "completion_time_negative_duration",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { seconds: -1 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "completion_time_range_min_greater_than_max",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { range { min { seconds: 5 } max { seconds: 1 } } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "completion_time_range_valid",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { range { min { seconds: 1 } max { seconds: 5 } } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+
+		// --- reachability: a node unreachable from start. Property 16, Validates R4.11 ---
+		{
+			name: "unreachable_node",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	nodes {
+		id: "orphan"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- start spec: omitted, undefined id, bad distribution. Property 17, Validates R5.4, R5.5, R5.6 ---
+		{
+			name: "start_omitted",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_undefined_node_id",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "missing" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_all_zero_weights",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "a" weight: 0.0 } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_negative_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "a" weight: -1.0 } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_nonfinite_weight",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "a" weight: inf } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_undefined_node_id",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "ghost" weight: 1.0 } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "start_distribution_valid",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 1.0 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { distribution { starts { node_id: "a" weight: 0.7 } starts { node_id: "b" weight: 0.3 } } }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+
+		// --- per-node template placeholder-count mismatch. Property 18, Validates R4.13 ---
+		{
+			name: "template_placeholder_count_mismatch",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template {
+			normalized_query_template: "SELECT * FROM users WHERE age > %v AND salary > %v"
+			placeholder_values: { int_placeholder: { min: 18 max: 65 } }
+		}
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+		{
+			name: "empty_node_template",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- empty graph (R4.2) and dispatch through validateConfigs (R4.1, R10.2) ---
+		{
+			name: "no_nodes",
+			input: parseProto(t, `
+markov_sampling {
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: true,
+		},
+
+		// --- a well-formed graph that is ACCEPTED (wantErr false) ---
+		{
+			name: "valid_markov_sampling",
+			input: parseProto(t, `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.75 }
+		edges { destination_id: "a" weight: 0.25 }
+	}
+	nodes {
+		id: "b"
+		template {
+			normalized_query_template: "SELECT * FROM users WHERE id = %v"
+			placeholder_values: { int_placeholder: { min: 1 max: 10 } }
+		}
+		completion_time { range { min { nanos: 500000 } max { nanos: 2000000 } } }
+	}
+	start { node_id: "a" }
+}`, &cfgpb.QueryTemplateConfigs{}),
+			wantErr: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Route through validateConfigs so the markov_sampling dispatch (R4.1, R10.2)
+			// is exercised alongside validateMarkovSampling.
 			err := validateConfigs(test.input)
 			if (err != nil) != test.wantErr {
 				t.Errorf("validateConfigs() error = %v, wantErr %v", err, test.wantErr)
@@ -690,6 +1459,487 @@ bucket_sampling {
 			if !test.wantErr {
 				if diff := cmp.Diff(test.wantConfig, configs, protocmp.Transform()); diff != "" {
 					t.Errorf("loadConfigs() mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestLoadConfigsConnectionExample(t *testing.T) {
+	// Keeps the checked-in example connection config in sync with the schema and validation rules.
+	examplePath := filepath.Join("..", "..", "client", "connection_generator_config.textproto")
+	configs, err := loadConfigs(context.Background(), examplePath)
+	if err != nil {
+		t.Fatalf("loadConfigs(%q) error = %v, want nil", examplePath, err)
+	}
+	if got := len(configs.GetConnectionSampling().GetClientProfiles()); got == 0 {
+		t.Errorf("loadConfigs(%q) returned %d client profiles, want at least 1", examplePath, got)
+	}
+}
+
+// TestValidateSubtype exercises validateSubtype against an already-resolved
+// in-memory base graph. validateSubtype takes a *MarkovSamplingConfig base, so
+// each case parses a base via GetMarkovSampling() and a subtype via
+// GetMarkovSubtype() and asserts the override-level checks (R13.3-R13.8) plus the
+// nil-base guard. The base-ref cases (missing/unparseable/non-markov_sampling,
+// R13.2) are covered by TestResolveBaseGraphFile, which owns that responsibility
+// in the impl.
+//
+// Property 28, Validates R12.2, R13.2, R13.3, R13.4, R13.5, R13.6, R13.7, R13.8
+func TestValidateSubtype(t *testing.T) {
+	// A valid resolved base graph: non-terminal "a" with edges to "b" and "c"
+	// summing to 1.0, and terminal "b"/"c".
+	const baseText = `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.6 }
+		edges { destination_id: "c" weight: 0.4 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	nodes {
+		id: "c"
+		template { normalized_query_template: "SELECT 3" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`
+
+	// parseBase / parseSub turn textprotos into the resolved base and subtype
+	// messages validateSubtype consumes.
+	parseBase := func(t *testing.T) *cfgpb.MarkovSamplingConfig {
+		t.Helper()
+		base := parseProto(t, baseText, &cfgpb.QueryTemplateConfigs{}).GetMarkovSampling()
+		if base == nil {
+			t.Fatal("baseText did not parse into a markov_sampling config")
+		}
+		return base
+	}
+	parseSub := func(t *testing.T, text string) *cfgpb.MarkovSubtypeConfig {
+		t.Helper()
+		sub := parseProto(t, text, &cfgpb.QueryTemplateConfigs{}).GetMarkovSubtype()
+		if sub == nil {
+			t.Fatal("subtype text did not parse into a markov_subtype config")
+		}
+		return sub
+	}
+
+	tests := []struct {
+		name string
+		// subtype is the markov_subtype textproto; nilBase replaces the resolved
+		// base with nil to exercise the "base graph was not resolved" guard.
+		subtype    string
+		nilBase    bool
+		wantErr    bool
+		wantErrSub string
+	}{
+		{
+			name: "valid_sum_preserving_overrides",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.9 }
+	edge_weight_overrides: { source_id: "a" destination_id: "c" weight: 0.1 }
+}`,
+			wantErr: false,
+		},
+		{
+			name: "valid_single_override_renormalizable",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 3.0 }
+}`,
+			wantErr: false,
+		},
+
+		// --- nil base: "base graph was not resolved" (R13.2 surrogate guard). ---
+		{
+			name: "nil_base",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+}`,
+			nilBase:    true,
+			wantErr:    true,
+			wantErrSub: "base graph was not resolved",
+		},
+
+		// --- undefined source (R13.3). ---
+		{
+			name: "undefined_source",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "ghost" destination_id: "b" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `source "ghost" is not a defined node`,
+		},
+
+		// --- undefined destination (R13.4). ---
+		{
+			name: "undefined_destination",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "ghost" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `destination "ghost" is not a defined node`,
+		},
+
+		// --- (src,dst) pair has no base edge (R13.5): "b" is terminal, so a->... is fine but c has no edge from a? a has edges to b and c; use b (terminal) as source with a valid dest. ---
+		{
+			name: "pair_has_no_base_edge",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "b" destination_id: "c" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `base graph has no edge from "b" to "c"`,
+		},
+
+		// --- non-finite / negative weight (R13.6). ---
+		{
+			name: "nan_weight",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: nan }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight must be finite and non-negative",
+		},
+		{
+			name: "inf_weight",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: inf }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight must be finite and non-negative",
+		},
+		{
+			name: "negative_weight",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: -1.0 }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight must be finite and non-negative",
+		},
+
+		// --- duplicate (src,dst) override pair (R13.7). ---
+		{
+			name: "duplicate_pair",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.5 }
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.7 }
+}`,
+			wantErr:    true,
+			wantErrSub: `duplicate edge_weight_override for pair ("a", "b")`,
+		},
+
+		// --- post-override outgoing sum non-positive (R13.8): zero out both edges of "a". ---
+		{
+			name: "non_positive_post_override_sum",
+			subtype: `
+markov_subtype {
+	base_graph_path: "base.textpb"
+	edge_weight_overrides: { source_id: "a" destination_id: "b" weight: 0.0 }
+	edge_weight_overrides: { source_id: "a" destination_id: "c" weight: 0.0 }
+}`,
+			wantErr:    true,
+			wantErrSub: "must be positive to renormalize",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var base *cfgpb.MarkovSamplingConfig
+			if !test.nilBase {
+				base = parseBase(t)
+			}
+			sub := parseSub(t, test.subtype)
+
+			err := validateSubtype(sub, base)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validateSubtype() error = %v, wantErr %v", err, test.wantErr)
+			}
+			if test.wantErrSub != "" {
+				if err == nil {
+					t.Fatalf("validateSubtype() error = nil, want error containing %q", test.wantErrSub)
+				}
+				if !strings.Contains(err.Error(), test.wantErrSub) {
+					t.Errorf("validateSubtype() error = %q, want substring %q", err.Error(), test.wantErrSub)
+				}
+			}
+		})
+	}
+}
+
+// TestValidateIndividual verifies individual-configuration validation against a
+// resolved class graph (base + optional subtype_overrides). It covers, by case
+// group: individual_edge_override with an undefined source/destination, a
+// (src,dst) matching no class edge, and a non-finite/negative weight (R16.2,
+// R16.3, R16.4); edge_variance with a non-finite/negative down or up delta
+// (R16.5); weight_jitter with a non-finite/negative bound (R16.6); the nil-base
+// guard; and a well-formed config that validates.
+//
+// R16.8 (non-positive pre-renormalization sum) is NOT checked here: it is enforced
+// at derivation time by renormalizeOutgoing, and is covered by
+// TestDeriveIndividual_NonPositiveSumError in markov_derive_test.go.
+//
+// Property 29, Validates R16.2, R16.3, R16.4, R16.5, R16.6, R16.8
+func TestValidateIndividual(t *testing.T) {
+	// A valid resolved base/class graph: non-terminal "a" with edges to "b" and
+	// "c" summing to 1.0, terminal "b"/"c".
+	const baseText = `
+markov_sampling {
+	nodes {
+		id: "a"
+		template { normalized_query_template: "SELECT 1" }
+		completion_time { fixed { nanos: 1000000 } }
+		edges { destination_id: "b" weight: 0.6 }
+		edges { destination_id: "c" weight: 0.4 }
+	}
+	nodes {
+		id: "b"
+		template { normalized_query_template: "SELECT 2" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	nodes {
+		id: "c"
+		template { normalized_query_template: "SELECT 3" }
+		completion_time { fixed { nanos: 1000000 } }
+	}
+	start { node_id: "a" }
+}`
+
+	parseBase := func(t *testing.T) *cfgpb.MarkovSamplingConfig {
+		t.Helper()
+		base := parseProto(t, baseText, &cfgpb.QueryTemplateConfigs{}).GetMarkovSampling()
+		if base == nil {
+			t.Fatal("baseText did not parse into a markov_sampling config")
+		}
+		return base
+	}
+	parseInd := func(t *testing.T, text string) *cfgpb.MarkovIndividualConfig {
+		t.Helper()
+		ind := parseProto(t, text, &cfgpb.QueryTemplateConfigs{}).GetMarkovIndividual()
+		if ind == nil {
+			t.Fatal("individual text did not parse into a markov_individual config")
+		}
+		return ind
+	}
+
+	tests := []struct {
+		name string
+		// individual is the markov_individual textproto; nilBase replaces the
+		// resolved base with nil to exercise the "base graph was not resolved" guard.
+		individual string
+		nilBase    bool
+		wantErr    bool
+		wantErrSub string
+	}{
+		{
+			name: "valid_full_config",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: 0.5 }
+	edge_variances: { source_id: "a" destination_id: "c" down: 0.1 up: 0.2 }
+	weight_jitter: { bound: 0.05 }
+}`,
+			wantErr: false,
+		},
+		{
+			name: "valid_no_mechanisms",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+}`,
+			wantErr: false,
+		},
+
+		// --- nil base guard. ---
+		{
+			name: "nil_base",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+}`,
+			nilBase:    true,
+			wantErr:    true,
+			wantErrSub: "base graph was not resolved",
+		},
+
+		// --- individual_edge_override undefined source (R16.2). ---
+		{
+			name: "override_undefined_source",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "ghost" destination_id: "b" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `individual_edge_override 0: source "ghost" is not a defined node in the class graph`,
+		},
+
+		// --- individual_edge_override undefined destination (R16.2). ---
+		{
+			name: "override_undefined_destination",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "ghost" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `individual_edge_override 0: destination "ghost" is not a defined node in the class graph`,
+		},
+
+		// --- individual_edge_override names no class edge (R16.3). "b" is
+		//     terminal, so (b -> c) matches no edge. ---
+		{
+			name: "override_no_such_edge",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "b" destination_id: "c" weight: 0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: `individual_edge_override 0: class graph has no edge from "b" to "c"`,
+		},
+
+		// --- individual_edge_override non-finite / negative weight (R16.4). ---
+		{
+			name: "override_nan_weight",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: nan }
+}`,
+			wantErr:    true,
+			wantErrSub: "individual_edge_override 0: weight must be finite and non-negative",
+		},
+		{
+			name: "override_inf_weight",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: inf }
+}`,
+			wantErr:    true,
+			wantErrSub: "individual_edge_override 0: weight must be finite and non-negative",
+		},
+		{
+			name: "override_negative_weight",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	individual_edge_overrides: { source_id: "a" destination_id: "b" weight: -0.5 }
+}`,
+			wantErr:    true,
+			wantErrSub: "individual_edge_override 0: weight must be finite and non-negative",
+		},
+
+		// --- edge_variance non-finite / negative down delta (R16.5). ---
+		{
+			name: "variance_nan_down",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	edge_variances: { source_id: "a" destination_id: "b" down: nan up: 0.1 }
+}`,
+			wantErr:    true,
+			wantErrSub: `edge_variance 0 ("a" -> "b"): down delta must be finite and non-negative`,
+		},
+		{
+			name: "variance_negative_down",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	edge_variances: { source_id: "a" destination_id: "b" down: -0.1 up: 0.1 }
+}`,
+			wantErr:    true,
+			wantErrSub: `edge_variance 0 ("a" -> "b"): down delta must be finite and non-negative`,
+		},
+
+		// --- edge_variance non-finite / negative up delta (R16.5). ---
+		{
+			name: "variance_inf_up",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	edge_variances: { source_id: "a" destination_id: "b" down: 0.1 up: inf }
+}`,
+			wantErr:    true,
+			wantErrSub: `edge_variance 0 ("a" -> "b"): up delta must be finite and non-negative`,
+		},
+		{
+			name: "variance_negative_up",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	edge_variances: { source_id: "a" destination_id: "b" down: 0.1 up: -0.2 }
+}`,
+			wantErr:    true,
+			wantErrSub: `edge_variance 0 ("a" -> "b"): up delta must be finite and non-negative`,
+		},
+
+		// --- weight_jitter non-finite / negative bound (R16.6). ---
+		{
+			name: "jitter_nan_bound",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	weight_jitter: { bound: nan }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight_jitter bound must be finite and non-negative",
+		},
+		{
+			name: "jitter_negative_bound",
+			individual: `
+markov_individual {
+	base_graph_path: "base.textpb"
+	weight_jitter: { bound: -0.05 }
+}`,
+			wantErr:    true,
+			wantErrSub: "weight_jitter bound must be finite and non-negative",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var base *cfgpb.MarkovSamplingConfig
+			if !test.nilBase {
+				base = parseBase(t)
+			}
+			ind := parseInd(t, test.individual)
+
+			err := validateIndividual(ind, base)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validateIndividual() error = %v, wantErr %v", err, test.wantErr)
+			}
+			if test.wantErrSub != "" {
+				if err == nil {
+					t.Fatalf("validateIndividual() error = nil, want error containing %q", test.wantErrSub)
+				}
+				if !strings.Contains(err.Error(), test.wantErrSub) {
+					t.Errorf("validateIndividual() error = %q, want substring %q", err.Error(), test.wantErrSub)
 				}
 			}
 		})

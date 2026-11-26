@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package experimental.anomaly_detection.v1.generator.proto;
+
+option go_package = "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/generator/proto;generatorpb";
+
+// Represents one connection attempt, joined from the AlloyDB "connection
+// received", "connection authenticated" and "connection authorized" log lines
+// that share a backend PID. Used both for synthetic data generation and for
+// log ingestion by the anomaly detection service application.
+message ConnectionLogEntry {
+  // Time of the "connection received" line.
+  int64 timestamp_ms = 1;
+
+  string client_address = 2;
+
+  // Ephemeral client port. Informational only, not used for allowlisting.
+  int32 client_port = 3;
+
+  // Empty when the client never authenticated.
+  string db_user = 4;
+
+  string db_name = 5;
+
+  string application_name = 6;
+
+  // Authentication method, e.g. "trust" or "scram-sha-256".
+  string auth_method = 7;
+
+  ConnectionOutcome outcome = 8;
+
+  SourceInstance source = 9;
+
+  // Backend process ID used to join the raw log lines, kept for debugging.
+  int32 backend_pid = 10;
+
+  // Ground truth label (true: anomalous, false: normal).
+  // Optional for live logs sent to the service application.
+  bool is_ground_truth_anomalous = 11;
+
+  // Ground truth attacker profile, set by the generator only.
+  AttackerProfile ground_truth_profile = 12;
+}
+
+enum ConnectionOutcome {
+  CONNECTION_OUTCOME_UNSPECIFIED = 0;
+
+  // Reached the "connection authorized" line.
+  CONNECTION_OUTCOME_AUTHORIZED = 1;
+
+  // Rejected during authentication, e.g. "password authentication failed".
+  CONNECTION_OUTCOME_AUTH_FAILED = 2;
+
+  // Only a "connection received" line appeared.
+  CONNECTION_OUTCOME_DROPPED_BEFORE_AUTH = 3;
+}
+
+enum AttackerProfile {
+  // Normal traffic.
+  ATTACKER_PROFILE_UNSPECIFIED = 0;
+
+  // Periodic connections, about one every 10 minutes.
+  ATTACKER_PROFILE_INTERNET_SCANNER = 1;
+
+  // High-volume bursts of connections.
+  ATTACKER_PROFILE_BURST_ATTACKER = 2;
+}
+
+// AlloyDB instance that produced the log lines, from the Cloud Logging
+// resource and labels.
+message SourceInstance {
+  string project = 1;
+  string cluster_id = 2;
+  string instance_id = 3;
+  string node_id = 4;
+}
