@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protodelim"
 
@@ -80,4 +82,55 @@ func (g *LogGenerator) buildQueryStatement(cfg *genpb.QueryTemplateConfig) strin
 		}
 	}
 	return fmt.Sprintf(cfg.GetNormalizedQueryTemplate(), vals...)
+}
+
+func (g *LogGenerator) appendPGAuditReads(logs []*genpb.AuditLogEntry, template *genpb.BucketQueryTemplateConfig, bucketStart, bucketEnd, trainEnd time.Time, bucketSize time.Duration) []*genpb.AuditLogEntry {
+	config := template.GetBucketConfig()
+	var sessionID string
+	for phaseStart := bucketStart; phaseStart.Before(bucketEnd); {
+		isTraining := phaseStart.Before(trainEnd)
+		phaseEnd := bucketEnd
+		if isTraining && trainEnd.Before(bucketEnd) {
+			phaseEnd = trainEnd
+		}
+
+		isSpike := !isTraining && g.rng.Float64() < config.GetAnomalousSpikeProbability()
+		count := SampleQueryCount(template, isSpike, phaseStart.Hour(), phaseStart.Weekday(), g.rng)
+		phaseSize := phaseEnd.Sub(phaseStart)
+		if phaseSize < bucketSize {
+			// Prorate the counts so a split bucket does not produce two full buckets of traffic.
+			count = int(math.Round(float64(count) * float64(phaseSize) / float64(bucketSize)))
+		}
+
+		if sessionID == "" {
+			sessionID = fmt.Sprintf("%016x", g.rng.Uint64())
+		}
+		for i := 0; i < count; i++ {
+			timestampMs := SampleTimestampMs(template, phaseStart, phaseSize.Milliseconds(), g.rng)
+			isAnomalous := isSpike || (!isTraining && g.rng.Float64() < config.GetAnomalousRowsProbability())
+			entry := g.BuildBucketLog(template, isAnomalous, timestampMs)
+			entry.DatabaseSessionId = sessionID
+			entry.RowsReturned = samplePGAuditRows(config, isAnomalous, g.rng)
+			logs = append(logs, entry)
+		}
+		phaseStart = phaseEnd
+	}
+	return logs
+}
+
+func samplePGAuditRows(config *genpb.BucketSimulationConfig, isAnomalous bool, rng *rand.Rand) int64 {
+	mean := config.GetRowsReturnedMean()
+	// A query-count spike can use the normal rows per read.
+	if multiplier := config.GetAnomalousRowsMultiplier(); isAnomalous && multiplier > 0 {
+		mean *= multiplier
+	}
+	rows := math.Round(mean + rng.NormFloat64()*config.GetRowsReturnedStdDev())
+	maxRows := config.GetRowsReturnedMax()
+	if rows >= float64(maxRows) {
+		return maxRows
+	}
+	if rows <= 0 {
+		return 0
+	}
+	return int64(rows)
 }

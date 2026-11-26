@@ -44,6 +44,9 @@ func isFiniteNonNegative(v float64) bool {
 
 // validateConfigs ensures logical integrity of the loaded configurations.
 func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
+	if *pgauditScenario && configs.GetBucketSampling() == nil {
+		return fmt.Errorf("--pgaudit_scenario requires a bucket_sampling configuration")
+	}
 	// Identify scenario: Weighted or Bucket sampling.
 	if configs.GetWeightedSampling() != nil {
 		cfgs := configs.GetWeightedSampling().GetQueryTemplateConfigs()
@@ -78,6 +81,8 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 			return fmt.Errorf("configuration contains no query templates")
 		}
 		hasPositiveMean := false
+		hasPGAuditTemplates := false
+		hasPGAuditReadTraffic := false
 		for i, bCfg := range cfgs {
 			simCfg := bCfg.GetBucketConfig()
 			if simCfg == nil {
@@ -106,11 +111,31 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 				return err
 			}
 
-			if err := validateQueryTemplate(i, bCfg.GetTemplate()); err != nil {
+			template := bCfg.GetTemplate()
+			if err := validateQueryTemplate(i, template); err != nil {
 				return err
+			}
+			if !pgauditEnabled(simCfg) {
+				continue
+			}
+			hasPGAuditTemplates = true
+			if template.IsReadQuery == nil {
+				return fmt.Errorf("config[%d]: set is_read_query for pgAudit generation", i)
+			}
+			if !template.GetIsReadQuery() {
+				continue
+			}
+			if err := validatePGAuditRows(i, simCfg); err != nil {
+				return err
+			}
+			if simCfg.GetQueriesPerBucketMean() > 0 {
+				hasPGAuditReadTraffic = true
 			}
 		}
 
+		if hasPGAuditTemplates && !hasPGAuditReadTraffic {
+			return fmt.Errorf("pgAudit generation requires a read template with queries_per_bucket_mean > 0")
+		}
 		if !hasPositiveMean {
 			return fmt.Errorf("at least one template must have a queries_per_bucket_mean > 0 for bucket_sampling")
 		}
@@ -119,6 +144,32 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 		return fmt.Errorf("configuration must specify either weighted_sampling or bucket_sampling")
 	}
 
+	return nil
+}
+
+func validatePGAuditRows(templateIndex int, config *cfgpb.BucketSimulationConfig) error {
+	mean := config.GetRowsReturnedMean()
+	if !isFiniteNonNegative(mean) || mean == 0 {
+		return fmt.Errorf("config[%d]: rows_returned_mean must be finite and positive", templateIndex)
+	}
+	if !isFiniteNonNegative(config.GetRowsReturnedStdDev()) {
+		return fmt.Errorf("config[%d]: rows_returned_std_dev must be finite and non-negative", templateIndex)
+	}
+	probability := config.GetAnomalousRowsProbability()
+	if !isFiniteNonNegative(probability) || probability > 1 {
+		return fmt.Errorf("config[%d]: anomalous_rows_probability must be in [0, 1]", templateIndex)
+	}
+	multiplier := config.GetAnomalousRowsMultiplier()
+	if !isFiniteNonNegative(multiplier) || math.IsInf(mean*multiplier, 0) {
+		return fmt.Errorf("config[%d]: anomalous_rows_multiplier must give a finite, non-negative row mean", templateIndex)
+	}
+	if probability > 0 && multiplier <= 1 {
+		return fmt.Errorf("config[%d]: anomalous_rows_multiplier must be greater than 1 when anomalous_rows_probability is positive", templateIndex)
+	}
+	maxRows := config.GetRowsReturnedMax()
+	if maxRows <= 0 || float64(maxRows) < mean {
+		return fmt.Errorf("config[%d]: rows_returned_max must be positive and at least rows_returned_mean", templateIndex)
+	}
 	return nil
 }
 

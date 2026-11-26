@@ -28,6 +28,7 @@ func backupFlags(t *testing.T) {
 	origTrainEnd := *trainEndTimeMs
 	origEnd := *endTimeMs
 	origBucketSize := *bucketSizeMinutes
+	origSeed := *seedFlag
 	t.Cleanup(func() {
 		*configFile = origConfigFile
 		*outputDir = origOutputDir
@@ -36,6 +37,7 @@ func backupFlags(t *testing.T) {
 		*trainEndTimeMs = origTrainEnd
 		*endTimeMs = origEnd
 		*bucketSizeMinutes = origBucketSize
+		*seedFlag = origSeed
 	})
 }
 

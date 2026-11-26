@@ -26,7 +26,10 @@ var (
 	// Scenario 1 (weighted random sampling) flags.
 	numLogs = flag.Int("num_logs", 50000, "Total number of logs to generate.")
 
+	seedFlag = flag.Int64("seed", 0, "Random seed for reproducible output. Omit to pick a seed automatically.")
+
 	// Scenario 2 and 3 (bucket sampling) flags.
+	pgauditScenario   = flag.Bool("pgaudit_scenario", false, "Generate pgAudit read logs with row counts and session IDs.")
 	startTimeMs       = flag.Int64("start_time_ms", 0, "Start timestamp of the simulated logs (in milliseconds).")
 	trainEndTimeMs    = flag.Int64("train_end_time_ms", 0, "Training/test partition timestamp of the simulated logs (in milliseconds).")
 	endTimeMs         = flag.Int64("end_time_ms", 0, "End timestamp of the simulated logs (in milliseconds).")
@@ -59,7 +62,15 @@ func main() {
 		log.Printf("Configuration applied - Output Dir: %q, Start: %d, End: %d, Bucket Size: %d min", *outputDir, *startTimeMs, *endTimeMs, *bucketSizeMinutes)
 	}
 
-	if err := GenerateLogs(ctx, configs, *numLogs, rand.Int63(), *outputDir); err != nil {
+	seed := rand.Int63()
+	flag.Visit(func(option *flag.Flag) {
+		if option.Name == "seed" {
+			seed = *seedFlag
+		}
+	})
+	log.Printf("Using random seed: %d", seed)
+
+	if err := GenerateLogs(ctx, configs, *numLogs, seed, *outputDir); err != nil {
 		log.Fatalf("Failed to generate logs: %v", err)
 	}
 
@@ -109,6 +120,9 @@ func validateScenarioFlags(ctx context.Context, configs *genpb.QueryTemplateConf
 
 // GenerateLogs samples and writes synthetic database audit logs to a single logs.binproto file.
 func GenerateLogs(ctx context.Context, configs *genpb.QueryTemplateConfigs, numLogs int, seed int64, outputDir string) error {
+	if err := validateConfigs(configs); err != nil {
+		return err
+	}
 	if !filepath.IsAbs(outputDir) {
 		if workspaceDir := os.Getenv("BUILD_WORKSPACE_DIRECTORY"); workspaceDir != "" {
 			outputDir = filepath.Join(workspaceDir, outputDir)
@@ -152,7 +166,11 @@ func GenerateLogsWeighted(configs *genpb.QueryTemplateConfigs, numLogs int, rng 
 	return nil
 }
 
-// GenerateLogsBucketByBucket generates bucket-based audit logs bucket-by-bucket and writes them to the writer.
+func pgauditEnabled(config *genpb.BucketSimulationConfig) bool {
+	return *pgauditScenario || config.GetPgauditScenario()
+}
+
+// GenerateLogsBucketByBucket writes each bucket's audit logs in timestamp order.
 func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.Rand, w io.Writer) error {
 	startTime := time.UnixMilli(*startTimeMs)
 	endTime := time.UnixMilli(*endTimeMs)
@@ -164,22 +182,26 @@ func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.R
 	// Iterate through each bucket in the time window.
 	for current := startTime; current.Before(endTime); current = current.Add(bucketSize) {
 		isTrainingPhase := current.Before(trainEndTime)
+		pgauditBucketEnd := current.Add(bucketSize)
+		if endTime.Before(pgauditBucketEnd) {
+			pgauditBucketEnd = endTime
+		}
 
-		// Generate and buffer logs for all templates in the current bucket.
 		var logs []*genpb.AuditLogEntry
-		for _, cfg := range configs.GetBucketSampling().GetQueryTemplateConfigs() {
-			// Anomalous spikes only occur in the testing phase.
-			isSpike := false
-			if !isTrainingPhase && cfg.GetBucketConfig() != nil {
-				isSpike = rng.Float64() < cfg.GetBucketConfig().GetAnomalousSpikeProbability()
+		for _, template := range configs.GetBucketSampling().GetQueryTemplateConfigs() {
+			bucketConfig := template.GetBucketConfig()
+			if pgauditEnabled(bucketConfig) {
+				if template.GetTemplate().GetIsReadQuery() {
+					logs = generator.appendPGAuditReads(logs, template, current, pgauditBucketEnd, trainEndTime, bucketSize)
+				}
+				continue
 			}
 
-			count := SampleQueryCount(cfg, isSpike, current.Hour(), current.Weekday(), rng)
-
+			isSpike := !isTrainingPhase && bucketConfig != nil && rng.Float64() < bucketConfig.GetAnomalousSpikeProbability()
+			count := SampleQueryCount(template, isSpike, current.Hour(), current.Weekday(), rng)
 			for i := 0; i < count; i++ {
-				timestampMs := SampleTimestampMs(cfg, current, bucketSizeMs, rng)
-				entry := generator.BuildBucketLog(cfg, isSpike, timestampMs)
-				logs = append(logs, entry)
+				timestampMs := SampleTimestampMs(template, current, bucketSizeMs, rng)
+				logs = append(logs, generator.BuildBucketLog(template, isSpike, timestampMs))
 			}
 		}
 
