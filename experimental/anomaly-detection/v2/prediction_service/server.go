@@ -224,6 +224,10 @@ func findMatchingModels(ctx context.Context, location string, filter *prediction
 	// Case 1: Single model file
 	if stat, err := os.Stat(targetPath); err == nil && !stat.IsDir() {
 		return collectModels(ctx, []string{targetPath}, filter, isPredict)
+	} else if os.IsNotExist(err) && !isPredict && strings.TrimSpace(location) != "" {
+		// Listing an explicitly requested missing location is an empty result.
+		// Prediction and a missing default models directory still report errors.
+		return nil, nil
 	}
 
 	// Case 2: Directory of models (custom dir or default models_dir)
@@ -317,6 +321,9 @@ func modelFromProto(pb *modelpb.Model) (service.Model, error) {
 
 	case modelpb.Model_TemporalDeviation_case:
 		return service.NewTemporalDeviationModel(pb)
+
+	case modelpb.Model_ChiSquared_case:
+		return service.NewChiSquaredModel(pb)
 
 	default:
 		return nil, fmt.Errorf("unknown scenario case in proto: %v", pb.WhichScenario())
