@@ -27,4 +27,11 @@ message AuditLogEntry {
 
   // Synthetic number of rows returned by a read statement.
   int64 rows_returned = 8;
+
+  // Synthetic provenance. Empty for older/non-mixed generators; "normal"
+  // outside injected segments. Never used as a detection feature.
+  string ground_truth_profile = 9;
+
+  // Empty outside an injected segment.
+  string ground_truth_segment_id = 10;
 }

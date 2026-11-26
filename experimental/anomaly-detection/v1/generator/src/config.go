@@ -7,10 +7,12 @@ import (
 	"math"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	cfgpb "github.com/GoogleCloudPlatform/alloydb-omni-samples/experimental/anomaly-detection/v1/generator/proto"
@@ -194,8 +196,15 @@ func validateConfigs(configs *cfgpb.QueryTemplateConfigs) error {
 		}
 	} else if configs.GetMarkovSampling() != nil {
 		return validateMarkovSampling(configs.GetMarkovSampling())
+
+	} else if configs.GetMarkovSubtype() != nil {
+		return validateSubtype(configs.GetMarkovSubtype(), resolvedBaseGraph)
+
+	} else if configs.GetMarkovIndividual() != nil {
+		return validateIndividual(configs.GetMarkovIndividual(), resolvedBaseGraph)
+
 	} else {
-		return fmt.Errorf("configuration must specify either weighted_sampling, bucket_sampling, connection_sampling, or markov_sampling")
+		return fmt.Errorf("configuration must specify either weighted_sampling, bucket_sampling, connection_sampling, markov_sampling, markov_subtype or markov_individual")
 	}
 
 	return nil
