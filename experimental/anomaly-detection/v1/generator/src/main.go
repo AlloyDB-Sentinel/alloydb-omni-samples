@@ -192,7 +192,7 @@ func GenerateLogsBucketByBucket(configs *genpb.QueryTemplateConfigs, rng *rand.R
 			bucketConfig := template.GetBucketConfig()
 			if pgauditEnabled(bucketConfig) {
 				if template.GetTemplate().GetIsReadQuery() {
-					logs = generator.appendPGAuditReads(logs, template, current, pgauditBucketEnd, trainEndTime)
+					logs = generator.appendPGAuditReads(logs, template, current, pgauditBucketEnd, trainEndTime, bucketSize)
 				}
 				continue
 			}

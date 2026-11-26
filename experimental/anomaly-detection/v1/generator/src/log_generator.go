@@ -84,9 +84,8 @@ func (g *LogGenerator) buildQueryStatement(cfg *genpb.QueryTemplateConfig) strin
 	return fmt.Sprintf(cfg.GetNormalizedQueryTemplate(), vals...)
 }
 
-func (g *LogGenerator) appendPGAuditReads(logs []*genpb.AuditLogEntry, template *genpb.BucketQueryTemplateConfig, bucketStart, bucketEnd, trainEnd time.Time) []*genpb.AuditLogEntry {
+func (g *LogGenerator) appendPGAuditReads(logs []*genpb.AuditLogEntry, template *genpb.BucketQueryTemplateConfig, bucketStart, bucketEnd, trainEnd time.Time, bucketSize time.Duration) []*genpb.AuditLogEntry {
 	config := template.GetBucketConfig()
-	bucketSize := bucketEnd.Sub(bucketStart)
 	var sessionID string
 	for phaseStart := bucketStart; phaseStart.Before(bucketEnd); {
 		isTraining := phaseStart.Before(trainEnd)
@@ -96,7 +95,7 @@ func (g *LogGenerator) appendPGAuditReads(logs []*genpb.AuditLogEntry, template 
 		}
 
 		isSpike := !isTraining && g.rng.Float64() < config.GetAnomalousSpikeProbability()
-		count := SampleQueryCount(template, isSpike, bucketStart.Hour(), bucketStart.Weekday(), g.rng)
+		count := SampleQueryCount(template, isSpike, phaseStart.Hour(), phaseStart.Weekday(), g.rng)
 		phaseSize := phaseEnd.Sub(phaseStart)
 		if phaseSize < bucketSize {
 			// Prorate the counts so a split bucket does not produce two full buckets of traffic.

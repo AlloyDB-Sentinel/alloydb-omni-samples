@@ -26,8 +26,8 @@ func TestGeneratePGAuditReadLogs(t *testing.T) {
 		wantTestReads int
 		wantTestRows  int64
 	}{
-		{"extra rows", "anomalous_rows_probability: 1 anomalous_rows_multiplier: 4", 6, 100},
-		{"query-count spike", "anomalous_spike_probability: 1 anomalous_spike_multiplier: 3", 18, 30},
+		{"extra rows", "anomalous_rows_probability: 1 anomalous_rows_multiplier: 4", 4, 100},
+		{"query-count spike", "anomalous_spike_probability: 1 anomalous_spike_multiplier: 3", 12, 30},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			configs := parseProto(t, fmt.Sprintf(`
